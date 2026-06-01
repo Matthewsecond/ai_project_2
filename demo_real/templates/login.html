@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Jobs Intelligence Austria</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#f0efe8;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+
+.login-wrap{
+  width:100%;
+  max-width:400px;
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+}
+
+/* Logo / brand */
+.login-brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  justify-content:center;
+}
+.login-brand-mark{
+  width:38px;height:38px;
+  background:#1a3864;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.login-brand-mark svg{width:20px;height:20px;fill:#fff}
+.login-brand-name{
+  font-size:17px;font-weight:700;color:#1a1a18;line-height:1.2;
+}
+.login-brand-sub{font-size:11px;color:#888;margin-top:1px}
+
+/* Card */
+.login-card{
+  background:#fff;
+  border-radius:14px;
+  border:1px solid #d8d7d0;
+  box-shadow:0 6px 28px rgba(0,0,0,.09);
+  padding:32px 36px 36px;
+}
+
+.login-title{
+  font-size:20px;font-weight:700;color:#1a1a18;
+  margin-bottom:6px;
+}
+.login-sub{
+  font-size:12.5px;color:#888;
+  margin-bottom:26px;
+  line-height:1.5;
+}
+
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:16px}
+.form-label{font-size:11.5px;font-weight:600;color:#555;letter-spacing:.03em}
+.form-input{
+  width:100%;
+  padding:10px 13px;
+  border:1.5px solid #d8d7d0;
+  border-radius:8px;
+  font-size:13.5px;
+  font-family:inherit;
+  color:#1a1a18;
+  background:#fafaf8;
+  outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.form-input:focus{
+  border-color:#1a56c4;
+  background:#fff;
+  box-shadow:0 0 0 3px rgba(26,86,196,.12);
+}
+
+.login-btn{
+  width:100%;
+  padding:11px;
+  background:#1a3864;
+  color:#fff;
+  font-size:14px;
+  font-weight:600;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-family:inherit;
+  margin-top:8px;
+  transition:background .15s,transform .1s;
+  letter-spacing:.02em;
+}
+.login-btn:hover{background:#1a56c4}
+.login-btn:active{transform:scale(.98)}
+
+.login-error{
+  display:flex;align-items:center;gap:8px;
+  margin-top:14px;
+  padding:10px 13px;
+  background:#fef2f2;
+  border:1px solid #fca5a5;
+  border-radius:8px;
+  font-size:12.5px;
+  color:#b91c1c;
+}
+
+/* User list hint */
+.login-hint{
+  font-size:11px;
+  color:#aaa;
+  text-align:center;
+  line-height:1.6;
+  margin-top:4px;
+}
+.login-hint b{color:#888}
+
+.login-footer{
+  text-align:center;
+  font-size:11px;
+  color:#bbb;
+}
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <!-- Brand -->
+  <div class="login-brand">
+    <div class="login-brand-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+    </div>
+    <div>
+      <div class="login-brand-name">Jobs Intelligence Austria</div>
+      <div class="login-brand-sub">Internal HR Platform</div>
+    </div>
+  </div>
+
+  <!-- Card -->
+  <div class="login-card">
+    <div class="login-title">Sign in</div>
+    <div class="login-sub">Enter your credentials to access the platform.</div>
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username"
+               value="{{ prefill_user }}" autocomplete="username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" name="password"
+               value="{{ prefill_pass }}" autocomplete="current-password" required>
+      </div>
+
+      <button class="login-btn" type="submit">Sign in →</button>
+
+      {% if error %}
+      <div class="login-error">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {{ error }}
+      </div>
+      {% endif %}
+    </form>
+
+    <div class="login-hint" style="margin-top:20px">
+      Test accounts — <b>admin</b> / admin &nbsp;·&nbsp; <b>Monika2</b> / m235 &nbsp;·&nbsp; <b>hr_manager</b> / jobs2024
+    </div>
+  </div>
+
+  <div class="login-footer">Jobs Intelligence Austria &copy; {{ year }}</div>
+
+</div>
+
+</body>
+</html>

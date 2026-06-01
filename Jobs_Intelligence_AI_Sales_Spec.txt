@@ -1,0 +1,57 @@
+JOBS INTELLIGENCE AI SALES TOOL
+Specification Document
+==============================================
+Version: 0.1 (Draft)
+Date: 2026-05-22
+Status: Work in Progress
+==============================================
+
+
+1. INTRODUCTION
+---------------
+  1.1 Purpose of this document
+  1.2 Target users
+  1.3 Scope
+
+
+2. PRODUCT SPECIFICATION
+------------------------
+  2.1 Overview & goals
+  2.2 Feature list
+        - CV upload & AI candidate matching
+        - Job search & filter
+        - Job results table
+        - Saved jobs & pipeline management
+        - Alerts (future)
+  2.3 User stories / use cases
+  2.4 Out of scope / future features
+
+
+3. DATA FOUNDATION
+------------------
+  3.1 Source database overview
+  3.2 Data readiness audit
+  3.3 Data gaps & recommendations
+
+
+4. ARCHITECTURE
+---------------
+  4.1 High-level system diagram
+  4.2 Tech stack recommendation
+  4.3 Vector database setup & embedding strategy
+  4.4 AI matching scoring logic
+
+
+5. FEATURE SPECIFICATIONS
+--------------------------
+  5.1 CV Upload & AI Matching
+  5.2 Job Filter Panel
+  5.3 Job Results Table
+  5.4 Saved Jobs & Pipeline Management
+  5.5 Alerts (future scope)
+
+
+6. UI / PROTOTYPE
+-----------------
+  6.1 Screen overview
+  6.2 Interactive prototype reference

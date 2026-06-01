@@ -1,0 +1,8 @@
+flask
+pymysql
+sqlalchemy
+python-dotenv
+cryptography
+openai
+reportlab
+pypdf

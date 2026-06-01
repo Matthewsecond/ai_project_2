@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Embeddings Explainer — Jobs Intelligence AI Sales Tool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #ffffff; color: #1a1a2e; padding: 24px; max-width: 900px; }
+  .title { font-size: 15px; font-weight: 700; color: #1F3864; margin-bottom: 3px; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 18px; }
+
+  .steps { display: flex; align-items: stretch; gap: 0; margin-bottom: 22px; }
+  .step { flex: 1; background: #F5F7FA; border: 1.5px solid #dde3f0; border-radius: 8px; padding: 10px 8px; text-align: center; }
+  .step-num { display: inline-block; font-size: 9px; font-weight: 700; color: #2E5090; background: #dde3f0; border-radius: 10px; padding: 1px 7px; margin-bottom: 5px; }
+  .step-label { font-size: 11px; font-weight: 700; color: #1F3864; margin-bottom: 3px; }
+  .step-sub { font-size: 10px; color: #666; line-height: 1.4; }
+  .step-arrow { display: flex; align-items: center; padding: 0 5px; color: #2E5090; font-size: 16px; flex-shrink: 0; }
+
+  .ex-title { font-size: 12px; font-weight: 700; color: #1F3864; margin-bottom: 10px; }
+
+  .top-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
+  .col-inputs { flex: 0 0 185px; }
+  .col-vectors { flex: 0 0 130px; }
+  .col-results { flex: 0 0 175px; }
+  .mid-arrow { display: flex; align-items: center; justify-content: center; color: #2E5090; font-size: 16px; flex-shrink: 0; padding-top: 50px; }
+
+  .card { border-radius: 7px; padding: 8px 10px; margin-bottom: 7px; border: 1.5px solid #dde3f0; background: #F5F7FA; }
+  .card.cv { border-color: #2E5090; background: #EEF2FA; }
+  .card-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #2E5090; margin-bottom: 3px; }
+  .card-lbl.job { color: #777; }
+  .card-txt { font-size: 10px; color: #333; line-height: 1.45; font-style: italic; }
+
+  .vec-box { border-radius: 7px; padding: 7px 9px; margin-bottom: 7px; border: 1.5px solid #dde3f0; background: #F5F7FA; }
+  .vec-box.cv { border-color: #2E5090; background: #EEF2FA; }
+  .vec-lbl { font-size: 9px; font-weight: 700; color: #2E5090; margin-bottom: 2px; }
+  .vec-lbl.job { color: #777; }
+  .vec-nums { font-size: 10px; color: #999; font-family: monospace; line-height: 1.55; }
+
+  .res-item { display: flex; align-items: center; gap: 7px; border-radius: 7px; padding: 7px 9px; margin-bottom: 7px; border: 1.5px solid #dde3f0; background: #F5F7FA; }
+  .res-item.best { border-color: #2E5090; background: #EEF2FA; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 5px; padding: 2px 7px; flex-shrink: 0; }
+  .b-hi { background: #2E5090; color: #fff; }
+  .b-mid { background: #7a9cc8; color: #fff; }
+  .b-lo { background: #cdd5e0; color: #555; }
+  .res-txt { font-size: 10px; color: #333; line-height: 1.4; }
+  .col-header { font-size: 10px; font-weight: 700; color: #555; margin-bottom: 6px; }
+
+  .space-section { background: #F5F7FA; border: 1.5px solid #dde3f0; border-radius: 8px; padding: 12px; }
+  .space-title { font-size: 11px; font-weight: 700; color: #1F3864; margin-bottom: 8px; text-align: center; }
+  .space-inner { display: flex; gap: 14px; align-items: flex-start; }
+  .space-svg-wrap { flex: 1; }
+  .space-legend { flex: 0 0 170px; padding-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .legend-txt { font-size: 10px; color: #444; line-height: 1.4; }
+
+  .footnote { font-size: 10px; color: #888; margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; line-height: 1.55; }
+  .cross-lang { font-size: 10px; color: #2E5090; background: #EEF2FA; border: 1px solid #c0cfe8; border-radius: 5px; padding: 6px 10px; margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="title">How AI Matching Works — Embeddings Explained</div>
+<div class="subtitle">From text to a ranked list of jobs, step by step</div>
+
+<div class="steps">
+  <div class="step">
+    <div class="step-num">STEP 1</div>
+    <div class="step-label">Text in</div>
+    <div class="step-sub">CV uploaded. Job descriptions already in the database.</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step">
+    <div class="step-num">STEP 2</div>
+    <div class="step-label">Converted to numbers</div>
+    <div class="step-sub">OpenAI turns every text into ~1,500 numbers capturing its meaning.</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step">
+    <div class="step-num">STEP 3</div>
+    <div class="step-label">Distances measured</div>
+    <div class="step-sub">CV vector vs. every job vector. Similar meaning = small distance.</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step">
+    <div class="step-num">STEP 4</div>
+    <div class="step-label">Ranked results</div>
+    <div class="step-sub">Jobs sorted by score 0–1. Best matches shown at the top.</div>
+  </div>
+</div>
+
+<div class="ex-title">Real example — Forklift operator CV matched against 3 jobs</div>
+
+<div class="top-row">
+  <div class="col-inputs">
+    <div class="col-header">Input text</div>
+    <div class="card cv">
+      <div class="card-lbl">CV (uploaded)</div>
+      <div class="card-txt">"5 years forklift operator, warehouse logistics, Graz. Forklift licence class 2. Full-time."</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl job">Job A</div>
+      <div class="card-txt">"Staplerfahrer gesucht, Lager Graz, Vollzeit, Schein erforderlich"</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl job">Job B</div>
+      <div class="card-txt">"Produktionshelfer, Wien, Lebensmittelbranche, Teilzeit"</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl job">Job C</div>
+      <div class="card-txt">"Buchhalter, Linz, Erfahrung mit SAP erforderlich"</div>
+    </div>
+  </div>
+
+  <div class="mid-arrow">→</div>
+
+  <div class="col-vectors">
+    <div class="col-header">Vector (numbers)</div>
+    <div class="vec-box cv">
+      <div class="vec-lbl">CV</div>
+      <div class="vec-nums">[0.21, -0.84,<br>0.63, 0.17,<br>-0.42 ...]</div>
+    </div>
+    <div class="vec-box">
+      <div class="vec-lbl job">Job A</div>
+      <div class="vec-nums">[0.19, -0.81,<br>0.61, 0.15,<br>-0.40 ...]</div>
+    </div>
+    <div class="vec-box">
+      <div class="vec-lbl job">Job B</div>
+      <div class="vec-nums">[0.05, -0.31,<br>0.22, 0.44,<br>-0.18 ...]</div>
+    </div>
+    <div class="vec-box">
+      <div class="vec-lbl job">Job C</div>
+      <div class="vec-nums">[-0.33, 0.12,<br>-0.09, 0.71,<br>0.55 ...]</div>
+    </div>
+  </div>
+
+  <div class="mid-arrow">→</div>
+
+  <div class="col-results">
+    <div class="col-header">Ranked results</div>
+    <div class="res-item best">
+      <div class="badge b-hi">0.91</div>
+      <div class="res-txt"><strong>Job A</strong><br>Staplerfahrer, Graz</div>
+    </div>
+    <div class="res-item">
+      <div class="badge b-mid">0.58</div>
+      <div class="res-txt"><strong>Job B</strong><br>Produktionshelfer, Wien</div>
+    </div>
+    <div class="res-item">
+      <div class="badge b-lo">0.21</div>
+      <div class="res-txt"><strong>Job C</strong><br>Buchhalter, Linz</div>
+    </div>
+    <div class="cross-lang">
+      Job A scores 0.91 even though the CV is in <strong>English</strong> and the job ad is in <strong>German</strong> — the model understands both.
+    </div>
+  </div>
+</div>
+
+<div class="space-section">
+  <div class="space-title">What "meaning space" looks like — similar texts cluster together</div>
+  <div class="space-inner">
+    <div class="space-svg-wrap">
+      <svg viewBox="0 0 380 220" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;">
+        <line x1="0" y1="110" x2="380" y2="110" stroke="#e0e6f0" stroke-width="0.8"/>
+        <line x1="190" y1="0" x2="190" y2="220" stroke="#e0e6f0" stroke-width="0.8"/>
+        <text x="55" y="30" font-size="9" fill="#aaa" font-family="Arial">logistics / warehouse cluster</text>
+        <circle cx="100" cy="75" r="18" fill="#2E5090" opacity="0.12"/>
+        <circle cx="100" cy="75" r="11" fill="#2E5090"/>
+        <text x="100" y="79" text-anchor="middle" font-size="9" fill="white" font-weight="bold" font-family="Arial">CV</text>
+        <circle cx="140" cy="60" r="11" fill="#4a70b5"/>
+        <text x="140" y="64" text-anchor="middle" font-size="9" fill="white" font-weight="bold" font-family="Arial">A</text>
+        <line x1="111" y1="70" x2="129" y2="64" stroke="#2E5090" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>
+        <text x="118" y="60" font-size="8" fill="#2E5090" font-family="Arial" font-weight="bold">0.91</text>
+        <circle cx="230" cy="130" r="11" fill="#7a9cc8"/>
+        <text x="230" y="134" text-anchor="middle" font-size="9" fill="white" font-weight="bold" font-family="Arial">B</text>
+        <line x1="110" y1="82" x2="220" y2="124" stroke="#7a9cc8" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <text x="168" y="98" font-size="8" fill="#7a9cc8" font-family="Arial" font-weight="bold">0.58</text>
+        <circle cx="320" cy="170" r="11" fill="#cdd5e0"/>
+        <text x="320" y="174" text-anchor="middle" font-size="9" fill="#555" font-weight="bold" font-family="Arial">C</text>
+        <line x1="112" y1="85" x2="310" y2="164" stroke="#cdd5e0" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+        <text x="215" y="140" font-size="8" fill="#aaa" font-family="Arial" font-weight="bold">0.21</text>
+        <text x="270" y="162" font-size="9" fill="#aaa" font-family="Arial">finance / accounting</text>
+        <text x="278" y="172" font-size="9" fill="#aaa" font-family="Arial">cluster</text>
+        <circle cx="80" cy="95" r="5" fill="#2E5090" opacity="0.2"/>
+        <circle cx="125" cy="88" r="4" fill="#2E5090" opacity="0.2"/>
+        <circle cx="155" cy="45" r="5" fill="#4a70b5" opacity="0.2"/>
+        <circle cx="70" cy="55" r="4" fill="#2E5090" opacity="0.2"/>
+        <circle cx="250" cy="145" r="5" fill="#7a9cc8" opacity="0.2"/>
+        <circle cx="215" cy="118" r="4" fill="#7a9cc8" opacity="0.2"/>
+        <circle cx="340" cy="155" r="5" fill="#cdd5e0" opacity="0.4"/>
+        <circle cx="305" cy="180" r="4" fill="#cdd5e0" opacity="0.4"/>
+      </svg>
+    </div>
+    <div class="space-legend">
+      <div style="font-size:10px; font-weight:700; color:#555; margin-bottom:10px;">How to read this</div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#2E5090;"></div>
+        <div class="legend-txt"><strong>CV + Job A</strong> sit close together — same industry, same region, same role type</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#7a9cc8;"></div>
+        <div class="legend-txt"><strong>Job B</strong> is further away — overlapping industry but wrong location and hours</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#cdd5e0;"></div>
+        <div class="legend-txt"><strong>Job C</strong> is in a completely different cluster — accounting has nothing to do with forklift work</div>
+      </div>
+      <div style="margin-top:12px; font-size:10px; color:#888; line-height:1.5;">
+        The actual vector space has ~1,500 dimensions, not 2. This is a simplified illustration.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footnote">
+  The numbers in the CV and Job A vectors look nearly identical — that's what a cosine similarity of 0.91 means. Job C's numbers follow a completely different pattern, reflecting that accounting and logistics live in very different parts of meaning space.
+</div>
+
+</body>
+</html>

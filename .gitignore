@@ -1,0 +1,36 @@
+# Secrets & environment
+.env
+*.env
+
+# Databases
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Claude Code local settings
+.claude/
+
+# Export/generated output
+demo_real/_exp_out/
+
+# OS
+.DS_Store
+Thumbs.db

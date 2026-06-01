@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>Jobs Intelligence Austria — Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0efe8;min-height:100vh;padding:24px;font-size:13px}
+.app{border:1px solid #d8d7d0;border-radius:12px;overflow:hidden;background:#fff;max-width:1160px;margin:0 auto;box-shadow:0 4px 24px rgba(0,0,0,0.08)}
+
+/* TOP BAR */
+.topbar{background:#fff;border-bottom:1px solid #e0dfd8;padding:12px 24px;display:flex;align-items:center;gap:20px}
+.logo{font-size:15px;font-weight:600;color:#1a1a18;display:flex;align-items:center;gap:10px}
+.logo-mark{width:28px;height:28px;background:#1a3864;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-mark svg{width:16px;height:16px;fill:#fff}
+.tabs{display:flex;gap:2px;margin-left:12px}
+.tab-btn{padding:7px 20px;font-size:13px;border-radius:8px;cursor:pointer;color:#777;border:none;background:transparent;font-family:inherit;transition:all .15s}
+.tab-btn:hover{background:#f5f4ee;color:#333}
+.tab-btn.active{background:#eef2fa;color:#1a3864;font-weight:600}
+
+/* FILTER BAR */
+.filter-bar{background:#f8f7f2;border-bottom:1px solid #e0dfd8;padding:10px 24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filter-bar select,.filter-bar input[type=text]{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a18;height:30px;font-family:inherit;outline:none}
+.filter-bar select:focus,.filter-bar input:focus{border-color:#99b8f0}
+.filter-bar input[type=text]{width:120px}
+.filter-sep{width:1px;height:22px;background:#ddd;flex-shrink:0}
+.chip-row{display:flex;gap:4px;flex-wrap:wrap}
+.chip{font-size:11px;padding:4px 11px;border-radius:999px;border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap}
+.chip:hover{border-color:#aac}
+.chip.on{background:#e8f0fb;color:#1a56c4;border-color:#b0ccf0;font-weight:500}
+
+/* MAIN PANEL */
+.main-panel{background:#fff}
+
+/* INPUT AREA */
+.input-area{padding:16px 24px;border-bottom:1px solid #eee}
+.mode-tabs{display:flex;gap:5px;margin-bottom:12px}
+.mode-tab{font-size:12px;padding:6px 16px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:all .15s}
+.mode-tab:hover{border-color:#aac;color:#555}
+.mode-tab.active{background:#e8f0fb;color:#1a56c4;border-color:#b0ccf0;font-weight:500}
+.mode-tab svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}
+
+.input-zone{display:none}
+.input-zone.active{display:block}
+
+.upload-drop{border:1.5px dashed #ccc;border-radius:8px;padding:18px 20px;background:#fafaf6;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .2s}
+.upload-drop:hover{border-color:#99b8f0;background:#f5f8ff}
+.upload-icon{width:40px;height:40px;background:#e8f0fb;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.upload-icon svg{width:20px;height:20px;stroke:#1a56c4;fill:none;stroke-width:1.5}
+.upload-text{color:#888;font-size:13px;line-height:1.5}
+.upload-text a{color:#1a56c4;text-decoration:none}
+.upload-text a:hover{text-decoration:underline}
+
+textarea.free-text{width:100%;height:80px;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333}
+textarea.free-text:focus{border-color:#99b8f0}
+textarea.free-text::placeholder{color:#bbb}
+
+.guided-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.guided-grid label{font-size:11px;color:#888;display:block;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.03em}
+.guided-grid input,.guided-grid select{width:100%;font-size:12px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;outline:none;background:#fff;color:#333}
+.guided-grid input:focus,.guided-grid select:focus{border-color:#99b8f0}
+
+.run-row{display:flex;align-items:center;gap:10px;margin-top:12px}
+.run-btn{padding:8px 24px;font-size:13px;font-weight:600;border-radius:8px;background:#1a3864;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;font-family:inherit;transition:background .15s}
+.run-btn:hover{background:#22488a}
+.run-btn:active{background:#142d50}
+.run-btn svg{width:14px;height:14px;fill:#fff}
+.run-btn.running{background:#445;cursor:not-allowed}
+.lbl{font-size:12px;color:#888}
+.n-select{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid #ddd;background:#f8f8f4;color:#333;font-family:inherit;outline:none}
+.export-btn{margin-left:auto;font-size:12px;padding:7px 16px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;transition:all .15s}
+.export-btn:hover{border-color:#aac;background:#f5f4ee}
+.export-btn svg{width:13px;height:13px;stroke:#555;fill:none;stroke-width:2}
+
+/* RESULTS */
+.results-wrap{overflow:hidden}
+.results-status{padding:10px 24px;font-size:12px;color:#888;background:#f8f7f2;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;min-height:36px}
+.spinner{width:14px;height:14px;border:2px solid #ddd;border-top-color:#1a56c4;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.results-table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:9px 14px;text-align:left;font-size:11px;font-weight:600;color:#888;border-bottom:1px solid #e8e7e0;background:#f8f7f2;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em;cursor:pointer;user-select:none}
+thead th:hover{color:#444}
+tbody tr{border-bottom:1px solid #f0efe8;transition:background .1s}
+tbody tr:hover{background:#fafaf6}
+tbody tr.fade-in{animation:fadeRow .35s ease forwards}
+@keyframes fadeRow{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
+.grade{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-size:11px;font-weight:700}
+.grade-a{background:#e6f4ea;color:#1a7a2e}
+.grade-b{background:#fff3cc;color:#7a5a00}
+.grade-c{background:#f0f0ec;color:#888;border:1px solid #e0dfd8}
+.pct{color:#aaa;font-size:11px;margin-left:5px}
+.link-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid #e0dfd8;background:#fff;color:#1a56c4;text-decoration:none;transition:all .15s}
+.link-btn:hover{background:#e8f0fb;border-color:#b0ccf0}
+.link-btn svg{width:12px;height:12px;stroke:#1a56c4;fill:none;stroke-width:2}
+.no-results{padding:40px;text-align:center;color:#aaa;font-size:14px}
+.no-results svg{width:40px;height:40px;stroke:#ddd;fill:none;margin:0 auto 12px;display:block}
+
+/* SAVED JOBS TAB */
+.saved-wrap{padding:24px}
+.saved-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.saved-header h2{font-size:16px;font-weight:600;color:#1a1a18}
+.import-btn{font-size:12px;padding:7px 16px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;transition:all .15s}
+.import-btn:hover{border-color:#aac;background:#f5f4ee}
+.import-btn svg{width:13px;height:13px;stroke:#555;fill:none;stroke-width:2}
+.saved-note{font-size:12px;color:#aaa;margin-bottom:18px;padding:12px 16px;background:#f8f7f2;border-radius:8px;border-left:3px solid #ddd}
+.status-badge{display:inline-block;font-size:11px;padding:3px 10px;border-radius:999px;font-weight:500}
+.status-review{background:#fff3cc;color:#7a5a00}
+.status-sent{background:#e8f0fb;color:#1a56c4}
+.status-interview{background:#e6f4ea;color:#1a7a2e}
+.status-placed{background:#f0e8fb;color:#5a1a7a}
+.status-rejected{background:#fce8e8;color:#8a1a1a}
+
+/* MAP TAB */
+.map-wrap{padding:24px}
+.map-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.map-header h2{font-size:16px;font-weight:600;color:#1a1a18}
+.map-legend{display:flex;gap:16px;font-size:12px;color:#666}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.map-container{background:#eef4fb;border-radius:10px;border:1px solid #dde8f4;overflow:hidden;position:relative}
+.map-container svg{display:block;width:100%}
+.job-pin{cursor:pointer;transition:transform .15s}
+.job-pin:hover{transform:scale(1.3)}
+.map-tooltip{position:absolute;background:#1a1a18;color:#fff;font-size:11px;padding:6px 10px;border-radius:6px;pointer-events:none;display:none;z-index:10;white-space:nowrap;line-height:1.5}
+.map-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.map-stat{background:#f8f7f2;border-radius:8px;padding:12px 16px;border:1px solid #e8e7e0}
+.map-stat .stat-num{font-size:22px;font-weight:600;color:#1a3864}
+.map-stat .stat-lbl{font-size:11px;color:#888;margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
+
+/* HIDDEN PANELS */
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      </div>
+      Jobs Intelligence Austria
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('search')">Search</button>
+      <button class="tab-btn" onclick="switchTab('saved')">Saved jobs</button>
+      <button class="tab-btn" onclick="switchTab('map')">Map</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SEARCH TAB ═══════════════ -->
+  <div id="tab-search" class="tab-panel active">
+    <div class="filter-bar">
+      <select id="f-state"><option value="">All states</option><option>Wien</option><option>Niederösterreich</option><option>Oberösterreich</option><option>Steiermark</option><option>Salzburg</option><option>Tirol</option><option>Vorarlberg</option><option>Kärnten</option><option>Burgenland</option></select>
+      <select id="f-bezirk"><option value="">Bezirk</option></select>
+      <input type="text" id="f-plz" placeholder="PLZ / Ort" style="width:100px">
+      <div class="filter-sep"></div>
+      <input type="text" id="f-title" placeholder="Title / keywords" style="width:140px">
+      <select id="f-occ"><option value="">Occupational group</option><option>Logistics &amp; Transport</option><option>Production &amp; Manufacturing</option><option>IT &amp; Technology</option><option>Sales &amp; Marketing</option><option>Healthcare</option><option>Construction</option><option>Finance &amp; Accounting</option></select>
+      <input type="text" id="f-salmin" placeholder="Salary min €" style="width:95px">
+      <input type="text" id="f-salmax" placeholder="max €" style="width:70px">
+      <div class="filter-sep"></div>
+      <div class="chip-row">
+        <span class="chip on" onclick="toggleChip(this)">Full-time</span>
+        <span class="chip" onclick="toggleChip(this)">Part-time</span>
+      </div>
+      <div class="filter-sep"></div>
+      <div class="chip-row">
+        <span class="chip on" onclick="toggleChip(this)">Permanent</span>
+        <span class="chip" onclick="toggleChip(this)">Temporary</span>
+        <span class="chip" onclick="toggleChip(this)">Freelance</span>
+      </div>
+      <div class="filter-sep"></div>
+      <input type="text" id="f-company" placeholder="Company" style="width:110px">
+      <select id="f-nace"><option value="">NACE industry</option><option>78 – Staffing &amp; Recruitment</option><option>49 – Land Transport</option><option>52 – Warehousing</option><option>25 – Metal Products</option><option>47 – Retail Trade</option></select>
+      <div class="chip-row">
+        <span class="chip on" onclick="toggleAgency(this,'all')">All agencies</span>
+        <span class="chip" onclick="toggleAgency(this,'excl')">Excl. agencies</span>
+        <span class="chip" onclick="toggleAgency(this,'only')">Only agencies</span>
+      </div>
+    </div>
+
+    <div class="main-panel">
+      <div class="input-area">
+        <div class="mode-tabs">
+          <button class="mode-tab active" onclick="switchMode('cv',this)">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            CV upload / paste
+          </button>
+          <button class="mode-tab" onclick="switchMode('text',this)">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            Free-text description
+          </button>
+          <button class="mode-tab" onclick="switchMode('guided',this)">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            Guided query
+          </button>
+        </div>
+
+        <div id="zone-cv" class="input-zone active">
+          <div class="upload-drop" onclick="simulateUpload()">
+            <div class="upload-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+            </div>
+            <div class="upload-text" id="upload-label">Drop a PDF CV here, or <a href="#" onclick="event.preventDefault();simulateUpload()">browse to upload</a> — or paste CV text directly into this area</div>
+          </div>
+        </div>
+
+        <div id="zone-text" class="input-zone">
+          <textarea class="free-text" placeholder="Describe the candidate in natural language — e.g. 'Experienced forklift operator, Vienna, available from July, looking for full-time permanent work, salary expectation €2,200+...'"></textarea>
+        </div>
+
+        <div id="zone-guided" class="input-zone">
+          <div class="guided-grid">
+            <div><label>Target role</label><input type="text" placeholder="e.g. Staplerfahrer"></div>
+            <div><label>Key skills</label><input type="text" placeholder="e.g. Forklift, Logistics"></div>
+            <div><label>Experience</label><select><option>Any</option><option>0–1 years</option><option>2–5 years</option><option>5+ years</option></select></div>
+            <div><label>Location preference</label><input type="text" placeholder="e.g. Wien, NÖ"></div>
+            <div><label>Salary expectation (€)</label><input type="text" placeholder="e.g. 2200"></div>
+            <div><label>Employment type</label><select><option>Any</option><option>Full-time</option><option>Part-time</option><option>Either</option></select></div>
+          </div>
+        </div>
+
+        <div class="run-row">
+          <button class="run-btn" id="run-btn" onclick="runMatching()">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span id="run-label">Run matching</span>
+          </button>
+          <span class="lbl">Top</span>
+          <select class="n-select" id="n-select"><option>10</option><option selected>20</option><option>30</option><option>50</option></select>
+          <span class="lbl">results</span>
+          <button class="export-btn" onclick="exportResults()">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export to Excel
+          </button>
+        </div>
+      </div>
+
+      <div class="results-wrap">
+        <div class="results-status" id="results-status">
+          <span id="status-text">Enter a candidate profile and click Run matching to see results.</span>
+        </div>
+        <div class="results-table-wrap">
+          <table id="results-table">
+            <thead>
+              <tr>
+                <th style="width:90px" onclick="sortBy('score')">Score ↕</th>
+                <th onclick="sortBy('title')">Job title ↕</th>
+                <th onclick="sortBy('company')">Company ↕</th>
+                <th onclick="sortBy('location')">Location ↕</th>
+                <th onclick="sortBy('salary')">Salary ↕</th>
+                <th>Work time</th>
+                <th>Contract</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody id="results-body">
+              <tr><td colspan="8" class="no-results">
+                <svg viewBox="0 0 24 24" style="stroke-width:1"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+                No results yet — run matching to find jobs
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SAVED JOBS TAB ═══════════════ -->
+  <div id="tab-saved" class="tab-panel">
+    <div class="saved-wrap">
+      <div class="saved-header">
+        <h2>Saved jobs</h2>
+        <button class="import-btn">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Import from Excel
+        </button>
+        <button class="export-btn" style="margin-left:0">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export to Excel
+        </button>
+      </div>
+      <div class="saved-note">
+        Export your search results to Excel, add status and notes, then re-import to continue working here. The job ID column is used to match rows on import.
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Score</th><th>Job title</th><th>Company</th><th>Location</th><th>Salary</th><th>Status</th><th>Notes</th><th style="width:44px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="grade grade-a">A</span><span class="pct">91%</span></td>
+            <td style="font-weight:500">Staplerfahrer Wien</td>
+            <td>Dachser GmbH</td><td>Wien, 10.</td><td>€2,400</td>
+            <td><span class="status-badge status-sent">Sent to candidate</span></td>
+            <td style="color:#888;font-size:12px">Candidate confirmed interest</td>
+            <td><a class="link-btn" href="#"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a></td>
+          </tr>
+          <tr>
+            <td><span class="grade grade-a">A</span><span class="pct">84%</span></td>
+            <td style="font-weight:500">Lagerlogistiker</td>
+            <td>Gebrüder Weiss</td><td>Wien, 22.</td><td>€2,200</td>
+            <td><span class="status-badge status-interview">Interview scheduled</span></td>
+            <td style="color:#888;font-size:12px">Wed 29 May, 10:00</td>
+            <td><a class="link-btn" href="#"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a></td>
+          </tr>
+          <tr>
+            <td><span class="grade grade-b">B</span><span class="pct">65%</span></td>
+            <td style="font-weight:500">Kommissionierer</td>
+            <td>Rewe Group</td><td>Wien, 23.</td><td>€1,980</td>
+            <td><span class="status-badge status-review">To review</span></td>
+            <td style="color:#888;font-size:12px">—</td>
+            <td><a class="link-btn" href="#"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a></td>
+          </tr>
+          <tr>
+            <td><span class="grade grade-b">B</span><span class="pct">58%</span></td>
+            <td style="font-weight:500">Produktionsmitarbeiter</td>
+            <td>Mondelez AT</td><td>Wien, 21.</td><td>€2,050</td>
+            <td><span class="status-badge status-rejected">Rejected</span></td>
+            <td style="color:#888;font-size:12px">Salary too low</td>
+            <td><a class="link-btn" href="#"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a></td>
+          </tr>
+          <tr>
+            <td><span class="grade grade-a">A</span><span class="pct">78%</span></td>
+            <td style="font-weight:500">Lagerarbeiter (m/w/d)</td>
+            <td>Amazon Logistik</td><td>Großebersdorf</td><td>€2,150</td>
+            <td><span class="status-badge status-placed">Placed</span></td>
+            <td style="color:#888;font-size:12px">Start date 1 June</td>
+            <td><a class="link-btn" href="#"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MAP TAB ═══════════════ -->
+  <div id="tab-map" class="tab-panel">
+    <div class="map-wrap">
+      <div class="map-header">
+        <h2>Job distribution — Austria</h2>
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#1a7a2e"></div> Grade A</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#e8a800"></div> Grade B</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#aaa"></div> Grade C</div>
+        </div>
+      </div>
+      <div class="map-container" id="map-container">
+        <div class="map-tooltip" id="map-tooltip"></div>
+        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" id="austria-map">
+          <!-- Simplified Austria outline -->
+          <rect width="800" height="400" fill="#ddeef8"/>
+          <!-- Austria shape (simplified path) -->
+          <path d="M95,155 L120,140 L155,145 L175,130 L210,128 L240,140 L265,130 L295,135 L320,120 L355,118 L390,125 L420,115 L455,120 L485,112 L515,118 L545,108 L580,115 L610,125 L635,140 L660,138 L685,150 L700,165 L695,185 L710,200 L700,220 L680,235 L660,230 L640,245 L615,250 L590,265 L560,268 L540,260 L515,270 L490,265 L465,275 L440,265 L415,272 L390,260 L365,268 L340,255 L315,262 L290,250 L265,255 L240,248 L215,255 L190,248 L168,258 L148,250 L125,255 L105,245 L88,230 L80,210 L82,190 L95,175 Z" fill="#c8dff0" stroke="#9bb8d4" stroke-width="1.5"/>
+          <!-- State borders (simplified) -->
+          <path d="M265,130 L265,255" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <path d="M390,125 L390,260" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <path d="M515,118 L515,270" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <path d="M640,138 L615,250" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <path d="M175,130 L168,258" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <path d="M82,190 L265,190" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <path d="M390,190 L540,190" stroke="#9bb8d4" stroke-width="0.8" stroke-dasharray="3,2" fill="none"/>
+          <!-- State labels -->
+          <text x="115" y="200" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">Vbg</text>
+          <text x="215" y="185" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">Tirol</text>
+          <text x="155" y="235" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">Sbg</text>
+          <text x="300" y="230" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">Kärnten</text>
+          <text x="340" y="175" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">OÖ</text>
+          <text x="460" y="160" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">NÖ</text>
+          <text x="600" y="190" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">Stmk</text>
+          <text x="670" y="175" font-size="9" fill="#7a9ab8" font-family="Arial,sans-serif" text-anchor="middle">Bgld</text>
+          <!-- Wien marker (larger) -->
+          <circle cx="575" cy="152" r="5" fill="#1a3864" stroke="#fff" stroke-width="1.5"/>
+          <text x="575" y="142" font-size="9" fill="#1a3864" font-family="Arial,sans-serif" text-anchor="middle" font-weight="bold">Wien</text>
+          <!-- Job pins -->
+          <g id="job-pins"></g>
+        </svg>
+      </div>
+      <div class="map-stats">
+        <div class="map-stat"><div class="stat-num" id="stat-total">—</div><div class="stat-lbl">Jobs in current results</div></div>
+        <div class="map-stat"><div class="stat-num" id="stat-wien">—</div><div class="stat-lbl">Wien</div></div>
+        <div class="map-stat"><div class="stat-num" id="stat-other">—</div><div class="stat-lbl">Other states</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const JOB_POOLS = {
+  logistics: [
+    {title:'Staplerfahrer Wien',company:'Dachser GmbH',location:'Wien, 10.',salary:'€2,400',time:'Full-time',contract:'Permanent',score:91,lat:152,lng:575},
+    {title:'Lagerlogistiker',company:'Gebrüder Weiss',location:'Wien, 22.',salary:'€2,200',time:'Full-time',contract:'Permanent',score:84,lat:156,lng:578},
+    {title:'Lagerarbeiter (m/w/d)',company:'Amazon Logistik',location:'Großebersdorf',salary:'€2,150',time:'Full-time',contract:'Permanent',score:78,lat:148,lng:565},
+    {title:'Kommissionierer',company:'Rewe Group',location:'Wien, 23.',salary:'€1,980',time:'Part-time',contract:'Permanent',score:65,lat:154,lng:572},
+    {title:'Produktionsmitarbeiter',company:'Mondelez AT',location:'Wien, 21.',salary:'€2,050',time:'Full-time',contract:'Temporary',score:58,lat:158,lng:568},
+    {title:'Transportdisponent',company:'Raben Logistics',location:'Schwechat',salary:'€2,300',time:'Full-time',contract:'Permanent',score:53,lat:162,lng:580},
+    {title:'Lkw-Fahrer CE',company:'DPD Austria',location:'Wien, 11.',salary:'€2,600',time:'Full-time',contract:'Permanent',score:72,lat:160,lng:576},
+    {title:'Lagermitarbeiter',company:'Lidl Österreich',location:'Strebersdorf',salary:'€1,950',time:'Part-time',contract:'Temporary',score:61,lat:145,lng:570},
+    {title:'Reinigungskraft',company:'ISS Austria',location:'Wien, 1.',salary:'€1,750',time:'Part-time',contract:'Permanent',score:44,lat:155,lng:574},
+    {title:'Hilfskraft Produktion',company:'Manner AG',location:'Wien, 17.',salary:'€1,820',time:'Full-time',contract:'Temporary',score:41,lat:153,lng:571},
+    {title:'Schichtführer Logistik',company:'Kühne+Nagel',location:'Fischamend',salary:'€2,800',time:'Full-time',contract:'Permanent',score:69,lat:165,lng:585},
+    {title:'Zustellfahrer',company:'Post AG',location:'Wien, 20.',salary:'€1,900',time:'Full-time',contract:'Permanent',score:56,lat:150,lng:569},
+  ],
+  it: [
+    {title:'Junior Software Developer',company:'A1 Telekom AT',location:'Wien, 9.',salary:'€3,200',time:'Full-time',contract:'Permanent',score:88,lat:153,lng:573},
+    {title:'IT Support Techniker',company:'T-Systems Austria',location:'Wien, 3.',salary:'€2,600',time:'Full-time',contract:'Permanent',score:81,lat:155,lng:577},
+    {title:'Data Analyst',company:'Raiffeisen Bank',location:'Wien, 2.',salary:'€3,400',time:'Full-time',contract:'Permanent',score:76,lat:152,lng:575},
+    {title:'Systemadministrator',company:'Kapsch AG',location:'Wien, 22.',salary:'€2,900',time:'Full-time',contract:'Permanent',score:70,lat:158,lng:579},
+    {title:'Web Developer (React)',company:'Runtastic',location:'Pasching',salary:'€3,100',time:'Full-time',contract:'Permanent',score:64,lat:172,lng:340},
+    {title:'IT Projektmanager',company:'Erste Group',location:'Wien, 1.',salary:'€3,800',time:'Full-time',contract:'Permanent',score:59,lat:154,lng:574},
+    {title:'Network Engineer',company:'Hutchison Austria',location:'Wien, 15.',salary:'€2,700',time:'Full-time',contract:'Permanent',score:54,lat:156,lng:572},
+    {title:'Helpdesk Mitarbeiter',company:'ISS Digital',location:'Wien, 10.',salary:'€2,200',time:'Part-time',contract:'Temporary',score:48,lat:157,lng:576},
+    {title:'Cloud Architect',company:'Cloudflight GmbH',location:'Linz',salary:'€4,500',time:'Full-time',contract:'Permanent',score:43,lat:170,lng:338},
+  ],
+  sales: [
+    {title:'Außendienstmitarbeiter',company:'Red Bull GmbH',location:'Salzburg',salary:'€2,800',time:'Full-time',contract:'Permanent',score:86,lat:188,lng:215},
+    {title:'Key Account Manager',company:'Spar Österreich',location:'Wien, 20.',salary:'€3,200',time:'Full-time',contract:'Permanent',score:79,lat:150,lng:569},
+    {title:'Vertriebsmitarbeiter',company:'Magenta Telekom',location:'Wien, 10.',salary:'€2,600',time:'Full-time',contract:'Permanent',score:71,lat:152,lng:575},
+    {title:'Sales Manager',company:'Booking.com AT',location:'Wien, 1.',salary:'€3,800',time:'Full-time',contract:'Permanent',score:66,lat:155,lng:574},
+    {title:'Kundenberater',company:'Bank Austria',location:'Graz',salary:'€2,400',time:'Full-time',contract:'Permanent',score:60,lat:230,lng:530},
+    {title:'Handelsvertreter',company:'Henkel AT',location:'Wien, 12.',salary:'€2,900',time:'Full-time',contract:'Permanent',score:55,lat:156,lng:573},
+    {title:'Filialleiter',company:'Billa AG',location:'St. Pölten',salary:'€2,700',time:'Full-time',contract:'Permanent',score:49,lat:162,lng:475},
+    {title:'Telefonverkäufer',company:'Drei Austria',location:'Wien, 5.',salary:'€2,100',time:'Part-time',contract:'Temporary',score:44,lat:154,lng:571},
+  ]
+};
+
+let currentResults = [];
+let sortDir = {};
+let runCount = 0;
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function switchMode(mode, btn) {
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.input-zone').forEach(z => z.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('zone-' + mode).classList.add('active');
+}
+
+function toggleChip(el) { el.classList.toggle('on'); }
+
+function toggleAgency(el, val) {
+  document.querySelectorAll('.chip-row').forEach((row, i) => {
+    if (i === 2) row.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  });
+  el.classList.add('on');
+}
+
+function simulateUpload() {
+  const label = document.getElementById('upload-label');
+  label.innerHTML = '<strong style="color:#1a7a2e">✓ CV_Candidate_Profile.pdf loaded</strong> — ready to match';
+}
+
+function getPool() {
+  const occ = document.getElementById('f-occ').value;
+  const title = document.getElementById('f-title').value.toLowerCase();
+  if (occ.includes('IT') || title.includes('it') || title.includes('software') || title.includes('developer')) return JOB_POOLS.it;
+  if (occ.includes('Sales') || title.includes('sales') || title.includes('vertrieb')) return JOB_POOLS.sales;
+  return JOB_POOLS.logistics;
+}
+
+function grade(score) {
+  if (score >= 70) return 'a';
+  if (score >= 50) return 'b';
+  return 'c';
+}
+
+function gradeLabel(score) {
+  if (score >= 70) return 'A';
+  if (score >= 50) return 'B';
+  return 'C';
+}
+
+function runMatching() {
+  const btn = document.getElementById('run-btn');
+  const label = document.getElementById('run-label');
+  const status = document.getElementById('status-text');
+  const body = document.getElementById('results-body');
+  const n = parseInt(document.getElementById('n-select').value);
+
+  btn.classList.add('running');
+  btn.disabled = true;
+  label.textContent = 'Matching…';
+
+  document.getElementById('results-status').innerHTML = '<div class="spinner"></div><span>Running AI matching — embedding candidate profile and searching vector store…</span>';
+  body.innerHTML = '';
+
+  const pool = getPool();
+  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(n, pool.length));
+  shuffled.sort((a, b) => b.score - a.score);
+
+  // Add slight score variation each run
+  shuffled.forEach(j => {
+    j._score = Math.max(30, Math.min(99, j.score + Math.floor(Math.random() * 7) - 3));
+  });
+
+  setTimeout(() => {
+    currentResults = shuffled;
+    renderResults(shuffled);
+    updateMap(shuffled);
+
+    btn.classList.remove('running');
+    btn.disabled = false;
+    label.textContent = 'Run matching';
+    runCount++;
+    document.getElementById('results-status').innerHTML =
+      `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; ${shuffled.length} matches found — ranked by AI similarity score`;
+  }, 1400);
+}
+
+function renderResults(jobs) {
+  const body = document.getElementById('results-body');
+  body.innerHTML = '';
+  jobs.forEach((j, i) => {
+    const sc = j._score || j.score;
+    const g = grade(sc);
+    const row = document.createElement('tr');
+    row.className = 'fade-in';
+    row.style.animationDelay = (i * 40) + 'ms';
+    row.innerHTML = `
+      <td><span class="grade grade-${g}">${gradeLabel(sc)}</span><span class="pct">${sc}%</span></td>
+      <td style="font-weight:500">${j.title}</td>
+      <td>${j.company}</td>
+      <td>${j.location}</td>
+      <td>${j.salary}</td>
+      <td>${j.time}</td>
+      <td>${j.contract}</td>
+      <td><a class="link-btn" href="#" title="Open posting"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a></td>`;
+    body.appendChild(row);
+  });
+}
+
+function sortBy(col) {
+  if (!currentResults.length) return;
+  sortDir[col] = !sortDir[col];
+  const asc = sortDir[col];
+  const sorted = [...currentResults].sort((a, b) => {
+    let va, vb;
+    if (col === 'score') { va = a._score||a.score; vb = b._score||b.score; }
+    else if (col === 'salary') { va = parseInt((a.salary||'').replace(/\D/g,'')); vb = parseInt((b.salary||'').replace(/\D/g,'')); }
+    else { va = (a[col]||'').toLowerCase(); vb = (b[col]||'').toLowerCase(); }
+    return asc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+  renderResults(sorted);
+}
+
+function updateMap(jobs) {
+  const pinsGroup = document.getElementById('job-pins');
+  pinsGroup.innerHTML = '';
+  const wienCount = jobs.filter(j => j.location.toLowerCase().includes('wien') || j.location.toLowerCase().includes('schwechat') || j.location.toLowerCase().includes('ebers')).length;
+
+  jobs.forEach(j => {
+    const sc = j._score || j.score;
+    const g = grade(sc);
+    const color = g === 'a' ? '#1a7a2e' : g === 'b' ? '#e8a800' : '#aaa';
+    const r = g === 'a' ? 7 : g === 'b' ? 6 : 5;
+    const jitter = (Math.random() - 0.5) * 12;
+    const cx = j.lng + jitter;
+    const cy = j.lat + (Math.random() - 0.5) * 8;
+    const pin = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pin.setAttribute('cx', cx); pin.setAttribute('cy', cy);
+    pin.setAttribute('r', r); pin.setAttribute('fill', color);
+    pin.setAttribute('stroke', '#fff'); pin.setAttribute('stroke-width', '1.5');
+    pin.setAttribute('class', 'job-pin');
+    pin.setAttribute('opacity', '0.85');
+    pin.addEventListener('mouseenter', (e) => showTooltip(e, j, sc));
+    pin.addEventListener('mouseleave', hideTooltip);
+    pinsGroup.appendChild(pin);
+  });
+
+  document.getElementById('stat-total').textContent = jobs.length;
+  document.getElementById('stat-wien').textContent = wienCount;
+  document.getElementById('stat-other').textContent = jobs.length - wienCount;
+}
+
+function showTooltip(e, j, score) {
+  const tt = document.getElementById('map-tooltip');
+  const container = document.getElementById('map-container');
+  const rect = container.getBoundingClientRect();
+  tt.innerHTML = `<strong>${j.title}</strong><br>${j.company} — ${j.location}<br>Score: ${score}% (${gradeLabel(score)}) · ${j.salary}`;
+  tt.style.display = 'block';
+  const x = e.clientX - rect.left + 10;
+  const y = e.clientY - rect.top - 10;
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
+}
+function hideTooltip() { document.getElementById('map-tooltip').style.display = 'none'; }
+
+function exportResults() {
+  if (!currentResults.length) { alert('Run matching first to generate results to export.'); return; }
+  const rows = [['Score','Grade','Job title','Company','Location','Salary','Work time','Contract','Status','Notes','Job URL']];
+  currentResults.forEach(j => {
+    const sc = j._score || j.score;
+    rows.push([sc+'%', gradeLabel(sc), j.title, j.company, j.location, j.salary, j.time, j.contract, 'To Review', '', 'https://jobs-intelligence.at/job/'+Math.floor(Math.random()*99999)]);
+  });
+  const csv = rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'jobs_results_export.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
