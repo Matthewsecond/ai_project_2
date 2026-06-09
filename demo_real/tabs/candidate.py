@@ -26,6 +26,9 @@ Return ONLY valid JSON — no prose, no code fences:
   "languages": "e.g. 'German (native), English B2' or null",
   "salary_expectation": "e.g. '€2,800–3,400/month' or null",
   "availability": "e.g. 'Immediately' or null",
+  "email": "email address or null",
+  "phone": "phone number or null",
+  "linkedin": "full LinkedIn profile URL or null",
   "summary": "One concise sentence describing this candidate's profile"
 }
 """
@@ -57,6 +60,59 @@ def api_example_cv_2():
             "Content-Length": str(len(pdf_bytes)),
         },
     )
+
+
+_MAX_ENRICH_URLS = 25
+
+
+@bp.route("/enrich-linkedin", methods=["POST"])
+def api_enrich_linkedin():
+    """Body: { urls: [..] } (or { url } for one) → enrich LinkedIn profiles via Apify.
+
+    Returns { ok, count, requested, profiles:[{profile, text}] } — each `profile` is
+    the app's candidate-profile shape (drives the card + save), `text` a CV-like blob
+    for matching. Multiple URLs are enriched in a single actor run.
+    """
+    data = request.get_json(silent=True) or {}
+    raw  = data.get("urls")
+    if raw is None and data.get("url"):
+        raw = [data["url"]]
+    urls = [u.strip() for u in (raw or []) if isinstance(u, str) and u.strip()]
+    if not urls:
+        return jsonify({"ok": False, "error": "No URL(s) provided"}), 400
+    if any("linkedin.com/" not in u.lower() for u in urls):
+        return jsonify({"ok": False, "error": "All URLs must be LinkedIn profile URLs"}), 400
+    if len(urls) > _MAX_ENRICH_URLS:
+        return jsonify({"ok": False,
+                        "error": f"Too many URLs — max {_MAX_ENRICH_URLS} per run"}), 400
+    if not config.APIFY_API_KEY:
+        return jsonify({"ok": False, "error": "Apify API key not configured"}), 503
+
+    from apify.linkedin import enrich_linkedin, map_to_profile, to_candidate_text
+    from helpers.profile_enricher import enrich_linkedin_profile
+    try:
+        items = enrich_linkedin(urls)
+        # The scraper returns one item per URL; failed ones carry an `errorMessage`
+        # (deleted / private / not-found profile) and no name. Drop those so they
+        # don't become blank candidate cards — `requested` vs `count` shows the gap.
+        good = [it for it in (items or [])
+                if it.get("full_name") and not it.get("errorMessage")]
+        if not good:
+            msg = (items[0].get("errorMessage") if items else None) \
+                  or "No data returned for those profiles"
+            return jsonify({"ok": False, "error": msg}), 404
+        profiles = []
+        for it in good:
+            # Mechanical map = accurate structured base; AI then analyzes the raw
+            # scrape and layers on inferred fields (seniority, salary, summary, …).
+            base = map_to_profile(it)
+            prof = enrich_linkedin_profile(it, base=base)
+            profiles.append({"profile": prof, "text": to_candidate_text(it, base)})
+        return jsonify({"ok": True, "count": len(profiles),
+                        "requested": len(urls), "profiles": profiles})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @bp.route("/parse-pdf", methods=["POST"])

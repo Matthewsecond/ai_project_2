@@ -81,23 +81,7 @@ def index():
 register_blueprints(app)
 
 
-# ── Debug / test endpoints ────────────────────────────────────────────────────
-
-@app.route("/api/test/match")
-def api_test_match():
-    from test.fixtures import SAMPLE_JOBS
-    return jsonify({"ok": True, "count": len(SAMPLE_JOBS), "top_n": len(SAMPLE_JOBS), "jobs": SAMPLE_JOBS})
-
-
-@app.route("/test/job-detail")
-@app.route("/test/job-detail/<int:n>")
-def test_job_detail(n: int = 0):
-    from test.fixtures import SAMPLE_JOBS
-    from core.job_detail import JobDetail
-    job      = JobDetail.from_dict(SAMPLE_JOBS[n % len(SAMPLE_JOBS)])
-    all_jobs = [JobDetail.from_dict(j).to_dict() for j in SAMPLE_JOBS]
-    return render_template("job_detail_test.html", job=job.to_dict(), all_jobs=all_jobs, n=n, total=len(SAMPLE_JOBS))
-
+# ── Debug endpoints ───────────────────────────────────────────────────────────
 
 @app.route("/debug/schema")
 def debug_schema():

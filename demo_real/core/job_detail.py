@@ -150,7 +150,7 @@ class JobDetail:
             lat=_float_or_none(data.get("lat")),
             lon=_float_or_none(data.get("lon")),
             salary=_str_or_none(data.get("salary")),
-            occ_group=_str_or_none(data.get("occ_group")),
+            occ_group=_str_or_none(data.get("occ_group") or data.get("occupational_group")),
             portal=_str_or_none(data.get("portal")),
             posted=_str_or_none(data.get("posted")),
             url=_str_or_none(data.get("url")),

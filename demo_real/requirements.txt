@@ -6,3 +6,4 @@ cryptography
 openai
 reportlab
 pypdf
+requests

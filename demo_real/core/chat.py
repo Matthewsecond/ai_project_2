@@ -254,6 +254,8 @@ def enrich_jobs_from_db(jobs: list[dict]) -> list[dict]:
         e["lon"]                     = row.get("_lon")
 
     enriched = [dict(j) for j in jobs]
+    for j in enriched:
+        j["_verified"] = False   # will be set True only by a confirmed DB id match
 
     # ── Pass 1: look up by numeric job_id ────────────────────────────────────
     id_map: dict[str, int] = {}   # str(id) → index in enriched list
@@ -274,11 +276,21 @@ def enrich_jobs_from_db(jobs: list[dict]) -> list[dict]:
                 if jid in id_map:
                     idx = id_map[jid]
                     _apply_row(enriched[idx], row)
+                    enriched[idx]["_verified"] = True
                     resolved.add(idx)
         except Exception:
             pass
 
+    unverified_ids = [enriched[i].get("job_id") for i in range(len(enriched)) if i not in resolved]
+    if unverified_ids:
+        logger.warning(
+            "enrich_jobs_from_db: %d/%d job IDs not found in DB (likely hallucinated): %s",
+            len(unverified_ids), len(enriched), unverified_ids[:10],
+        )
+
     # ── Pass 2: title + company fallback for unresolved jobs ─────────────────
+    # Runs to fill in fields where possible but does NOT set _verified=True —
+    # these jobs matched by title similarity, not by the ID GPT returned.
     unresolved_indices = [i for i in range(len(enriched)) if i not in resolved]
     if unresolved_indices:
         candidates = [

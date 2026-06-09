@@ -99,9 +99,14 @@ COL = {
 If no OpenAI API key is set, `matching.py` falls back to Jaccard keyword similarity
 computed entirely against the MySQL data. No AI dependency for basic demos.
 
-### In-memory pipeline
-Saved jobs live in `_saved_jobs` (a Python list in `app.py`). Resets on server
-restart. Intentional for demo use — no additional DB writes needed.
+### Candidate pipeline (MySQL-backed)
+Saved jobs, candidate profiles, guided-builder specs, and an access audit trail
+persist to the `Jobs_Intelligence_AI` schema via `helpers/candidate_store.py`
+(tables: `candidate`, `candidate_saved_job`, `target_candidate`, `audit_log`).
+Real-candidate personal data is GDPR-shaped: profiles/saved jobs are keyed by a
+surrogate `candidate_id`, erasing a candidate cascades to their saved jobs, and
+the audit log retains the id (no FK) so the trail survives erasure. The guided
+builder's `target_candidate` specs are search templates, not personal data.
 
 ### Session continuity in chat
 `chat.py` keeps a `_sessions` dict mapping `session_id → last_response_id`.

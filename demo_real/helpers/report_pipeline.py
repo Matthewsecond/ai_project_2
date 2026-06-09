@@ -1350,6 +1350,792 @@ def _split_questions(text):
 
 
 # ════════════════════════════════════════════════════════════════════════════════
+# MATCH INSIGHTS REPORT  — mirrors the on-screen dashboard (build_insights payload)
+# ════════════════════════════════════════════════════════════════════════════════
+# Dashboard palette (navy / blue / green / gold), distinct from the editorial look.
+DSH_NAVY  = colors.HexColor("#1a3864")
+DSH_BLUE  = colors.HexColor("#1a56c4")
+DSH_GREEN = colors.HexColor("#1a7a2e")
+DSH_GOLD  = colors.HexColor("#c89028")
+DSH_RED   = colors.HexColor("#c0392b")
+DSH_BG    = colors.HexColor("#f0efe8")
+DSH_CARD  = colors.white
+DSH_INK   = colors.HexColor("#1f2937")
+DSH_MUTE  = colors.HexColor("#6b7280")
+DSH_FAINT = colors.HexColor("#9ca3af")
+DSH_RULE  = colors.HexColor("#e3e1d8")
+DSH_TRACK = colors.HexColor("#eef1f4")
+DSH_CHIP  = colors.HexColor("#eef2f7")
+DSH_BLUEFILL = colors.HexColor("#bcd2ee")
+
+_GRADE_COL = {"A": DSH_GREEN, "B": DSH_GOLD, "C": colors.HexColor("#9c9a90")}
+
+
+def _ord(n):
+    if 10 <= (n % 100) <= 20:
+        suf = "th"
+    else:
+        suf = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"
+
+
+def _dash_styles():
+    def s(name, **kw):
+        base = {"fontName": FONTS["sans"], "textColor": DSH_INK, "leading": 14}
+        base.update(kw)
+        return ParagraphStyle(name, **base)
+    return {
+        "name":   s("d_name",  fontName=FONTS["sans_b"], fontSize=20, leading=23, textColor=DSH_NAVY),
+        "sub":    s("d_sub",   fontSize=9.5, textColor=DSH_MUTE, leading=13),
+        "h2":     s("d_h2",    fontName=FONTS["sans_b"], fontSize=12, leading=15, textColor=DSH_NAVY),
+        "card_t": s("d_ct",    fontName=FONTS["sans_b"], fontSize=10.5, leading=13, textColor=DSH_INK),
+        "card_s": s("d_cs",    fontSize=8, textColor=DSH_MUTE, leading=11),
+        "body":   s("d_body",  fontSize=9, leading=14),
+        "ai":     s("d_ai",    fontSize=8.2, leading=12, textColor=colors.HexColor("#3a4250")),
+        "why":    s("d_why",   fontSize=8, leading=11.5, textColor=DSH_MUTE),
+        "kpi_n":  s("d_kn",    fontName=FONTS["sans_b"], fontSize=18, leading=20, textColor=DSH_NAVY),
+        "kpi_l":  s("d_kl",    fontSize=7, textColor=DSH_MUTE, leading=9),
+        "kpi_s":  s("d_ks",    fontSize=7.5, textColor=DSH_MUTE, leading=10),
+    }
+
+
+def _dash_chip_row(items, width, fill=DSH_CHIP, tcol=None, size=8):
+    """Greedy-wrap text chips into rows of tables; returns list of flowables."""
+    tcol = tcol or colors.HexColor("#3a4250")
+    rows, cur, cur_w = [], [], 0.0
+    pad, gap = 8, 5
+    font = FONTS["sans"]
+    for label in items:
+        tw = pdfmetrics.stringWidth(label, font, size)
+        chip_w = tw + 2 * pad
+        if cur and cur_w + chip_w + gap > width:
+            rows.append(cur); cur, cur_w = [], 0.0
+        cur.append((label, chip_w)); cur_w += chip_w + gap
+    if cur:
+        rows.append(cur)
+    out = []
+    for row in rows:
+        cells, widths = [], []
+        for label, w in row:
+            chip = Table([[Paragraph(label, ParagraphStyle(
+                "chip", fontName=font, fontSize=size, textColor=tcol, leading=size + 2))]],
+                colWidths=[w])
+            chip.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), fill),
+                ("ROUNDEDCORNERS", [3, 3, 3, 3]),
+                ("TOPPADDING", (0, 0), (-1, -1), 2.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+                ("LEFTPADDING", (0, 0), (-1, -1), pad), ("RIGHTPADDING", (0, 0), (-1, -1), pad),
+            ]))
+            cells.append(chip); widths.append(w + gap)
+        rowtbl = Table([cells], colWidths=widths)
+        rowtbl.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        out.append(rowtbl)
+    return out
+
+
+def _dash_card(idx, title, sub, body_flowables, ai_text, why_label, why_text,
+               width, is_new=False):
+    """A dashboard panel: index badge + title + sub, body, AI-read, why line."""
+    badge_col = DSH_BLUE if is_new else DSH_NAVY
+    badge = Table([[Paragraph(idx, ParagraphStyle(
+        "bi", fontName=FONTS["sans_b"], fontSize=8.5, textColor=WHITE,
+        alignment=TA_CENTER, leading=11))]], colWidths=[18], rowHeights=[18])
+    badge.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), badge_col), ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    head = Table([[badge, Paragraph(title, ParagraphStyle(
+        "ct", fontName=FONTS["sans_b"], fontSize=10.5, textColor=DSH_INK, leading=13))]],
+        colWidths=[24, width - 24 - 24])
+    head.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0), ("LEFTPADDING", (1, 0), (1, 0), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    inner = [head, Spacer(1, 4)]
+    if sub:
+        inner.append(Paragraph(sub, ParagraphStyle(
+            "cs", fontSize=8, textColor=DSH_MUTE, leading=11)))
+    inner.append(Spacer(1, 8))
+    inner.extend(body_flowables)
+    if ai_text:
+        inner += [Spacer(1, 8), _dash_ai_band(ai_text, width - 24)]
+    if why_text:
+        inner += [Spacer(1, 6), Paragraph(
+            f'<b>{why_label}</b> {why_text}', ParagraphStyle(
+                "why", fontSize=7.8, textColor=DSH_MUTE, leading=11))]
+
+    card = Table([[inner]], colWidths=[width])
+    card.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.8, DSH_RULE),
+        ("BACKGROUND", (0, 0), (-1, -1), DSH_CARD), ("ROUNDEDCORNERS", [6, 6, 6, 6]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (-1, -1), 11), ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return card
+
+
+def _dash_ai_band(text, width):
+    band = Table([[Paragraph(
+        f'<b>Read.</b> {text}', ParagraphStyle(
+            "ai", fontSize=8.2, textColor=colors.HexColor("#2a3850"), leading=12))]],
+        colWidths=[width])
+    band.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#eef2fb")),
+        ("LINEBEFORE", (0, 0), (0, 0), 2.2, DSH_BLUE),
+        ("ROUNDEDCORNERS", [3, 3, 3, 3]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9), ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    return band
+
+
+def _dash_empty(text, width):
+    return Paragraph(text, ParagraphStyle(
+        "emp", fontName=FONTS["sans_i"], fontSize=8.5, textColor=DSH_FAINT, leading=12))
+
+
+# ── Panel visuals ───────────────────────────────────────────────────────────────
+def _dash_radar(radar, size=170):
+    d = Drawing(size, size)
+    cx, cy, R = size / 2.0, size / 2.0 - 2, size * 0.30
+    n = len(radar)
+    if n == 0:
+        return d
+    ang = [math.radians(90 - i * 360.0 / n) for i in range(n)]
+
+    def pt(i, r):
+        return (cx + r * math.cos(ang[i]), cy + r * math.sin(ang[i]))
+
+    for f in (0.25, 0.5, 0.75, 1.0):
+        pts = []
+        for i in range(n):
+            x, y = pt(i, R * f)
+            pts += [x, y]
+        d.add(Polygon(pts, strokeColor=DSH_RULE, strokeWidth=0.5, fillColor=None))
+    for i in range(n):
+        x, y = pt(i, R)
+        d.add(Line(cx, cy, x, y, strokeColor=DSH_RULE, strokeWidth=0.5))
+    dpts, verts = [], []
+    for i, a in enumerate(radar):
+        v = max(0.0, min(1.0, (a.get("v") or 0) / 100.0))
+        x, y = pt(i, R * v)
+        dpts += [x, y]; verts.append((x, y))
+    poly = Polygon(dpts, fillColor=DSH_BLUE, strokeColor=DSH_BLUE, strokeWidth=1.6)
+    poly.fillOpacity = 0.16
+    d.add(poly)
+    for (x, y) in verts:
+        d.add(Circle(x, y, 2.0, fillColor=DSH_NAVY, strokeColor=WHITE, strokeWidth=0.5))
+    for i, a in enumerate(radar):
+        lx, ly = pt(i, R + 14)
+        anchor = "middle"
+        if math.cos(ang[i]) > 0.3:
+            anchor = "start"
+        elif math.cos(ang[i]) < -0.3:
+            anchor = "end"
+        d.add(String(lx, ly, a.get("axis", ""), fontName=FONTS["sans"], fontSize=6.5,
+                     fillColor=DSH_MUTE, textAnchor=anchor))
+    return d
+
+
+def _dash_hbars(items, width, fill=DSH_NAVY, label_w=90, val_w=24, row_h=18):
+    """items: list of (label, n, max_n)."""
+    n = len(items)
+    H = max(row_h, n * row_h)
+    d = Drawing(width, H)
+    bx = label_w
+    bw = width - label_w - val_w
+    mx = max([1] + [it[1] for it in items])
+    for i, (label, val) in enumerate(items):
+        y = H - (i + 1) * row_h + (row_h - 8) / 2.0
+        d.add(String(0, y + 0.5, label, fontName=FONTS["sans"], fontSize=8,
+                     fillColor=colors.HexColor("#3a4250"), textAnchor="start"))
+        d.add(Rect(bx, y, bw, 7, fillColor=DSH_TRACK, strokeColor=None, rx=2, ry=2))
+        d.add(Rect(bx, y, max(1.0, val / mx * bw), 7, fillColor=fill, strokeColor=None, rx=2, ry=2))
+        d.add(String(width, y + 0.5, str(val), fontName=FONTS["sans_b"], fontSize=8,
+                     fillColor=DSH_INK, textAnchor="end"))
+    return d
+
+
+def _dash_salary_ruler(market, band, name, asks, width, height=92):
+    d = Drawing(width, height)
+    med = market.get("median")
+    if not med:
+        return None
+    p25, p75 = market.get("p25") or med, market.get("p75") or med
+    lo, hi = (band or [med, med])[0], (band or [med, med])[1]
+    loV = min(p25, lo) - 300
+    hiV = max(p75, hi) + 300
+    rng = (hiV - loV) or 1.0
+    padL, padR = 6, 6
+
+    def xV(v):
+        return padL + (v - loV) / rng * (width - padL - padR)
+
+    trackY, trackH = 40, 18
+    bx0, bx1 = xV(lo), xV(hi)
+    # candidate ask zone
+    d.add(Rect(bx0, trackY - 8, bx1 - bx0, trackH + 24, fillColor=colors.HexColor("#e7f0e9"),
+               strokeColor=None))
+    d.add(Line(bx0, trackY - 8, bx0, trackY + trackH + 16, strokeColor=DSH_GREEN, strokeWidth=1.0))
+    d.add(Line(bx1, trackY - 8, bx1, trackY + trackH + 16, strokeColor=DSH_GREEN, strokeWidth=1.0))
+    first = (name or "").split()[0] if name else "Candidate"
+    d.add(String((bx0 + bx1) / 2, trackY + trackH + 20, f"{first} asks {asks}",
+                 fontName=FONTS["sans_b"], fontSize=8, fillColor=DSH_GREEN, textAnchor="middle"))
+    # track + typical-pay zone + median
+    d.add(Rect(padL, trackY, width - padL - padR, trackH, fillColor=DSH_TRACK,
+               strokeColor=DSH_RULE, strokeWidth=0.5, rx=4, ry=4))
+    d.add(Rect(xV(p25), trackY, xV(p75) - xV(p25), trackH, fillColor=DSH_BLUEFILL,
+               strokeColor=None, rx=3, ry=3))
+    d.add(String((xV(p25) + xV(p75)) / 2, trackY + 6, "typical pay", fontName=FONTS["sans"],
+                 fontSize=7, fillColor=colors.HexColor("#3a5a86"), textAnchor="middle"))
+    d.add(Line(xV(med), trackY - 5, xV(med), trackY + trackH + 5, strokeColor=DSH_NAVY, strokeWidth=2))
+    d.add(String(xV(med), trackY - 13, f"median EUR {med:,}", fontName=FONTS["sans"], fontSize=7,
+                 fillColor=DSH_NAVY, textAnchor="middle"))
+    d.add(String(padL, 6, f"EUR {int(loV):,}", fontName=FONTS["sans"], fontSize=6.5,
+                 fillColor=DSH_FAINT, textAnchor="start"))
+    d.add(String(width - padR, 6, f"EUR {int(hiV):,}", fontName=FONTS["sans"], fontSize=6.5,
+                 fillColor=DSH_FAINT, textAnchor="end"))
+    return d
+
+
+def _dash_priority(priority, width, ST):
+    flows = []
+    for t in priority:
+        col = colors.HexColor(t.get("color") or "#1a3864")
+        dot = Drawing(10, 10)
+        dot.add(Circle(5, 5, 4, fillColor=col, strokeColor=None))
+        head = Table([[dot, Paragraph(
+            f'<b>{t.get("tier","")}</b>  <font color="#9ca3af" size="7.5">· {t.get("note","")} · '
+            f'{t.get("count",0)} role{"s" if t.get("count",0)!=1 else ""}</font>',
+            ParagraphStyle("pt", fontName=FONTS["sans"], fontSize=8.5, textColor=DSH_INK, leading=12))]],
+            colWidths=[14, width - 14])
+        head.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (0, 0), 0), ("LEFTPADDING", (1, 0), (1, 0), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        flows.append(head)
+        for r in t.get("roles", []):
+            g = (r.get("g") or "C").upper()
+            gsq = Table([[Paragraph(g, ParagraphStyle(
+                "g", fontName=FONTS["sans_b"], fontSize=8, textColor=WHITE,
+                alignment=TA_CENTER, leading=10))]], colWidths=[15], rowHeights=[15])
+            gsq.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), _GRADE_COL.get(g, DSH_MUTE)),
+                ("ROUNDEDCORNERS", [3, 3, 3, 3]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            main = [Paragraph(f'<b>{r.get("title","")}</b> — {r.get("co","")}',
+                              ParagraphStyle("pm", fontName=FONTS["sans"], fontSize=8.5,
+                                             textColor=DSH_INK, leading=11)),
+                    Paragraph(f'{r.get("loc","")} · {r.get("match","")}% match',
+                              ParagraphStyle("ps", fontSize=7.5, textColor=DSH_MUTE, leading=10))]
+            delta = r.get("delta")
+            sal = r.get("sal")
+            sal_txt = f"EUR {sal:,}" if sal else "—"
+            if delta == "in":
+                dtxt, dcol = "in range", DSH_GREEN
+            elif isinstance(delta, (int, float)) and delta > 0:
+                dtxt, dcol = f"+EUR {int(delta)} over", DSH_NAVY
+            elif isinstance(delta, (int, float)):
+                dtxt, dcol = f"EUR {abs(int(delta))} under", DSH_RED
+            else:
+                dtxt, dcol = "", DSH_MUTE
+            pay = [Paragraph(sal_txt, ParagraphStyle("pp", fontName=FONTS["sans_b"], fontSize=8.5,
+                             textColor=DSH_INK, alignment=TA_RIGHT, leading=11))]
+            if dtxt:
+                pay.append(Paragraph(dtxt, ParagraphStyle("pd", fontSize=7, textColor=dcol,
+                           alignment=TA_RIGHT, leading=9)))
+            row = Table([[gsq, main, pay]], colWidths=[20, width - 20 - 86, 86])
+            row.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (0, 0), 0), ("LEFTPADDING", (1, 0), (1, 0), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#f0f0ea")),
+            ]))
+            flows.append(row)
+        flows.append(Spacer(1, 4))
+    return flows
+
+
+def _dash_demand(spark, profile_avg, demand_now, demand_pct, demand_vs, width, height=120):
+    if not any(spark):
+        return None
+    d = Drawing(width, height)
+    n = len(spark)
+    padL, padR, padT, padB = 24, 12, 16, 20
+    yMax = max(10, math.ceil(max(max(spark), profile_avg) * 1.2 / 10) * 10)
+    slot = (width - padL - padR) / n
+    y0 = height - padB
+
+    def cx(i):
+        return padL + slot * i + slot / 2
+
+    def yV(v):
+        return padT + (height - padT - padB) * (1 - v / yMax)
+
+    d.add(Line(padL, y0, width - padR, y0, strokeColor=DSH_RULE, strokeWidth=0.6))
+    ay = yV(profile_avg)
+    d.add(Line(padL, ay, width - padR, ay, strokeColor=DSH_GOLD, strokeWidth=1.0,
+              strokeDashArray=[4, 3]))
+    d.add(String(padL, ay + 3, f"8-wk avg ~{profile_avg}/wk", fontName=FONTS["sans"],
+                 fontSize=6.5, fillColor=colors.HexColor("#9a8245"), textAnchor="start"))
+    for i, v in enumerate(spark):
+        recent = i >= n - 3
+        last = i == n - 1
+        col = DSH_NAVY if last else (DSH_BLUE if recent else colors.HexColor("#aeb9c9"))
+        d.add(Line(cx(i), y0, cx(i), yV(v), strokeColor=(DSH_BLUEFILL if recent else DSH_TRACK),
+                   strokeWidth=6))
+        d.add(Circle(cx(i), yV(v), 3.2 if last else 2.6, fillColor=col, strokeColor=WHITE,
+                     strokeWidth=1))
+        d.add(String(cx(i), yV(v) - 8, str(v), fontName=FONTS["sans_b"], fontSize=7,
+                     fillColor=col, textAnchor="middle"))
+        lbl = "now" if last else f"w{i+1}"
+        d.add(String(cx(i), y0 - 11, lbl, fontName=FONTS["sans"], fontSize=6,
+                     fillColor=DSH_FAINT, textAnchor="middle"))
+    return d
+
+
+def _dash_tiles(tiles, width):
+    """tiles: list of (num, label, color). 4-up tile strip."""
+    cells = []
+    for num, label, col in tiles:
+        inner = [Paragraph(str(num), ParagraphStyle("tn", fontName=FONTS["sans_b"], fontSize=18,
+                           textColor=col, alignment=TA_CENTER, leading=20)),
+                 Paragraph(label, ParagraphStyle("tl", fontSize=6.8, textColor=DSH_MUTE,
+                           alignment=TA_CENTER, leading=8.5))]
+        cells.append(inner)
+    cw = (width - (len(tiles) - 1) * 6) / len(tiles)
+    t = Table([cells], colWidths=[cw] * len(tiles))
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f7f6f1")),
+        ("BOX", (0, 0), (-1, -1), 0.5, DSH_RULE),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, DSH_RULE),
+        ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return t
+
+
+def _dash_benchmark(rank, total, name, width, height=42):
+    """Bar showing rank position among saved candidates.
+    rank=1 means strongest → marker at rightmost end."""
+    d = Drawing(width, height)
+    tw, ty = width, 24
+    d.add(Rect(0, ty, tw, 8, fillColor=DSH_TRACK, strokeColor=DSH_RULE, strokeWidth=0.5, rx=4, ry=4))
+    if total >= 2:
+        # position: rank 1 = right (100%), rank N = left (0%)
+        pos_frac = 1.0 - (rank - 1) / (total - 1)
+        mx = max(0.0, min(1.0, pos_frac)) * tw
+        d.add(Rect(0, ty, mx, 8, fillColor=DSH_NAVY, strokeColor=None, rx=4, ry=4))
+        d.add(Circle(mx, ty + 4, 5, fillColor=DSH_BLUE, strokeColor=WHITE, strokeWidth=1.2))
+        first = (name or "").split()[0] if name else "Candidate"
+        anchor = "middle" if 0.15 < pos_frac < 0.85 else ("end" if pos_frac >= 0.85 else "start")
+        d.add(String(mx, ty + 14, f"{first} · {rank} of {total}", fontName=FONTS["sans_b"],
+                     fontSize=7.5, fillColor=DSH_NAVY, textAnchor=anchor))
+    d.add(String(0,      ty - 11, "weakest",  fontName=FONTS["sans"], fontSize=6.5,
+                 fillColor=DSH_FAINT, textAnchor="start"))
+    d.add(String(tw / 2, ty - 11, "median",   fontName=FONTS["sans"], fontSize=6.5,
+                 fillColor=DSH_FAINT, textAnchor="middle"))
+    d.add(String(tw,     ty - 11, "strongest", fontName=FONTS["sans"], fontSize=6.5,
+                 fillColor=DSH_FAINT, textAnchor="end"))
+    return d
+
+
+# ── Section assembly ─────────────────────────────────────────────────────────────
+def _dash_header(story, ST, D, foot_left, page_meta):
+    story.append(_SectionMark(page_meta, "MATCH INSIGHTS", foot_left))
+    init = D.get("initials") or "?"
+    avatar = Table([[Paragraph(init, ParagraphStyle("av", fontName=FONTS["sans_b"], fontSize=17,
+                    textColor=WHITE, alignment=TA_CENTER, leading=20))]],
+                   colWidths=[46], rowHeights=[46])
+    avatar.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), DSH_NAVY), ("ROUNDEDCORNERS", [23, 23, 23, 23]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    sub_parts = [D.get("title"), (f"{D.get('years')} yrs" if D.get("years") else None),
+                 D.get("location"), D.get("langs")]
+    sub = "  ·  ".join(str(p) for p in sub_parts if p)
+    name_block = [MonoLabel("MATCH INSIGHTS · CANDIDATE BRIEFING", size=7.5, color=DSH_MUTE,
+                            tracking=1.5, space_after=4),
+                  Paragraph(D.get("name") or "Candidate", ST["name"])]
+    if sub:
+        name_block += [Spacer(1, 2), Paragraph(sub, ST["sub"])]
+    skills = D.get("skills") or []
+    if skills:
+        name_block.append(Spacer(1, 5))
+        name_block.extend(_dash_chip_row(skills[:12], COL_W - 80))
+    idrow = Table([[avatar, name_block]], colWidths=[60, COL_W - 60])
+    idrow.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (0, 0), "TOP"), ("VALIGN", (1, 0), (1, 0), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0), ("LEFTPADDING", (1, 0), (1, 0), 14),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    # meta line
+    meta = Table([[
+        Paragraph(f'<b>Asks</b>  {D.get("asks","—")}', ST["card_s"]),
+        Paragraph(f'<b>Available</b>  {D.get("available","—")}', ST["card_s"]),
+        Paragraph(f'<b>Prefers</b>  {D.get("prefers","—")}', ST["card_s"]),
+    ]], colWidths=[COL_W / 3] * 3)
+    meta.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    story += [Spacer(1, 2), idrow, Spacer(1, 10), meta, Spacer(1, 10),
+              HRFlowable(width="100%", thickness=0.6, color=DSH_RULE), Spacer(1, 12)]
+
+
+def _bm_kpi_cell(D, ST):
+    """Return (flowables_list, label) for the Pipeline rank KPI cell."""
+    total = D.get("benchmarkTotal") or 1
+    rank  = D.get("benchmarkRank") or 1
+    if total >= 2:
+        num_para = Paragraph(
+            f'{rank}<font size="9" color="#6b7280"> of {total}</font>', ST["kpi_n"])
+        sub_para = Paragraph(f'Rank {rank} of {total} candidates', ST["kpi_s"])
+    else:
+        num_para = Paragraph("Only", ParagraphStyle(
+            "bmsolo", fontName=FONTS["sans_b"], fontSize=18, textColor=DSH_MUTE, leading=20))
+        sub_para = Paragraph("No peers to compare yet", ST["kpi_s"])
+    return ([num_para, Spacer(1, 14), sub_para], "Pipeline rank")
+
+
+def _dash_kpi_strip(story, ST, D):
+    grades = D.get("grades") or {"A": 0, "B": 0, "C": 0}
+    tot = (grades.get("A", 0) + grades.get("B", 0) + grades.get("C", 0)) or 1
+    # grade mini bar
+    minibar = Drawing(80, 6)
+    x = 0
+    for key, col in (("A", DSH_GREEN), ("B", DSH_GOLD), ("C", colors.HexColor("#c9c7bd"))):
+        w = grades.get(key, 0) / tot * 80
+        if w > 0:
+            minibar.add(Rect(x, 0, w, 6, fillColor=col, strokeColor=None))
+            x += w
+    dp = D.get("demandPct", 0)
+    kpis = [
+        ([Paragraph(f'{D.get("strength",0)}<font size="9" color="#6b7280">/100</font>', ST["kpi_n"]),
+          Spacer(1, 4), minibar, Spacer(1, 3),
+          Paragraph(f'<b>{grades.get("A",0)} A</b> · {grades.get("B",0)} B · {grades.get("C",0)} C of {tot}',
+                    ST["kpi_s"])], "Match strength"),
+        ([Paragraph(f'{"+" if dp>=0 else ""}{dp}%', ParagraphStyle("dn", parent=ST["kpi_n"],
+                    textColor=(DSH_GREEN if dp >= 0 else DSH_RED))),
+          Spacer(1, 14),
+          Paragraph(f'{D.get("demandNow",0)} new roles/wk', ST["kpi_s"])], "Profile demand"),
+        ([Paragraph(D.get("placeText", "—"), ST["kpi_n"]), Spacer(1, 14),
+          Paragraph(f'Similar roles live ~{D.get("placeabilityDays",0)} days', ST["kpi_s"])],
+         "Placeability"),
+        ([Paragraph(f'EUR {(D.get("salaryCeiling") or 0):,}', ST["kpi_n"]), Spacer(1, 14),
+          Paragraph(f'<font color="#1a7a2e"><b>+EUR {(D.get("salaryHeadroom") or 0):,}</b></font> above ask',
+                    ST["kpi_s"])], "Salary headroom"),
+        _bm_kpi_cell(D, ST),
+    ]
+    cells = []
+    for body, label in kpis:
+        cells.append([MonoLabel(label.upper(), size=6.5, color=DSH_MUTE, tracking=1.0)] + [Spacer(1, 5)] + body)
+    cw = (COL_W - 4 * 10) / 5
+    strip = Table([cells], colWidths=[cw] * 5)
+    strip.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BACKGROUND", (0, 0), (-1, -1), DSH_CARD),
+        ("BOX", (0, 0), (-1, -1), 0.8, DSH_RULE), ("ROUNDEDCORNERS", [6, 6, 6, 6]),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#f0f0ea")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9), ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 11),
+    ]))
+    story += [strip, Spacer(1, 14)]
+
+
+def _dash_briefing(story, ST, D):
+    paras = D.get("briefing") or []
+    actions = D.get("actions") or []
+    inner = [MonoLabel("MATCH BRIEFING · SYNTHESISED FROM THE PANELS BELOW", size=7,
+                       color=DSH_NAVY, tracking=1.4, space_after=6)]
+    for p in paras:
+        inner += [Paragraph(p, ST["body"]), Spacer(1, 5)]
+    if actions:
+        inner.append(Spacer(1, 3))
+        for i, a in enumerate(actions, 1):
+            num = Table([[Paragraph(str(i), ParagraphStyle("an", fontName=FONTS["sans_b"],
+                        fontSize=8, textColor=WHITE, alignment=TA_CENTER, leading=11))]],
+                        colWidths=[15], rowHeights=[15])
+            num.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), DSH_BLUE), ("ROUNDEDCORNERS", [8, 8, 8, 8]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            ar = Table([[num, Paragraph(a, ParagraphStyle("at", fontSize=8.5, textColor=DSH_INK,
+                        leading=12))]], colWidths=[20, COL_W - 24 - 20])
+            ar.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (0, 0), 0), ("LEFTPADDING", (1, 0), (1, 0), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            inner.append(ar)
+    band = Table([[inner]], colWidths=[COL_W])
+    band.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f7f6f1")),
+        ("BOX", (0, 0), (-1, -1), 0.8, DSH_RULE), ("ROUNDEDCORNERS", [6, 6, 6, 6]),
+        ("LINEBEFORE", (0, 0), (0, 0), 3, DSH_NAVY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 13), ("RIGHTPADDING", (0, 0), (-1, -1), 13),
+        ("TOPPADDING", (0, 0), (-1, -1), 11), ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+    ]))
+    story += [band, Spacer(1, 14)]
+
+
+def _dash_section_label(text):
+    """Return the flowables for a section divider (label + rule)."""
+    return [MonoLabel(text, size=8, color=DSH_NAVY, tracking=1.8, space_after=2),
+            HRFlowable(width="100%", thickness=0.5, color=DSH_RULE), Spacer(1, 10)]
+
+
+def _two_col(card_a, card_b, gap=14):
+    cw = (COL_W - gap) / 2.0
+    row = Table([[card_a, card_b]], colWidths=[cw, cw])
+    row.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0), ("RIGHTPADDING", (0, 0), (0, 0), gap),
+        ("LEFTPADDING", (1, 0), (1, 0), 0), ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return row
+
+
+def _build_insights_pages(story, ST, D, page_meta, foot_left):
+    half = (COL_W - 14) / 2.0
+    _dash_header(story, ST, D, foot_left, page_meta)
+    _dash_kpi_strip(story, ST, D)
+    _dash_briefing(story, ST, D)
+
+    # ── MATCH ANALYSIS ────────────────────────────────────────────────────────
+    # 01 radar  +  02 skills & gaps  (two-up)
+    radar = _dash_radar(D.get("radar") or [], size=150)
+    radar_card = _dash_card("01", "Candidate fit radar",
+                            "Strong dimensions vs. where the match is thin.",
+                            [radar], D.get("radarAI"), "Why it helps:",
+                            "A single shape shows the trade-offs at a glance.", half)
+    sk2 = D.get("skills2") or []
+    skills_body = []
+    if sk2:
+        skills_body.append(MonoLabel(f"CANDIDATE SKILLS · DEMANDED BY N OF {D.get('matches',0)} ROLES",
+                                     size=6.5, color=DSH_MUTE, tracking=1.0, space_after=4))
+        skills_body.append(_dash_hbars([(s["name"], s["n"]) for s in sk2[:6]], half - 24, label_w=70))
+    gaps = D.get("gaps") or []
+    if gaps:
+        skills_body += [Spacer(1, 8),
+                        MonoLabel("IN-DEMAND SKILLS THE CANDIDATE IS MISSING", size=6.5,
+                                  color=DSH_MUTE, tracking=1.0, space_after=4)]
+        skills_body += _dash_chip_row([f'{g["name"]}  {g["n"]}x' for g in gaps[:8]], half - 24,
+                                      fill=colors.HexColor("#fde7e3"), tcol=DSH_RED, size=7.5)
+    if not skills_body:
+        skills_body = [_dash_empty("No skill data for this candidate.", half - 24)]
+    skills_card = _dash_card("02", "Skills in demand & gaps",
+                             "Which skills carry the matches — and what is missing.",
+                             skills_body, D.get("skillsAI"), "Why it helps:",
+                             "Surfaces marketable skills and gaps worth coaching toward.", half)
+    story += [KeepTogether(_dash_section_label("MATCH ANALYSIS · FROM CURRENT DATA")
+                           + [_two_col(radar_card, skills_card)]),
+              Spacer(1, 12)]
+
+    # 03 salary positioning (full width)
+    ruler = _dash_salary_ruler(D.get("market") or {}, D.get("candBand"), D.get("name"),
+                               D.get("asks", "—"), COL_W - 24)
+    sal_body = [ruler] if ruler else [_dash_empty("No market salary data for this group.", COL_W - 24)]
+    if ruler:
+        ss = D.get("salaryStat") or {}
+        sal_body += [Spacer(1, 6), Paragraph(
+            f'<b>Sample</b> {D.get("matches",0)} roles   ·   <b>Ask vs market</b> {ss.get("overlap","—")}'
+            f'   ·   <b>Verdict</b> {ss.get("verdict","—")}', ST["card_s"])]
+    story += [_dash_card("03", "Salary positioning",
+                         "Is the candidate's expectation realistic for these roles?",
+                         sal_body, D.get("salaryAI"), "Why it helps:",
+                         "A pay ruler — market range, typical-pay zone, and where the ask falls.",
+                         COL_W), Spacer(1, 12)]
+
+    # 04 priority shortlist (full width)
+    pr = D.get("priority") or []
+    pr_body = _dash_priority(pr, COL_W - 24, ST) if pr else [_dash_empty("No ranked roles yet.", COL_W - 24)]
+    story += [_dash_card("04", "Priority shortlist",
+                         "Who to call about first — no chart-reading required.",
+                         pr_body, D.get("priorityAI"), "Why it helps:",
+                         "Sorts matches into plain action tiers.", COL_W), Spacer(1, 6)]
+
+    # ── EXTENDED STATISTICS ───────────────────────────────────────────────────
+    story.append(PageBreak())
+    story += _dash_section_label("EXTENDED STATISTICS · MARKET-DERIVED")
+
+    # 05 demand trend (full width)
+    dem = _dash_demand(D.get("demandSpark") or [], D.get("profileAvg", 0), D.get("demandNow", 0),
+                       D.get("demandPct", 0), D.get("demandVsAvg", 0), COL_W - 24)
+    dem_body = [dem] if dem else [_dash_empty("No recent posting-date data for this group.", COL_W - 24)]
+    story += [_dash_card("05", "Demand trend for this profile",
+                         "Is the market for this candidate heating up or cooling?",
+                         dem_body, D.get("demandAI"), "Stat:",
+                         "Weekly new roles in the candidate's occupational group.", COL_W,
+                         is_new=True), Spacer(1, 12)]
+
+    # 06 upskilling + 07 employers (two-up)
+    up = D.get("upskill") or []
+    if up:
+        mx = max([1] + [u.get("add", 0) for u in up])
+        up_body = [_dash_hbars([(u["name"], u.get("add", 0)) for u in up[:5]], half - 24, label_w=80,
+                               fill=DSH_GREEN)]
+    else:
+        up_body = [_dash_empty("No high-impact skill gaps detected.", half - 24)]
+    up_card = _dash_card("06", "Upskilling ROI", "What one course unlocks.",
+                         up_body, D.get("upskillAI"), "Stat:",
+                         "Extra roles and salary uplift per missing skill.", half, is_new=True)
+    emp = D.get("employers") or []
+    if emp:
+        emp_body = [_dash_hbars([(f'{e["name"]}', e.get("roles", 0)) for e in emp[:6]], half - 24,
+                                label_w=110, fill=DSH_NAVY)]
+    else:
+        emp_body = [_dash_empty("No clustered employers.", half - 24)]
+    emp_card = _dash_card("07", "Top employers to approach", "Where the matching roles cluster.",
+                          emp_body, D.get("employersAI"), "Stat:",
+                          "Companies with multiple matching roles.", half, is_new=True)
+    story += [_two_col(up_card, emp_card), Spacer(1, 12)]
+
+    # 08 expansion + 09 placeability (two-up)
+    lev = D.get("levers") or []
+    if lev:
+        exp_body = [_dash_hbars([(l["name"], l.get("add", 0)) for l in lev], half - 24, label_w=120,
+                                fill=DSH_GOLD)]
+    else:
+        exp_body = [_dash_empty("No obvious expansion levers from current data.", half - 24)]
+    exp_body += [Spacer(1, 6), Paragraph(
+        f'<b>{D.get("leverTotal","—")}</b> potential roles if all levers applied', ST["card_s"])]
+    exp_card = _dash_card("08", "Pipeline expansion simulator", "How to grow a thin shortlist.",
+                          exp_body, D.get("expansionAI"), "Stat:",
+                          "Extra group roles a relaxed filter unlocks.", half, is_new=True)
+    pdist = D.get("placeDist") or []
+    pl_body = [Paragraph(
+        f'<font name="{FONTS["sans_b"]}" size="15" color="#1a3864">~{D.get("placeabilityDays",0)} days</font>'
+        f'  <font size="8" color="#6b7280">median posting age</font>',
+        ParagraphStyle("plh", leading=18)), Spacer(1, 6)]
+    if any(x.get("n") for x in pdist):
+        pl_body.append(_dash_hbars([(x["d"], x["n"]) for x in pdist], half - 24, label_w=46,
+                                   fill=colors.HexColor("#6b7a99")))
+    else:
+        pl_body.append(_dash_empty("No posting-age data.", half - 24))
+    if D.get("placeAroles"):
+        pl_body += [Spacer(1, 5), Paragraph(
+            f'<b>{D.get("placeAroles")} A-role(s)</b> are 15+ days old — likely to close soon.',
+            ST["why"])]
+    pl_card = _dash_card("09", "Placeability & time-on-market", "How quickly these roles move.",
+                         pl_body, D.get("placeabilityAI"), "Stat:",
+                         "Derived from how long the saved roles have been live.", half, is_new=True)
+    story += [_two_col(exp_card, pl_card), Spacer(1, 12)]
+
+    # 10 benchmark + 11 urgency (two-up)
+    bm_rank  = D.get("benchmarkRank") or 1
+    bm_total = D.get("benchmarkTotal") or 1
+    bm_bar   = _dash_benchmark(bm_rank, bm_total, D.get("name"), half - 24)
+    if bm_total >= 2:
+        bm_note = f'<b>Ranked {bm_rank} of {bm_total}</b> saved candidates by match strength.'
+        bm_sub  = "How this candidate compares to the rest."
+    else:
+        bm_note = "Only candidate in the pipeline — no peers to rank against yet."
+        bm_sub  = "Add more candidates to enable comparison."
+    bm_body = [bm_bar, Spacer(1, 4), Paragraph(bm_note, ST["card_s"])]
+    bm_card = _dash_card("10", "Pipeline benchmark", bm_sub,
+                         bm_body, D.get("benchmarkAI"), "Stat:",
+                         "Ranks match strength against other saved candidates.", half, is_new=True)
+    f = D.get("fresh") or {}
+    fr_body = [_dash_tiles([
+        (f.get("closing", 0), "closing\n<=7 days", DSH_RED),
+        (f.get("fresh", 0), "fresh\nposted <7d", DSH_GREEN),
+        (f.get("stale", 0), "aging\n30-60 days", DSH_MUTE),
+        (f.get("expired", 0), "deadline\npassed", DSH_MUTE),
+    ], half - 24)]
+    fr_card = _dash_card("11", "Outreach urgency", "Which matches need action now.",
+                         fr_body, D.get("freshAI"), "Stat:",
+                         "Turns posting age & deadlines into a to-do list.", half, is_new=True)
+    story += [_two_col(bm_card, fr_card)]
+
+
+def _make_dash_decorator(today_str, page_meta, totals):
+    def decorate(canvas: Canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(DSH_BG)
+        canvas.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
+        top_y = PAGE_H - 1.45 * cm
+        # left brand
+        canvas.setFillColor(DSH_NAVY)
+        canvas.roundRect(MARGIN_X, top_y - 4, 4, 12, 1, fill=1, stroke=0)
+        _ls(canvas, MARGIN_X + 11, top_y, "JOBS INTELLIGENCE", FONTS["sans_b"], 8.5, DSH_NAVY, 0.8)
+        _ls(canvas, PAGE_W - MARGIN_X, top_y,
+            f"MATCH INSIGHTS   {today_str.upper()}", FONTS["mono"], 7.5, DSH_MUTE, 1.3, anchor="r")
+        canvas.setStrokeColor(DSH_RULE)
+        canvas.setLineWidth(0.6)
+        canvas.line(MARGIN_X, top_y - 10, PAGE_W - MARGIN_X, top_y - 10)
+        # footer
+        meta = page_meta.get(doc.page, {})
+        foot_y = 1.15 * cm
+        canvas.setStrokeColor(DSH_RULE)
+        canvas.line(MARGIN_X, foot_y + 12, PAGE_W - MARGIN_X, foot_y + 12)
+        _ls(canvas, MARGIN_X, foot_y, meta.get("foot_left", ""), FONTS["mono"], 7, DSH_MUTE, 1.3)
+        _ls(canvas, PAGE_W / 2, foot_y, meta.get("section", ""), FONTS["mono"], 7, DSH_MUTE, 1.6,
+            anchor="c")
+        _ls(canvas, PAGE_W - MARGIN_X, foot_y, f"{doc.page} / {totals['n']}", FONTS["mono"], 7,
+            DSH_MUTE, 1.3, anchor="r")
+        canvas.restoreState()
+    return decorate
+
+
+def generate_insights_pdf(insights):
+    """Render the Match Insights dashboard (build_insights payload) to PDF bytes."""
+    _register_fonts()
+    ST = _dash_styles()
+    today_str = date.today().strftime("%b %d, %Y")
+    D = insights or {}
+    name = D.get("name") or "Candidate"
+    foot_left = f"{name.upper()} · {_cand_id(name)}"
+    page_meta = {}
+    totals = {"n": 0}
+
+    def build_story():
+        story = []
+        _build_insights_pages(story, ST, D, page_meta, foot_left)
+        return story
+
+    def make_doc(buf):
+        doc = BaseDocTemplate(
+            buf, pagesize=A4,
+            leftMargin=MARGIN_X, rightMargin=MARGIN_X,
+            topMargin=MARGIN_TOP, bottomMargin=MARGIN_BOT,
+            title=f"Match Insights — {name}", author="Jobs Intelligence Austria",
+        )
+        frame = Frame(MARGIN_X, MARGIN_BOT, COL_W, PAGE_H - MARGIN_TOP - MARGIN_BOT,
+                      id="main", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+        deco = _make_dash_decorator(today_str, page_meta, totals)
+        doc.addPageTemplates([PageTemplate(id="all", frames=[frame], onPage=deco)])
+        return doc
+
+    doc1 = make_doc(io.BytesIO())
+    doc1.build(build_story())
+    totals["n"] = doc1.page
+    out = io.BytesIO()
+    make_doc(out).build(build_story())
+    return out.getvalue()
+
+
+# ════════════════════════════════════════════════════════════════════════════════
 # PUBLIC ENTRY POINT
 # ════════════════════════════════════════════════════════════════════════════════
 def generate_saved_jobs_pdf(jobs, candidate_profile=None):

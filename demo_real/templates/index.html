@@ -63,6 +63,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0efe8;min-height:100vh
 .cand-confirm-btn{height:28px;padding:0 12px;border:none;border-radius:6px;background:#1a56c4;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
 .cand-confirm-btn:hover{background:#1a3864}
 .cand-hint{font-size:11px;color:#ccc;font-style:italic}
+/* Duplicate-candidate warning */
+.cand-dup-warn{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:9px 13px;background:#fdeaea;border:1px solid #f3b4b4;border-radius:8px;color:#b91c1c;font-size:12.5px;font-weight:600;line-height:1.4}
+.cand-dup-warn .cdw-ico{flex-shrink:0;width:16px;height:16px;border-radius:50%;background:#b91c1c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.cand-dup-warn .cdw-status{display:inline-block;padding:1px 8px;border-radius:999px;background:#fff;border:1px solid #f3b4b4;color:#b91c1c;font-size:11px;font-weight:700}
+.cand-dup-warn b{color:#7f1414}
+.cand-dup-warn .cdw-load{margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid #b91c1c;border-radius:6px;background:#fff;color:#b91c1c;font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+.cand-dup-warn .cdw-load:hover{background:#b91c1c;color:#fff}
+.cand-dup-warn .cdw-load:disabled{opacity:.6;cursor:default}
 /* ── AI Candidate profile card */
 .cand-profile-card{background:#f5f8ff;border:1px solid #c4d4f0;border-radius:12px;padding:14px 16px;margin-bottom:12px;display:none}
 .cand-profile-card.visible{display:block}
@@ -80,6 +88,19 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0efe8;min-height:100vh
 .cand-profile-meta-item{display:flex;align-items:center;gap:4px;white-space:nowrap}
 .cand-profile-meta-label{font-weight:600;color:#bbb}
 .cand-profile-summary{font-size:11.5px;color:#6b7280;font-style:italic;padding-top:8px;border-top:1px solid #dce8fb;line-height:1.5}
+.cand-profile-strengths{padding-top:9px;margin-top:8px;border-top:1px solid #dce8fb}
+.cand-profile-strengths .cps-item{font-size:11.5px;color:#374151;line-height:1.5;padding:1px 0 1px 14px;position:relative}
+.cand-profile-strengths .cps-item::before{content:'▸';position:absolute;left:0;color:#1a56c4}
+.cand-profile-exp{padding-top:9px;margin-top:8px;border-top:1px solid #dce8fb}
+.cand-profile-exp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cand-profile-exp-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af}
+.cpe-save-co{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid #b0ccf0;border-radius:6px;background:#fff;color:#1a56c4;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .12s,color .12s}
+.cpe-save-co:hover{background:#1a56c4;color:#fff}
+.cpe-save-co:disabled{opacity:.7;cursor:default}
+.cand-profile-exp-item{display:flex;gap:8px;padding:3px 0;font-size:11.5px;line-height:1.45}
+.cand-profile-exp-item .cpe-role{color:#374151;font-weight:600}
+.cand-profile-exp-item .cpe-co{color:#1a56c4}
+.cand-profile-exp-item .cpe-when{color:#9ca3af;white-space:nowrap;margin-left:auto;font-size:11px}
 .cand-parsing{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa;padding:4px 0}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin .9s linear infinite;display:inline-block}
@@ -91,6 +112,32 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0efe8;min-height:100vh
 .ex-direct-btn--pdf:hover{background:#1a3864;border-color:#1a3864}
 .ex-direct-btn--finance{background:#166534;color:#fff;border-color:#166534}
 .ex-direct-btn--finance:hover{background:#14532d;border-color:#14532d}
+/* ── Example candidate dropdown ── */
+.ex-dropdown{position:relative;margin-left:auto;flex-shrink:0}
+.ex-dropdown-trigger{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid #c4d4f0;background:#eef2fa;color:#1a56c4;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+.ex-dropdown-trigger:hover{background:#dce8fb;border-color:#99b8f0}
+.ex-dropdown-trigger svg{flex-shrink:0}
+.ex-dropdown-arrow{font-size:10px;margin-left:2px;transition:transform .15s;display:inline-block}
+.ex-dropdown.open .ex-dropdown-arrow{transform:rotate(180deg)}
+.ex-dropdown-panel{position:absolute;top:calc(100% + 6px);right:0;width:320px;background:#fff;border:1px solid #dce8fb;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.10);z-index:200;overflow:hidden;display:none}
+.ex-dropdown.open .ex-dropdown-panel{display:block}
+.ex-dropdown-header{padding:7px 12px 5px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #f0eff8}
+.ex-dropdown-item{display:flex;align-items:flex-start;gap:9px;padding:8px 12px;cursor:pointer;transition:background .1s;border-bottom:1px solid #f5f4f0}
+.ex-dropdown-item:last-child{border-bottom:none}
+.ex-dropdown-item:hover{background:#f5f8ff}
+.ex-area{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;margin-top:2px;letter-spacing:.03em}
+.ex-area--it{background:#dbeafe;color:#1d4ed8}
+.ex-area--data{background:#ede9fe;color:#6d28d9}
+.ex-area--hr{background:#dcfce7;color:#15803d}
+.ex-area--pr{background:#fce7f3;color:#be185d}
+.ex-area--sales{background:#fff7ed;color:#c2410c}
+.ex-area--finance{background:#fef9c3;color:#854d0e}
+.ex-area--logistics{background:#f1f5f9;color:#475569}
+.ex-area--pm{background:#e0f2fe;color:#0369a1}
+.ex-item-body{flex:1;min-width:0}
+.ex-item-name{font-size:12px;font-weight:600;color:#1a1a18;line-height:1.3}
+.ex-item-desc{font-size:10.5px;color:#6b7280;line-height:1.4;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ex-item-badge{font-size:9px;padding:1px 6px;border-radius:4px;background:#f0f0ec;color:#888;margin-left:4px;font-weight:500}
 .ex-pdf-icon{width:30px;height:30px;background:#fee2e2;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ex-pdf-info{min-width:0}
 .ex-pdf-name{font-size:11px;font-weight:600;color:#1a3864;white-space:nowrap}
@@ -173,6 +220,16 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0efe8;min-height:100vh
 .input-zone{display:none}
 .input-zone.active{display:block}
 
+/* LinkedIn enrichment zone */
+.li-enrich{border:1.5px solid #c4d4f0;border-radius:8px;padding:16px 18px;background:#f5f8ff}
+.li-enrich-row{display:flex;gap:10px;align-items:flex-start}
+.li-urls{flex:1;min-height:64px;padding:9px 12px;border:1px solid #c4d4f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;color:#333;background:#fff;resize:vertical;line-height:1.5}
+.li-urls:focus{border-color:#1a56c4;box-shadow:0 0 0 2px rgba(26,86,196,.1)}
+.li-hint{font-size:11.5px;color:#7a90b8;margin-top:9px;line-height:1.5}
+.li-status{font-size:12.5px;margin-top:8px;min-height:18px;color:#555;display:flex;align-items:center;gap:7px}
+.li-status.ok{color:#1a7a2e;font-weight:600}
+.li-status.err{color:#c0392b;font-weight:600}
+
 /* CV drop zone */
 .upload-drop{border:1.5px dashed #ccc;border-radius:8px;padding:18px 20px;background:#fafaf6;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .2s;position:relative}
 .upload-drop:hover,.upload-drop.dragover{border-color:#99b8f0;background:#f5f8ff}
@@ -245,12 +302,51 @@ textarea.free-text{width:100%;height:90px;border:1px solid #ddd;border-radius:8p
 textarea.free-text:focus{border-color:#99b8f0}
 textarea.free-text::placeholder{color:#bbb}
 
-.guided-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.guided-grid label{font-size:11px;color:#888;display:block;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.03em}
-.guided-grid input,.guided-grid select,.guided-grid textarea{width:100%;font-size:12px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;outline:none;background:#fff;color:#333}
-.guided-grid input:focus,.guided-grid select:focus,.guided-grid textarea:focus{border-color:#99b8f0}
-.guided-grid .full{grid-column:1/-1}
-.guided-grid textarea{height:60px;resize:none}
+/* ── Guided candidate builder ───────────────────────────────── */
+.gb-intro{font-size:12px;color:#666;background:#f6f9ff;border:1px solid #e3ecfa;border-radius:8px;padding:9px 12px;margin-bottom:12px;line-height:1.5}
+.gb-intro b{color:#1a56c4}
+.gb-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+@media(max-width:900px){.gb-layout{grid-template-columns:1fr}.gb-chat{height:420px}}
+
+.gb-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gb-field{display:flex;flex-direction:column;min-width:0}
+.gb-field.full{grid-column:1/-1}
+.gb-field label{font-size:10px;color:#999;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.gb-chips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:34px;border:1px solid #ddd;border-radius:7px;padding:4px 6px;background:#fff;transition:border-color .15s}
+.gb-chips.flash{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.gb-chip{display:inline-flex;align-items:center;gap:4px;background:#e8f0fb;color:#1a56c4;font-size:11px;font-weight:500;padding:2px 6px;border-radius:5px}
+.gb-chip .x{cursor:pointer;font-weight:700;opacity:.6;font-size:12px;line-height:1}
+.gb-chip .x:hover{opacity:1}
+.gb-chips input{border:none;outline:none;flex:1;min-width:70px;font-size:12px;font-family:inherit;color:#333;background:transparent;padding:2px}
+.gb-chips select{border:none;outline:none;flex:1;min-width:60px;max-width:100%;font-size:12px;font-family:inherit;color:#888;background:transparent;cursor:pointer}
+.gb-field input.gb-text,.gb-field textarea.gb-text{width:100%;font-size:12px;padding:7px 9px;border:1px solid #ddd;border-radius:7px;font-family:inherit;outline:none;background:#fff;color:#333}
+.gb-field input.gb-text:focus,.gb-field textarea.gb-text:focus{border-color:#99b8f0}
+.gb-field textarea.gb-text{height:48px;resize:vertical}
+.gb-field input.gb-text.flash,.gb-field textarea.gb-text.flash{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+
+.gb-chat{position:relative;overflow:hidden;border:1px solid #e3ecfa;border-radius:10px;background:#fafbfe;min-height:340px}
+.gb-chat-inner{position:absolute;inset:0;display:flex;flex-direction:column}
+.gb-chat-thread{flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.gb-msg{max-width:86%;font-size:13px;line-height:1.55;padding:9px 13px;border-radius:12px;white-space:pre-wrap}
+.gb-msg.ai{background:#fff;border:1px solid #e6e6e6;color:#333;align-self:flex-start;border-bottom-left-radius:3px}
+.gb-msg.user{background:#1a56c4;color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.gb-msg.q{background:#eef4ff;border:1px solid #d6e4fb;color:#1a56c4;font-weight:500}
+.gb-msg-updates{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.gb-msg-updates .u{background:#eafaf0;color:#0a7d40;font-size:10px;font-weight:600;padding:1px 5px;border-radius:4px;border:1px solid #c5edd5}
+.gb-typing{align-self:flex-start;color:#aaa;font-size:12px;padding:4px 8px}
+.gb-quick{display:flex;flex-wrap:wrap;gap:5px;align-self:flex-start;max-width:92%;margin-top:2px}
+.gb-quick-chip{background:#fff;border:1px solid #c7d8f5;color:#1a56c4;font-size:12px;font-weight:500;font-family:inherit;padding:4px 10px;border-radius:13px;cursor:pointer;transition:background .12s,border-color .12s}
+.gb-quick-chip:hover{background:#1a56c4;color:#fff;border-color:#1a56c4}
+.gb-quick-chip.sel{background:#1a56c4;color:#fff;border-color:#1a56c4}
+.gb-quick-chip.sel::before{content:'✓ '}
+.gb-quick-done{background:#0a7d40;border:1px solid #0a7d40;color:#fff;font-size:12px;font-weight:600;font-family:inherit;padding:4px 13px;border-radius:13px;cursor:pointer;transition:background .12s}
+.gb-quick-done:hover:not(:disabled){background:#086230}
+.gb-quick-done:disabled{opacity:.4;cursor:default}
+.gb-chat-input{display:flex;gap:6px;padding:8px;border-top:1px solid #e9eef7}
+.gb-chat-input input{flex:1;font-size:12.5px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;outline:none;font-family:inherit;color:#333}
+.gb-chat-input input:focus{border-color:#99b8f0}
+.gb-chat-input button{font-size:12.5px;padding:8px 16px;border:none;border-radius:8px;background:#1a56c4;color:#fff;font-weight:600;cursor:pointer;font-family:inherit}
+.gb-chat-input button:disabled{opacity:.5;cursor:default}
 
 /* RUN ROW */
 .run-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
@@ -783,14 +879,13 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
     </div>
     <div class="nav-area">
       <div class="mode-toggle">
-        <button class="mode-toggle-btn active" data-mode="search">Search</button>
+        <button class="mode-toggle-btn active" data-mode="search">Candidate</button>
         <button class="mode-toggle-btn" data-mode="analytics">Analytics</button>
       </div>
       <div class="mode-divider"></div>
       <div class="tabs">
         <!-- Search mode tabs -->
         <button class="tab-btn active" data-tab="search" data-mode-group="search">Search</button>
-        <button class="tab-btn" data-tab="chat" data-mode-group="search">Chat</button>
         <button class="tab-btn" data-tab="saved" data-mode-group="search">Saved Jobs <span id="savedBadgeNav" style="display:none;background:#1a56c4;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">0</span></button>
         <!-- Analytics mode tabs (hidden by default) -->
         <button class="tab-btn" data-tab="radar" data-mode-group="analytics" style="display:none">Opportunities Radar</button>
@@ -818,17 +913,6 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
   <!-- ═══ SEARCH TAB ═══ -->
   <div id="tab-search" class="tab-panel active">
 
-    <!-- Filter bar -->
-    <div class="filter-bar">
-      <div class="filter-row">
-        <select id="filterState"><option value="">All states</option></select>
-        <input type="text" id="filterCity" placeholder="City">
-        <input type="text" id="filterKeyword" placeholder="Keywords / title">
-        <select id="filterOccGroup"><option value="">All categories</option></select>
-        <select id="filterPortal"><option value="">All portals</option></select>
-      </div>
-    </div>
-
     <div class="main-panel">
 
       <!-- Input area -->
@@ -848,21 +932,20 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
             </div>
             <span class="cand-hint" id="candHint">Name auto-detected from CV or text</span>
           </div>
-          <div class="ex-btn-group">
-            <button class="ex-direct-btn" onclick="loadExampleText()">
+          <div class="ex-dropdown" id="exDropdown">
+            <button type="button" class="ex-dropdown-trigger" onclick="_exToggle()">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Anna Bauer (text)
+              Example candidates
+              <span class="ex-dropdown-arrow">▾</span>
             </button>
-            <button class="ex-direct-btn ex-direct-btn--pdf" id="exPdfTile" onclick="loadExamplePdf()">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Max Weber (PDF)
-            </button>
-            <button class="ex-direct-btn ex-direct-btn--finance" onclick="loadExample3()">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Thomas Gruber (text)
-            </button>
+            <div class="ex-dropdown-panel" id="exDropdownPanel">
+              <div class="ex-dropdown-header">Select a candidate to load</div>
+            </div>
           </div>
         </div>
+
+        <!-- Duplicate-candidate warning (name already in the database) -->
+        <div class="cand-dup-warn" id="candDupWarn" style="display:none"></div>
 
         <!-- AI candidate profile card -->
         <div class="cand-profile-card" id="candProfileCard">
@@ -887,21 +970,23 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
             <div class="cand-profile-skills" id="candProfileSkills"></div>
             <div class="cand-profile-meta" id="candProfileMeta"></div>
             <div class="cand-profile-summary" id="candProfileSummary" style="display:none"></div>
+            <div class="cand-profile-strengths" id="candProfileStrengths" style="display:none"></div>
+            <div class="cand-profile-exp" id="candProfileExp" style="display:none"></div>
           </div>
         </div>
 
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="cv">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-            CV upload / paste
+            Search by CV
           </button>
-          <button class="mode-tab" data-mode="free">
-            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-            Free-text description
+          <button class="mode-tab" data-mode="linkedin">
+            <svg viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6zM6 9H2v12h4zM4 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+            From LinkedIn
           </button>
           <button class="mode-tab" data-mode="guided">
             <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            Guided query
+            Build a template
           </button>
         </div>
 
@@ -912,35 +997,43 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
             <div class="upload-icon">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             </div>
-            <div class="upload-text" id="dropText">Drop a PDF CV here, or <a href="#" onclick="event.stopPropagation();document.getElementById('cvFileInput').click();return false">browse to upload</a> — or paste CV text directly below</div>
+            <div class="upload-text" id="dropText">Drop a PDF CV here, or <a href="#" onclick="event.stopPropagation();document.getElementById('cvFileInput').click();return false">browse to upload</a> — or type in the box below</div>
           </div>
-          <textarea class="free-text" id="cvPasteText" placeholder="…or paste CV text here. The AI will extract skills and experience automatically."></textarea>
+          <textarea class="free-text" id="cvPasteText" placeholder="Paste a full CV, or just describe the candidate in plain language — e.g. 'Experienced forklift operator, Vienna, available from July, salary expectation €2,200+'. The AI extracts skills and experience automatically."></textarea>
         </div>
 
-        <!-- Free-text -->
-        <div id="zone-free" class="input-zone">
-          <textarea class="free-text" id="freeText" style="margin-top:0"
-            placeholder="Describe the candidate in natural language — e.g. 'Experienced forklift operator, Vienna, available from July, looking for full-time permanent work, salary expectation €2,200+...'"></textarea>
-        </div>
-
-        <!-- Guided query -->
-        <div id="zone-guided" class="input-zone">
-          <div class="guided-grid">
-            <div><label>Target role</label><input type="text" id="g_role" placeholder="e.g. Staplerfahrer"></div>
-            <div><label>Experience level</label>
-              <select id="g_level">
-                <option value="">Any level</option>
-                <option>Entry level (0–2 yrs)</option>
-                <option>Mid level (3–5 yrs)</option>
-                <option>Senior (6–10 yrs)</option>
-                <option>Expert / Lead (10+ yrs)</option>
-              </select>
+        <!-- LinkedIn URL enrichment (Apify) -->
+        <div id="zone-linkedin" class="input-zone">
+          <div class="li-enrich">
+            <div class="li-enrich-row">
+              <textarea id="liUrls" class="li-urls" rows="3" autocomplete="off" placeholder="Paste one or more LinkedIn profile URLs — one per line, e.g.&#10;https://www.linkedin.com/in/williamhgates&#10;https://www.linkedin.com/in/another-profile"></textarea>
             </div>
-            <div><label>Key skills</label><input type="text" id="g_skills" placeholder="e.g. Forklift, SAP"></div>
-            <div><label>Languages</label><input type="text" id="g_langs" placeholder="e.g. German C1, English B2"></div>
-            <div><label>Certifications / Licenses</label><input type="text" id="g_certs" placeholder="e.g. Staplerführerschein"></div>
-            <div><label>Location preference</label><input type="text" id="g_loc" placeholder="e.g. Wien, NÖ"></div>
-            <div class="full"><label>Additional notes</label><textarea id="g_notes" placeholder="Salary expectations, availability, industry preference…"></textarea></div>
+            <div class="li-hint">When you run matching, Apify scrapes each public profile first, then matches it against live jobs. The first profile loads below to match &amp; save; every imported profile is added to <b>Saved → Local</b> so you can save them in bulk.</div>
+            <div class="li-status" id="liStatus"></div>
+          </div>
+        </div>
+
+        <!-- Guided candidate builder -->
+        <div id="zone-guided" class="input-zone">
+          <div class="gb-intro">
+            Build a <b>target candidate</b> — the chat guides you with questions and fills the fields below.
+            Edit any field by hand; the assistant sees your changes. Then run matching and save it as a template candidate.
+          </div>
+          <div class="gb-layout">
+            <!-- Modifiable fields (filled by chat or by hand) -->
+            <div class="gb-fields" id="gbFields"><!-- generated by JS --></div>
+
+            <!-- Proactive guide chat -->
+            <div class="gb-chat">
+              <div class="gb-chat-inner">
+                <div class="gb-chat-thread" id="gbThread"></div>
+                <div class="gb-chat-input">
+                  <input type="text" id="gbMsg" placeholder="Answer or describe the candidate you need…"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();gbSend();}">
+                  <button type="button" id="gbSendBtn" onclick="gbSend()">Send</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -964,8 +1057,8 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
               Export CSV
             </button>
             <button class="export-btn" onclick="saveAll()">+ Save all A/B</button>
+            <button class="export-btn" id="gbSaveTemplateBtn" onclick="gbSaveTemplate()" style="display:none;color:#1a56c4;border-color:#b0ccf0;font-weight:600">★ Save as template candidate</button>
             <button class="export-btn" onclick="clearResults()">Clear</button>
-            <button class="export-btn" onclick="loadTestData()" title="Load hardcoded fixture jobs to test the modal" style="color:#a78bfa;border-color:#d4c8f8">🧪 Test data</button>
           </div>
         </div>
       </div>
@@ -974,6 +1067,16 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
       <div class="results-wrap">
         <div class="results-status" id="resultsStatus">
           <span id="statusText">Enter a candidate profile and click Run matching to see results.</span>
+        </div>
+        <!-- Filter bar — narrows the results below -->
+        <div class="filter-bar">
+          <div class="filter-row">
+            <select id="filterState"><option value="">All states</option></select>
+            <input type="text" id="filterCity" placeholder="City">
+            <input type="text" id="filterKeyword" placeholder="Keywords / title">
+            <select id="filterOccGroup"><option value="">All categories</option></select>
+            <select id="filterPortal"><option value="">All portals</option></select>
+          </div>
         </div>
         <div class="results-table-wrap">
           <table id="resultsTable">
@@ -1002,51 +1105,6 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
     </div>
   </div>
 
-  <!-- ═══ CHAT TAB ═══ -->
-  <div id="tab-chat" class="tab-panel">
-    <div class="chat-wrap">
-      <div class="chat-toolbar">
-        <span class="chat-toolbar-info">AI recruiter assistant — searches the live job database</span>
-        <button class="export-btn" id="chatFilterToggle" onclick="toggleChatFilters()" style="font-size:11px;padding:5px 12px">
-          Filters <span id="chatFilterDot" style="display:none" class="chat-filter-active-dot"></span>
-        </button>
-        <button class="chat-new-btn" onclick="newChat()">New conversation</button>
-      </div>
-      <div class="chat-filter-bar" id="chatFilterBar" style="display:none">
-        <span class="chat-filter-label">Portal</span>
-        <select id="cfPortal" onchange="updateChatFilterDot()"><option value="">All portals</option></select>
-        <span class="chat-filter-label">State</span>
-        <select id="cfState" onchange="updateChatFilterDot()"><option value="">All states</option></select>
-        <div class="chat-filter-sep"></div>
-        <span class="chat-filter-label">Salary €/mo</span>
-        <input type="number" id="cfSalMin" placeholder="min" min="0" step="100" oninput="updateChatFilterDot()">
-        <span style="color:#bbb;font-size:12px">–</span>
-        <input type="number" id="cfSalMax" placeholder="max" min="0" step="100" oninput="updateChatFilterDot()">
-        <div class="chat-filter-sep"></div>
-        <span class="chat-filter-label">Results</span>
-        <select id="cfMaxResults">
-          <option value="10">10</option>
-          <option value="20" selected>20</option>
-          <option value="30">30</option>
-          <option value="50">50</option>
-        </select>
-        <button class="export-btn" onclick="clearChatFilters()" style="font-size:11px;padding:4px 10px;margin-left:4px">Clear</button>
-      </div>
-      <div class="chat-thread" id="chatThread"></div>
-      <div class="chat-quick-row" id="chatQuickRow">
-        <span class="chip" onclick="quickAsk('Find forklift operator jobs in Vienna')">Forklift jobs Vienna</span>
-        <span class="chip" onclick="quickAsk('Show me IT and software developer jobs')">IT & Developer</span>
-        <span class="chip" onclick="quickAsk('Part-time jobs in Graz or Salzburg')">Part-time Graz/Salzburg</span>
-        <span class="chip" onclick="quickAsk('What logistics jobs are available in Niederösterreich?')">Logistics NÖ</span>
-        <span class="chip" onclick="quickAsk('Senior management and leadership positions in Austria')">Senior management</span>
-      </div>
-      <div class="chat-input-bar">
-        <input type="text" id="chatInput" placeholder="Ask me to find jobs, compare salaries, or describe a candidate…">
-        <button class="chat-send-btn" id="chatSend">Send</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ═══ MAP TAB ═══ -->
   <div id="tab-map" class="tab-panel">
     <div class="map-wrap">
@@ -1070,25 +1128,392 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
     </div>
   </div>
 
-  <!-- ═══ SAVED JOBS TAB ═══ -->
+  <!-- ═══ SAVED CANDIDATES — MATCH INSIGHTS TAB ═══ -->
+  <style>
+  /* Scoped Match-Insights dashboard styles (ported from the design). */
+  #savedDash{font-size:13px;color:#1a1a18}
+  #savedDash .cand-switch{background:#f8f7f2;border:1px solid #e0dfd8;border-radius:11px;padding:9px 14px;display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  #savedDash .cs-arrow{width:30px;height:30px;border-radius:8px;border:1px solid #d8d7cf;background:#fff;color:#1a3864;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;font-family:inherit}
+  #savedDash .cs-arrow:hover{background:#eef2fa;border-color:#b0c4e4}
+  #savedDash .cs-list{display:flex;gap:7px;overflow-x:auto;flex:1;padding:2px 0}
+  #savedDash .cs-list::-webkit-scrollbar{height:5px}
+  #savedDash .cs-list::-webkit-scrollbar-thumb{background:#d8d7cf;border-radius:3px}
+  #savedDash .cs-chip{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1px solid #e0dfd8;border-radius:999px;background:#fff;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .12s;flex-shrink:0}
+  #savedDash .cs-chip:hover{border-color:#b0c4e4;background:#f5f8ff}
+  #savedDash .cs-chip.active{border-color:#1a3864;background:#eef2fa;box-shadow:0 0 0 1px #1a3864 inset}
+  #savedDash .cs-av{width:26px;height:26px;border-radius:50%;background:#1a3864;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  #savedDash .cs-nm{font-size:12px;font-weight:600;color:#1a3864;line-height:1.2;text-align:left}
+  #savedDash .cs-nm small{display:block;font-size:9.5px;color:#9ca3af;font-weight:500}
+  #savedDash .cs-count{font-size:11px;color:#9ca3af;font-weight:600;flex-shrink:0;margin-left:2px}
+  #savedDash .cs-pdf{display:flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:8px;border:none;background:#1a3864;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;transition:background .12s}
+  #savedDash .cs-pdf:hover{background:#22488a}
+  #savedDash .cs-pdf:disabled{opacity:.55;cursor:default}
+  #savedDash .cs-pdf svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2}
+  #savedDash .cs-xls{background:#1a7a2e}
+  #savedDash .cs-xls:hover{background:#1f8f37}
+  /* Saved-tab header bar (view toggle + load-from-db) */
+  #savedDash{padding-top:22px}
+  #savedDash .saved-topbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #ececE4}
+  #savedDash .sv-kind,#savedDash .sv-source{margin-left:4px}
+  #savedDash .sv-srcnum{display:inline-block;min-width:15px;padding:0 5px;margin-left:6px;border-radius:999px;background:#1a3864;color:#fff;font-size:10px;line-height:15px;text-align:center;font-weight:700;vertical-align:middle}
+  #savedDash .sv-srcnum:empty{display:none}
+  #savedDash .sv-save{color:#1a7a2e;font-weight:700}
+  #savedDash .sv-save:hover{background:#e7f6ea}
+  #savedDash .sv-toggle{display:inline-flex;background:#f1f0ea;border:1px solid #e0dfd8;border-radius:9px;padding:3px}
+  #savedDash .sv-tab{height:28px;padding:0 16px;border:none;background:transparent;color:#6b7280;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;border-radius:7px;transition:all .12s}
+  #savedDash .sv-tab.active{background:#fff;color:#1a3864;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  #savedDash .sv-spacer{flex:1}
+  #savedDash .sv-status{font-size:12px;color:#9ca3af}
+  /* Candidates table view */
+  #savedTableWrap{margin-top:2px}
+  #savedDash .sv-table{width:100%;border-collapse:collapse;font-size:13px}
+  #savedDash .sv-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;font-weight:700;padding:8px 12px;border-bottom:1px solid #e0dfd8}
+  #savedDash .sv-table td{padding:11px 12px;border-bottom:1px solid #f0efe8;vertical-align:middle}
+  #savedDash .sv-table tr:hover td{background:#f8faff}
+  #savedDash .sv-table .sv-c-center{text-align:center}
+  #savedDash .sv-cand{display:flex;align-items:center;gap:9px}
+  #savedDash .sv-av{width:30px;height:30px;border-radius:50%;background:#1a3864;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  #savedDash .sv-cand b{font-size:13px;color:#1a3864}
+  #savedDash .sv-noprof{font-size:10px;color:#b08400;background:#fff7e0;border:1px solid #f0e0a8;border-radius:4px;padding:1px 5px;margin-left:6px}
+  #savedDash .sv-badge-a{display:inline-block;min-width:20px;text-align:center;background:#e7f5ea;color:#1a7a2e;border-radius:5px;padding:1px 6px;font-weight:700;font-size:12px}
+  #savedDash .sv-link{border:none;background:none;color:#1a3864;font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit;padding:4px 6px;border-radius:6px}
+  #savedDash .sv-link:hover{background:#eef2fa}
+  #savedDash .sv-danger{color:#b91c1c}
+  #savedDash .sv-danger:hover{background:#fdeaea}
+  #savedDash .sv-actions{white-space:nowrap}
+  #savedDash th.sv-actions-h{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;font-weight:700}
+  #savedDash .sv-save-changes{color:#1a7a2e}
+  #savedDash .sv-save-changes:hover:not(:disabled){background:#e7f6ea}
+  #savedDash .sv-save-changes:disabled{color:#c0bfb6;cursor:default;background:none}
+  #savedDash .sv-save-changes.dirty{font-weight:800}
+  /* Inline-editable cell inputs */
+  #savedDash .sv-edit{width:100%;min-width:90px;box-sizing:border-box;border:1px solid transparent;background:transparent;font-family:inherit;font-size:13px;color:#1a1a18;padding:4px 6px;border-radius:6px;transition:border-color .12s,background .12s}
+  #savedDash .sv-edit:hover{border-color:#e0dfd8;background:#fff}
+  #savedDash .sv-edit:focus{border-color:#1a56c4;background:#fff;outline:none;box-shadow:0 0 0 2px rgba(26,86,196,.1)}
+  #savedTableWrap .sv-table-scroll{overflow-x:auto}
+  /* Clickable column headers (open a filter) */
+  #savedDash .sv-th{display:inline-flex;align-items:center;gap:5px;background:none;border:none;font:inherit;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;font-weight:700;cursor:pointer;padding:0}
+  #savedDash .sv-th:hover{color:#1a3864}
+  #savedDash .sv-th .sv-fdot{width:6px;height:6px;border-radius:50%;background:#1a56c4;display:none}
+  #savedDash .sv-th.filtered .sv-fdot{display:inline-block}
+  #savedDash .sv-th .sv-caret{font-size:8px;opacity:.5}
+  /* Inline status pill/select */
+  #savedDash .sv-status-sel{font:inherit;font-size:11.5px;font-weight:600;border:1px solid #d8d7d0;border-radius:999px;padding:3px 8px;background:#fff;color:#374151;cursor:pointer}
+  #savedDash .sv-st-New{background:#eef2fa;color:#1a3864;border-color:#c6d6f0}
+  #savedDash .sv-st-Screening{background:#fff4e0;color:#9a6a00;border-color:#f0dca8}
+  #savedDash .sv-st-Interviewing{background:#e7f0ff;color:#1a56c4;border-color:#c0d4f0}
+  #savedDash .sv-st-Offer{background:#f0e8ff;color:#6b30c4;border-color:#dcc8f0}
+  #savedDash .sv-st-Hired{background:#e7f5ea;color:#1a7a2e;border-color:#bfe3c8}
+  #savedDash .sv-st-Rejected{background:#fdeaea;color:#b91c1c;border-color:#f0c0c0}
+  #savedDash .sv-st-On-hold{background:#f1f0ea;color:#6b7280;border-color:#dedcd2}
+  #savedDash .sv-cell-link{color:#1a56c4;text-decoration:none}
+  #savedDash .sv-cell-link:hover{text-decoration:underline}
+  #savedDash .sv-li{display:inline-flex;align-items:center;gap:4px;color:#0a66c2;font-weight:600;text-decoration:none}
+  #savedDash .sv-li:hover{text-decoration:underline}
+  #savedDash .sv-muted{color:#c0bfb6}
+  /* Floating popovers (chooser + filter) */
+  #savedDash .sv-pop{position:absolute;z-index:50;background:#fff;border:1px solid #d8d7d0;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:10px}
+  #savedDash .sv-chooser{right:0;top:0;width:230px;max-height:340px;overflow:auto}
+  #savedDash .sv-chooser h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af}
+  #savedDash .sv-ck{display:flex;align-items:center;gap:8px;padding:4px 4px;font-size:13px;color:#374151;border-radius:6px;cursor:pointer}
+  #savedDash .sv-ck:hover{background:#f5f8ff}
+  #savedDash .sv-ck input{accent-color:#1a3864}
+  #savedDash .sv-filter{width:210px}
+  #savedDash .sv-filter input,#savedDash .sv-filter select{width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:7px 9px;border:1px solid #d8d7d0;border-radius:7px}
+  #savedDash .sv-filter input:focus,#savedDash .sv-filter select:focus{outline:none;border-color:#1a3864}
+  #savedDash .sv-filter-row{display:flex;justify-content:space-between;margin-top:8px}
+  #savedDash .sv-table-empty{padding:24px 12px;text-align:center;color:#9ca3af;font-size:13px}
+
+  #savedDash .cand-profile-card{background:#f5f8ff;border:1px solid #c4d4f0;border-radius:12px;padding:13px 16px;margin-bottom:18px}
+  #savedDash .cand-profile-top{display:flex;align-items:center;gap:12px}
+  #savedDash .cand-profile-avatar{width:42px;height:42px;border-radius:50%;background:#1a3864;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;letter-spacing:-.5px}
+  #savedDash .cand-profile-body{flex:1;min-width:0}
+  #savedDash .cand-profile-name{font-size:16px;font-weight:700;color:#1a3864;margin-bottom:1px}
+  #savedDash .cand-profile-sub{font-size:11.5px;color:#6b7280}
+  #savedDash .cand-profile-skills{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  #savedDash .cand-profile-skill{font-size:10.5px;padding:2px 8px;border-radius:999px;background:#e8f0fb;color:#1a56c4;border:1px solid #c4d4f0;white-space:nowrap}
+  #savedDash .cand-meta-inline{font-size:11px;color:#9ca3af;flex-shrink:0;text-align:right;line-height:1.7}
+  #savedDash .cand-meta-inline b{color:#6b7280;font-weight:600}
+
+  #savedDash .sec-head{display:flex;align-items:center;gap:9px;margin:6px 0 12px}
+  #savedDash .sec-title{font-size:11px;font-weight:700;color:#9a988e;text-transform:uppercase;letter-spacing:.08em}
+  #savedDash .sec-rule{flex:1;height:1px;background:#e8e7e0}
+  #savedDash .sec-tag{font-size:9px;font-weight:700;color:#fff;background:#c89028;border-radius:5px;padding:2px 7px;letter-spacing:.05em}
+  #savedDash .sec-tag.now{background:#1a3864}
+
+  #savedDash .kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+  #savedDash .kpi{background:#fff;border:1px solid #e8e7e0;border-radius:11px;padding:12px 13px;display:flex;flex-direction:column;min-height:104px}
+  #savedDash .kpi-lbl{font-size:9.5px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  #savedDash .kpi-num{font-size:26px;font-weight:700;color:#1a3864;line-height:1}
+  #savedDash .kpi-num small{font-size:13px;color:#bcbbb2;font-weight:600}
+  #savedDash .kpi-sub{font-size:10.5px;color:#9ca3af;margin-top:auto;padding-top:7px;line-height:1.4}
+  #savedDash .kpi-sub b{font-weight:700}
+  #savedDash .kpi-up{color:#1a7a2e}#savedDash .kpi-down{color:#c0392b}
+  #savedDash .kpi-mini-bar{height:7px;border-radius:4px;overflow:hidden;display:flex;margin-top:8px;border:1px solid #efeee7}
+  #savedDash .kpi-mini-bar i{height:100%}
+  #savedDash .kpi-spark{margin-top:8px}
+
+  #savedDash .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px}
+  #savedDash .card{background:#fff;border:1px solid #e8e7e0;border-radius:12px;padding:15px 17px 14px;display:flex;flex-direction:column}
+  #savedDash .card.span2{grid-column:1/-1}
+  #savedDash .card-head{display:flex;align-items:baseline;gap:8px}
+  #savedDash .card-idx{font-size:10px;font-weight:700;color:#fff;background:#1a3864;border-radius:5px;padding:1px 6px;letter-spacing:.03em}
+  #savedDash .card-idx.new{background:#c89028}
+  #savedDash .card-title{font-size:13.5px;font-weight:700;color:#1a1a18}
+  #savedDash .card-sub{font-size:11px;color:#aaa;margin:3px 0 13px}
+  #savedDash .card-why{font-size:10.5px;color:#9a7b35;background:#fffaf2;border:1px solid #f3e7cf;border-radius:7px;padding:6px 9px;margin-top:13px;line-height:1.5}
+  #savedDash .card-why b{color:#7a5a00}
+  #savedDash .ai-read{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.55;color:#3a4a63;background:#f5f8ff;border:1px solid #e2ecfb;border-radius:8px;padding:8px 10px;margin-top:12px}
+  #savedDash .ai-read .spark{width:15px;height:15px;flex-shrink:0;margin-top:1px}
+  #savedDash .ai-read .spark svg{width:15px;height:15px;fill:#1a56c4;display:block}
+  #savedDash .ai-read b{color:#1a3864;font-weight:700}
+  #savedDash .card-body{display:flex;flex-direction:column}
+
+  #savedDash .bars{display:flex;flex-direction:column;gap:7px}
+  #savedDash .bar-row{display:flex;align-items:center;gap:9px;font-size:11.5px}
+  #savedDash .bar-label{width:118px;flex-shrink:0;color:#444;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #savedDash .bar-track{flex:1;height:16px;background:#f4f3ee;border-radius:5px;overflow:hidden}
+  #savedDash .bar-fill{display:block;height:100%;border-radius:5px;background:#1a56c4}
+  #savedDash .bar-fill.muted{background:#c4d4f0}
+  #savedDash .bar-val{width:34px;flex-shrink:0;color:#888;font-size:11px;text-align:left}
+
+  #savedDash .gap-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+  #savedDash .gap-chip{font-size:11px;padding:3px 9px;border-radius:999px;border:1px dashed #d8b8b8;background:#fdf6f6;color:#b06b6b;white-space:nowrap}
+  #savedDash .gap-chip b{color:#8a3a3a;font-weight:700}
+  #savedDash .mini-label{font-size:9.5px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin:2px 0 8px}
+
+  #savedDash .fresh-row{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+  #savedDash .fresh-tile{border:1px solid #e8e7e0;border-radius:9px;padding:11px 6px;text-align:center}
+  #savedDash .fresh-tile.alert{background:#fef6f6;border-color:#f3cccc}
+  #savedDash .fresh-tile.good{background:#f1faf3;border-color:#cfe9d6}
+  #savedDash .fresh-num{font-size:21px;font-weight:700;line-height:1;color:#1a3864}
+  #savedDash .fresh-tile.alert .fresh-num{color:#c0392b}
+  #savedDash .fresh-tile.good .fresh-num{color:#1a7a2e}
+  #savedDash .fresh-lbl{font-size:10px;color:#888;margin-top:4px;line-height:1.3}
+
+  #savedDash svg{display:block}
+  #savedDash .stat-strip{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:#555;margin-top:10px}
+  #savedDash .stat-strip .k{font-size:9px;color:#bbb;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block}
+  #savedDash .stat-strip .v{font-size:13px;color:#1a3864;font-weight:600}
+  #savedDash .stat-strip .v.above{color:#1a7a2e}
+  #savedDash .stat-strip .v.below{color:#c0392b}
+  #savedDash .legend-inline{display:flex;gap:14px;font-size:10.5px;color:#888;margin-top:10px;flex-wrap:wrap}
+  #savedDash .legend-inline .d{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+
+  #savedDash .grade{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-size:11px;font-weight:700;flex-shrink:0}
+  #savedDash .grade-a{background:#e6f4ea;color:#1a7a2e}
+  #savedDash .grade-b{background:#fff3cc;color:#7a5a00}
+  #savedDash .grade-c{background:#f0f0ec;color:#888;border:1px solid #e0dfd8}
+
+  #savedDash .pri-tier{margin-bottom:13px}
+  #savedDash .pri-tier:last-child{margin-bottom:0}
+  #savedDash .pri-tier-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#444;margin-bottom:7px}
+  #savedDash .pri-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  #savedDash .pri-tier-head .cnt{color:#aaa;font-weight:600;font-size:10.5px}
+  #savedDash .pri-row{display:flex;align-items:center;gap:11px;padding:8px 12px;border:1px solid #eceadf;border-radius:9px;margin-bottom:6px;background:#fcfbf7}
+  #savedDash .pri-row:last-child{margin-bottom:0}
+  #savedDash .pri-main{flex:1;min-width:0}
+  #savedDash .pri-title{font-size:12.5px;font-weight:600;color:#1a1a18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #savedDash .pri-sub{font-size:10.5px;color:#999;margin-top:1px}
+  #savedDash .pri-pay{text-align:right;flex-shrink:0}
+  #savedDash .pri-sal{font-size:13.5px;font-weight:700;color:#1a3864;line-height:1.1}
+  #savedDash .pri-delta{font-size:10px;font-weight:600;margin-top:1px}
+  #savedDash .pri-delta.in{color:#9ca3af}
+  #savedDash .pri-delta.up{color:#1a7a2e}
+  #savedDash .pri-delta.down{color:#c0392b}
+
+  #savedDash .briefing{background:#fff;border:1px solid #e8e7e0;border-radius:12px;padding:16px 18px;margin-bottom:18px}
+  #savedDash .brief-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+  #savedDash .brief-icon{width:26px;height:26px;border-radius:7px;background:#1a3864;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  #savedDash .brief-icon svg{width:15px;height:15px;fill:#fff}
+  #savedDash .brief-title{font-size:13.5px;font-weight:700;color:#1a1a18}
+  #savedDash .brief-meta{margin-left:auto;font-size:10.5px;color:#bbb;display:flex;align-items:center;gap:5px}
+  #savedDash .brief-meta .dot{width:6px;height:6px;border-radius:50%;background:#c89028}
+  #savedDash .brief-text{font-size:12.5px;line-height:1.75;color:#475569}
+  #savedDash .brief-text p{margin-bottom:9px}
+  #savedDash .brief-text p:last-child{margin-bottom:0}
+  #savedDash .brief-text b{color:#1a3864;font-weight:700}
+  #savedDash .brief-actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+  #savedDash .brief-action{flex:1;min-width:210px;display:flex;align-items:flex-start;gap:9px;background:#f5f8ff;border:1px solid #dce8fb;border-radius:9px;padding:10px 12px;font-size:11.5px;color:#1a3864;line-height:1.45}
+  #savedDash .brief-action .num{width:18px;height:18px;border-radius:50%;background:#1a3864;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+  #savedDash .brief-action b{font-weight:700}
+
+  #savedDash .up-row{display:grid;grid-template-columns:128px 1fr 70px;align-items:center;gap:10px;font-size:11.5px;padding:5px 0}
+  #savedDash .up-row + .up-row{border-top:1px solid #f3f2ec}
+  #savedDash .up-skill{color:#1a1a18;font-weight:600}
+  #savedDash .up-skill small{display:block;color:#aaa;font-weight:400;font-size:10px}
+  #savedDash .up-bar-track{height:14px;background:#f4f3ee;border-radius:5px;overflow:hidden}
+  #savedDash .up-bar{display:block;height:100%;background:#1a7a2e;border-radius:5px}
+  #savedDash .up-add{font-size:11px;color:#1a7a2e;font-weight:700;white-space:nowrap}
+  #savedDash .up-sal{font-size:10px;color:#c0871a;font-weight:600;white-space:nowrap}
+
+  #savedDash .emp-row{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12px}
+  #savedDash .emp-row + .emp-row{border-top:1px solid #f3f2ec}
+  #savedDash .emp-logo{width:26px;height:26px;border-radius:7px;background:#eef2fa;color:#1a3864;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  #savedDash .emp-name{flex:1;font-weight:600;color:#1a3864;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #savedDash .emp-roles{font-size:10.5px;font-weight:700;color:#1a56c4;background:#e8f0fb;border:1px solid #c4d4f0;border-radius:999px;padding:1px 8px;white-space:nowrap}
+  #savedDash .emp-sal{font-size:11px;color:#888;width:74px;text-align:right;flex-shrink:0}
+
+  #savedDash .lev-row{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12px}
+  #savedDash .lev-row + .lev-row{border-top:1px solid #f3f2ec}
+  #savedDash .lev-toggle{width:30px;height:17px;border-radius:999px;background:#dfe7d8;position:relative;flex-shrink:0;border:1px solid #cdd8c2}
+  #savedDash .lev-toggle i{position:absolute;top:1px;left:1px;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  #savedDash .lev-name{flex:1;color:#444}
+  #savedDash .lev-add{font-size:11.5px;font-weight:700;color:#1a7a2e;white-space:nowrap}
+  #savedDash .lev-total{display:flex;align-items:baseline;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid #e8e7e0}
+  #savedDash .lev-total-num{font-size:22px;font-weight:700;color:#1a3864;line-height:1}
+  #savedDash .lev-total-lbl{font-size:11px;color:#888}
+
+  #savedDash .bm-wrap{margin-top:4px}
+  #savedDash .bm-track{height:34px;border-radius:8px;background:linear-gradient(90deg,#f3f2ec,#dbe8df);position:relative;border:1px solid #e8e7e0}
+  #savedDash .bm-marker{position:absolute;top:-6px;bottom:-6px;width:3px;background:#1a3864;border-radius:2px}
+  #savedDash .bm-flag{position:absolute;top:-26px;transform:translateX(-50%);background:#1a3864;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap}
+  #savedDash .bm-flag:after{content:'';position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);border:4px solid transparent;border-top-color:#1a3864;border-bottom:0}
+  #savedDash .bm-scale{display:flex;justify-content:space-between;font-size:9.5px;color:#bbb;margin-top:6px}
+  #savedDash .bm-note{font-size:11px;color:#666;margin-top:9px;line-height:1.5}
+  #savedDash .bm-note b{color:#1a3864}
+
+  #savedDash .pl-head{display:flex;align-items:baseline;gap:9px;margin-bottom:11px}
+  #savedDash .pl-big{font-size:24px;font-weight:700;color:#1a3864;line-height:1}
+  #savedDash .pl-pill{font-size:10px;font-weight:700;border-radius:6px;padding:2px 8px}
+  #savedDash .pl-pill.fast{background:#fde9e6;color:#c0392b}
+  #savedDash .pl-pill.norm{background:#eef2fa;color:#1a3864}
+  #savedDash .pl-note{font-size:11px;color:#666;line-height:1.5;margin-top:10px}
+  #savedDash .pl-note b{color:#c0392b}
+
+  #savedDash .saved-empty{padding:48px 20px;text-align:center;color:#9ca3af;font-size:13px}
+
+  /* ── Interview chat panel ───────────────────────────────────────── */
+  #savedDash .ic-panel{border:1px solid #dce8fb;border-radius:12px;background:#fff;overflow:hidden;margin-bottom:18px;display:none}
+  #savedDash .ic-panel.open{display:block}
+  #savedDash .ic-header{padding:9px 14px;background:#f0f4fc;border-bottom:1px solid #dce8fb;display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
+  #savedDash .ic-header-icon{width:22px;height:22px;border-radius:6px;background:#1a3864;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  #savedDash .ic-header-icon svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2}
+  #savedDash .ic-header-title{font-size:11px;font-weight:700;color:#1a3864;text-transform:uppercase;letter-spacing:.07em;flex:1}
+  #savedDash .ic-header-hint{font-size:10.5px;color:#9ca3af}
+  #savedDash .ic-toggle{font-size:11px;color:#9ca3af;margin-left:auto;transition:transform .15s}
+  #savedDash .ic-panel.body-open .ic-toggle{transform:rotate(180deg)}
+  #savedDash .ic-body{display:none;flex-direction:column}
+  #savedDash .ic-panel.body-open .ic-body{display:flex}
+  #savedDash .ic-thread{min-height:52px;max-height:260px;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+  #savedDash .ic-empty{color:#bbb;font-size:12px;font-style:italic;text-align:center;padding:8px 0}
+  #savedDash .ic-msg{display:flex;flex-direction:column;max-width:90%}
+  #savedDash .ic-msg.hr{align-self:flex-end;align-items:flex-end}
+  #savedDash .ic-msg.ai{align-self:flex-start}
+  #savedDash .ic-bubble{padding:8px 12px;border-radius:10px;font-size:12.5px;line-height:1.5;word-break:break-word}
+  #savedDash .ic-msg.hr .ic-bubble{background:#1a3864;color:#fff;border-radius:10px 10px 3px 10px}
+  #savedDash .ic-msg.ai .ic-bubble{background:#f5f8ff;color:#1a1a18;border:1px solid #dce8fb;border-radius:10px 10px 10px 3px}
+  #savedDash .ic-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  #savedDash .ic-tag{font-size:10px;padding:1px 7px;border-radius:999px;background:#e8f0fb;color:#1a56c4;border:1px solid #c4d4f0}
+  #savedDash .ic-typing{color:#bbb;font-size:12px;font-style:italic;align-self:flex-start;padding:2px 0}
+  #savedDash .ic-input-bar{padding:9px 12px;border-top:1px solid #e8e7e0;display:flex;gap:7px;background:#fafaf6}
+  #savedDash .ic-input{flex:1;height:32px;padding:0 10px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;font-family:inherit;outline:none;color:#333;background:#fff}
+  #savedDash .ic-input:focus{border-color:#1a56c4;box-shadow:0 0 0 2px rgba(26,86,196,.1)}
+  #savedDash .ic-send{height:32px;padding:0 14px;border-radius:8px;border:none;background:#1a3864;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .12s}
+  #savedDash .ic-send:hover{background:#22488a}
+  #savedDash .ic-send:disabled{opacity:.5;cursor:default}
+  #savedDash .ic-open-btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:8px;border:1px solid #b0c4e4;background:#eef2fa;color:#1a3864;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;flex-shrink:0}
+  #savedDash .ic-open-btn:hover{background:#dce8fb}
+  #savedDash .ic-open-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}
+  #savedDash .ic-open-btn .ic-dot{width:7px;height:7px;border-radius:50%;background:#c89028;display:none}
+  #savedDash .ic-open-btn.has-notes .ic-dot{display:block}
+  </style>
   <div id="tab-saved" class="tab-panel">
-    <div class="saved-wrap">
-      <div class="saved-header">
-        <h2>Saved Pipeline <span class="count-badge" id="savedCountLabel">0</span></h2>
-        <select id="savedCandidateFilter" class="saved-filter-sel" onchange="filterSaved(this.value)">
-          <option value="">All candidates</option>
-        </select>
-        <button class="export-btn" onclick="exportSaved()">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Export Excel
+    <div id="savedDash">
+      <div class="saved-topbar">
+        <div class="sv-toggle">
+          <button class="sv-tab active" id="svTabTable" onclick="setSavedView('table')">Table</button>
+          <button class="sv-tab" id="svTabDash" onclick="setSavedView('dash')">Dashboard</button>
+        </div>
+        <div class="sv-toggle sv-kind" id="svKindToggle" style="display:none" title="Switch between real (CV) candidates and template candidates built in the guided builder">
+          <button class="sv-tab active" id="svKindReal" onclick="setSavedKind('real')">Candidates</button>
+          <button class="sv-tab" id="svKindTpl" onclick="setSavedKind('template')">Templates</button>
+        </div>
+        <div class="sv-toggle sv-source" id="svSourceToggle" style="display:none" title="Switch between candidates saved in the database and session candidates not yet saved">
+          <button class="sv-tab active" id="svSrcDb" onclick="setSavedSource('db')">Database</button>
+          <button class="sv-tab" id="svSrcLocal" onclick="setSavedSource('local')">Local<span class="sv-srcnum" id="svLocalCount"></span></button>
+        </div>
+        <span class="sv-spacer"></span>
+        <span id="savedLoadStatus" class="sv-status"></span>
+        <button class="cs-pdf sv-saveall-btn" id="svSaveAllBtn" onclick="saveAllLocalCandidates()" title="Save all local (session) candidates to the database" style="display:none;background:#1a7a2e">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"></path></svg> Save all to database
         </button>
-        <button class="saved-report-btn" id="savedReportBtn" onclick="generateSavedReport()">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          Generate PDF
+        <button class="cs-pdf sv-cols-btn" id="svColsBtn" onclick="toggleColChooser(event)" title="Choose which columns to show" style="display:none;background:#5a5a52">
+          <svg viewBox="0 0 24 24"><path d="M3 4h18M3 12h18M3 20h18"></path></svg> Columns
+        </button>
+        <button class="cs-pdf" id="savedReloadBtn" onclick="reloadSavedFromDb()" title="Load saved candidates and jobs from the database (including previous sessions)">
+          <svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M5.5 9a7 7 0 0 1 12.4-2.3M18.5 15a7 7 0 0 1-12.4 2.3"></path></svg> Load from database
         </button>
       </div>
-      <div id="savedContent">
-        <div class="saved-empty">No saved jobs yet — run a search and save matches.</div>
+      <div class="cand-switch" id="csBar" style="display:none">
+        <button class="cs-arrow" id="csPrev" title="Previous candidate (←)">‹</button>
+        <div class="cs-list" id="csList"></div>
+        <button class="cs-arrow" id="csNext" title="Next candidate (→)">›</button>
+        <span class="cs-count" id="csCount"></span>
+        <button class="cs-pdf cs-xls" id="csXls" onclick="exportSaved()" title="Export pipeline to Excel">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"></path></svg> Excel
+        </button>
+        <button class="cs-pdf" id="csPdf" onclick="generateSavedReport()" title="Export this candidate's insights to PDF">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"></path></svg> <span id="csPdfLabel">Export PDF</span>
+        </button>
+        <button class="ic-open-btn" id="icOpenBtn" onclick="_icToggle()" title="Interview notes — update candidate profile from interview observations">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span class="ic-dot"></span> Interview
+        </button>
+      </div>
+
+      <!-- Interview chat panel -->
+      <div class="ic-panel" id="icPanel">
+        <div class="ic-header" onclick="_icToggleBody()">
+          <div class="ic-header-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+          <span class="ic-header-title">Interview notes</span>
+          <span class="ic-header-hint">Share observations — the dashboard updates in real time</span>
+          <span class="ic-toggle">▼</span>
+        </div>
+        <div class="ic-body">
+          <div class="ic-thread" id="icThread">
+            <div class="ic-empty" id="icEmpty">No notes yet. Type an observation below — e.g. "he wants at least €4,500" or "open to relocation".</div>
+          </div>
+          <div class="ic-input-bar">
+            <input class="ic-input" id="icInput" type="text" placeholder="Add an interview observation…" autocomplete="off"/>
+            <button type="button" class="ic-send" id="icSend" onclick="_icSend()">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="savedDashBody">
+        <div class="cand-profile-card" id="candHeader"></div>
+        <div class="briefing" id="briefing"></div>
+        <div class="kpi-strip" id="kpiStrip"></div>
+        <div class="sec-head">
+          <span class="sec-title">Match analysis</span>
+          <span class="sec-tag now">From current data</span>
+          <span class="sec-rule"></span>
+        </div>
+        <div class="grid" id="grid1"></div>
+        <div class="sec-head" style="margin-top:22px">
+          <span class="sec-title">Extended statistics</span>
+          <span class="sec-tag">Market-derived</span>
+          <span class="sec-rule"></span>
+        </div>
+        <div class="grid" id="grid2"></div>
+      </div>
+      <div id="savedTableWrap" style="display:none;position:relative">
+        <div class="sv-table-scroll">
+          <table class="sv-table">
+            <thead><tr id="savedTableHead"></tr></thead>
+            <tbody id="savedTableBody"></tbody>
+          </table>
+        </div>
+        <div id="savedTableEmpty" class="sv-table-empty" style="display:none">No candidates match the current filters.</div>
+        <!-- Column chooser panel -->
+        <div id="svColChooser" class="sv-pop sv-chooser" style="display:none"></div>
+        <!-- Per-column filter popover -->
+        <div id="svFilterPop" class="sv-pop sv-filter" style="display:none"></div>
+      </div>
+      <div class="saved-empty" id="savedEmpty">
+        No saved candidates yet — run a search and save matches, or
+        <a href="#" onclick="reloadSavedFromDb();return false;" style="color:#1a3864;font-weight:600">load from the database</a>.
       </div>
     </div>
   </div>
@@ -1636,8 +2061,7 @@ function _activateTab(id) {
   const group = btn && btn.dataset.modeGroup;
   if (group) _modeLastTab[group] = id;
   // Side effects
-  if (id === 'saved') loadSaved();
-  if (id === 'chat')  initChat();
+  if (id === 'saved') openSavedTab();
   if (id === 'map')   initMap();
   if (id === 'radar') loadRadar();
 }
@@ -1667,6 +2091,19 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.classList.add('active');
     activeMode = tab.dataset.mode;
     document.getElementById('zone-' + activeMode).classList.add('active');
+    const guided = activeMode === 'guided';
+    if (guided) gbInit();
+    const stBtn = document.getElementById('gbSaveTemplateBtn');
+    if (stBtn) stBtn.style.display = guided ? 'inline-flex' : 'none';
+    document.getElementById('runLabel').textContent = guided ? 'Find roles' : 'Run matching';
+    // Candidate name + "Example candidates" are CV-mode concepts (name detected
+    // from a CV; examples load CV profiles) — hide them when building a candidate.
+    const cbar = document.querySelector('.candidate-bar');
+    if (cbar) cbar.style.display = guided ? 'none' : '';
+    // Re-evaluate the "already in DB" warning against the new mode's source.
+    if (activeMode === 'linkedin')   checkLinkedInDuplicate();
+    else if (activeMode === 'cv')    checkCandidateDuplicate(document.getElementById('candidateName')?.value || '');
+    else                             _showDupWarn(null);
   });
 });
 
@@ -1824,12 +2261,103 @@ function startEditCandidateName() {
   if (inp) { inp.focus(); inp.select(); }
 }
 
+// Warn (red banner) when the candidate being added already exists in the DB, and
+// offer a "Load from database" button to reload their profile + saved jobs instead
+// of re-parsing a CV / re-scraping a LinkedIn profile.
+let _dupCheckSeq      = 0;
+let _dupCandidateName = '';   // name backing the banner's Load-from-database button
+
+// Render (or hide) the duplicate banner from a lookup result (or null to hide).
+function _showDupWarn(cand){
+  const warn = document.getElementById('candDupWarn');
+  if (!warn) return;
+  _dupCandidateName = cand ? (cand.name || '') : '';
+  if (!cand){ warn.style.display='none'; warn.innerHTML=''; return; }
+  const kind = cand.isTemplate ? 'template' : 'candidate';
+  const jobs = cand.matches ? ` · ${cand.matches} saved job${cand.matches!==1?'s':''}` : '';
+  warn.innerHTML =
+    `<span class="cdw-ico">!</span>` +
+    `<span><b>${esc(cand.name)}</b> is already in the database as a ${kind} — ` +
+    `status <span class="cdw-status">${esc(cand.status)}</span>${jobs}</span>` +
+    `<button type="button" class="cdw-load" onclick="loadCandidateFromDb()">` +
+    `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>` +
+    `Load from database</button>`;
+  warn.style.display = '';
+}
+
+// CV mode: look the candidate up by NAME.
+async function checkCandidateDuplicate(name){
+  if (!document.getElementById('candDupWarn')) return;
+  name = (name || '').trim();
+  if (!name || name.toLowerCase() === 'unassigned'){ _showDupWarn(null); return; }
+  const seq = ++_dupCheckSeq;
+  try {
+    const res  = await fetch('/api/saved/lookup?name=' + encodeURIComponent(name));
+    const data = await res.json();
+    if (seq !== _dupCheckSeq) return;   // a newer check superseded this one
+    _showDupWarn(data.ok && data.exists ? data.candidate : null);
+  } catch(e){
+    if (seq === _dupCheckSeq) _showDupWarn(null);
+  }
+}
+
+// LinkedIn mode: look the candidate up by the first profile URL in the box, so we
+// can warn (and offer a DB reload) BEFORE paying to re-scrape an on-file profile.
+async function checkLinkedInDuplicate(){
+  if (!document.getElementById('candDupWarn')) return;
+  const raw = document.getElementById('liUrls')?.value || '';
+  const url = raw.split(/[\n,]+/).map(s => s.trim()).filter(s => /linkedin\.com\//i.test(s))[0] || '';
+  if (!url){ _showDupWarn(null); return; }
+  const seq = ++_dupCheckSeq;
+  try {
+    const res  = await fetch('/api/saved/lookup?linkedin=' + encodeURIComponent(url));
+    const data = await res.json();
+    if (seq !== _dupCheckSeq) return;
+    _showDupWarn(data.ok && data.exists ? data.candidate : null);
+  } catch(e){
+    if (seq === _dupCheckSeq) _showDupWarn(null);
+  }
+}
+
+// Reload a previously-saved candidate (profile + saved jobs) from the DB into the
+// search tab — no re-parsing, no re-scraping. Backs the banner's Load button.
+async function loadCandidateFromDb(){
+  const name = _dupCandidateName;
+  if (!name) return;
+  const btn = document.querySelector('#candDupWarn .cdw-load');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn){ btn.disabled = true; btn.innerHTML = 'Loading…'; }
+  try {
+    const res  = await fetch('/api/saved/load?name=' + encodeURIComponent(name));
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'load failed');
+
+    if (data.profile){
+      _lastParsedText = '';   // structured profile from DB, not raw matcher text
+      _renderCandidateProfile(data.profile);   // re-renders the banner too
+    } else {
+      setCandidateName(name);
+    }
+    if (data.jobs && data.jobs.length){
+      lastResults = data.jobs;
+      renderResults(lastResults);
+      updateMapStats(lastResults);
+      document.getElementById('resultsStatus').innerHTML =
+        `<span>Loaded ${data.jobs.length} saved job${data.jobs.length!==1?'s':''} for ${esc(name)} from the database.</span>`;
+    }
+  } catch(e){
+    if (btn){ btn.disabled = false; btn.innerHTML = orig; }
+    alert('Could not load from database: ' + (e.message || e));
+  }
+}
+
 function confirmCandidateName() {
   const editRow = document.getElementById('candEditRow');
   if (!editRow || editRow.style.display === 'none') return;
   const inp  = document.getElementById('candidateName');
   const name = inp ? inp.value.trim() : '';
   setCandidateName(name);
+  checkCandidateDuplicate(name);
   // Also update profile card name display
   const pn = document.getElementById('candProfileName');
   if (pn) pn.textContent = name;
@@ -1845,6 +2373,8 @@ function _initials(name) {
 
 function _renderCandidateProfile(data) {
   _currentCandidateProfile = data;
+  _trackLocalCandidate(data);   // make it available in the Saved-tab "Local" view
+  checkCandidateDuplicate(data.name || '');   // red banner if already in the DB
   const card    = document.getElementById('candProfileCard');
   const parsing = document.getElementById('candParsing');
   const content = document.getElementById('candProfileContent');
@@ -1859,31 +2389,123 @@ function _renderCandidateProfile(data) {
   const pn = document.getElementById('candProfileName');
   if (pn) pn.textContent = data.name || 'Candidate';
 
-  // Subtitle: title · location · experience
-  const sub = [data.title, data.location, data.experience_years].filter(Boolean).join(' · ');
+  // Subtitle: title · seniority · location · experience
+  const yrs = data.years_experience ? `${data.years_experience} yrs` : data.experience_years;
+  const sub = [data.title, data.seniority, data.location, yrs].filter(Boolean).join(' · ');
   const ps = document.getElementById('candProfileSub');
   if (ps) ps.textContent = sub;
 
-  // Skills chips
+  // Skills chips — prefer the AI-ranked top skills, fall back to raw LinkedIn skills
+  const skillList = (Array.isArray(data.top_skills) && data.top_skills.length) ? data.top_skills : (data.skills || []);
   const sk = document.getElementById('candProfileSkills');
-  if (sk) sk.innerHTML = (data.skills || []).slice(0, 8)
+  if (sk) sk.innerHTML = skillList.slice(0, 10)
     .map(s => `<span class="cand-profile-skill">${esc(s)}</span>`).join('');
 
-  // Meta row: languages | salary | availability
+  // Meta row: industry | languages | salary (ask or AI estimate) | availability
   const meta = [];
-  if (data.languages)          meta.push(`<span class="cand-profile-meta-item"><span class="cand-profile-meta-label">Languages</span>${esc(data.languages)}</span>`);
-  if (data.salary_expectation) meta.push(`<span class="cand-profile-meta-item"><span class="cand-profile-meta-label">Salary</span>${esc(data.salary_expectation)}</span>`);
-  if (data.availability)       meta.push(`<span class="cand-profile-meta-item"><span class="cand-profile-meta-label">Available</span>${esc(data.availability)}</span>`);
+  const mItem = (label, val) => `<span class="cand-profile-meta-item"><span class="cand-profile-meta-label">${label}</span>${esc(val)}</span>`;
+  if (data.industry)            meta.push(mItem('Industry', data.industry));
+  if (data.role_category)       meta.push(mItem('Role', data.role_category));
+  if (data.languages)           meta.push(mItem('Languages', data.languages));
+  if (data.salary_expectation)  meta.push(mItem('Salary', data.salary_expectation));
+  else if (data.estimated_salary_min && data.estimated_salary_max)
+    meta.push(mItem('Est. salary', `€${data.estimated_salary_min.toLocaleString()}–${data.estimated_salary_max.toLocaleString()}/mo`));
+  if (data.management_experience && !/^no\b/i.test(data.management_experience))
+    meta.push(mItem('Management', data.management_experience));
+  if (data.availability)        meta.push(mItem('Available', data.availability));
   const me = document.getElementById('candProfileMeta');
   if (me) me.innerHTML = meta.join('');
 
-  // Summary
+  // Summary — prefer the AI recruiter brief over the raw LinkedIn summary
   const sm = document.getElementById('candProfileSummary');
-  if (sm) { sm.textContent = data.summary || ''; sm.style.display = data.summary ? '' : 'none'; }
+  const summ = data.ai_summary || data.summary || '';
+  if (sm) { sm.textContent = summ; sm.style.display = summ ? '' : 'none'; }
+
+  // Strengths (AI) — compact highlight bullets
+  const st = document.getElementById('candProfileStrengths');
+  if (st) {
+    const strengths = Array.isArray(data.strengths) ? data.strengths.filter(Boolean) : [];
+    if (strengths.length) {
+      st.innerHTML = `<div class="cand-profile-exp-title">Strengths</div>` +
+        strengths.slice(0, 5).map(s => `<div class="cps-item">${esc(s)}</div>`).join('');
+      st.style.display = '';
+    } else { st.innerHTML = ''; st.style.display = 'none'; }
+  }
+
+  // Work history (LinkedIn imports) — the candidate's prior employers.
+  const ex = document.getElementById('candProfileExp');
+  if (ex) {
+    const exps = Array.isArray(data.experiences) ? data.experiences.filter(e => e && (e.title || e.company)) : [];
+    if (exps.length) {
+      const when = e => [e.starts_at, e.ends_at].filter(Boolean).join('–') || (e.starts_at ? `${e.starts_at}–present` : '');
+      const nCo = _companiesFromProfile(data).length;
+      ex.innerHTML = `<div class="cand-profile-exp-head">
+          <span class="cand-profile-exp-title">Experience</span>
+          ${nCo ? `<button type="button" class="cpe-save-co" onclick="saveCompanies(this)" title="Save these employers to the companies table">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+            Save companies (${nCo})</button>` : ''}
+        </div>` +
+        exps.slice(0, 6).map(e => `
+          <div class="cand-profile-exp-item">
+            <span><span class="cpe-role">${esc(e.title || '—')}</span>${e.company ? ` · <span class="cpe-co">${esc(e.company)}</span>` : ''}</span>
+            ${when(e) ? `<span class="cpe-when">${esc(when(e))}</span>` : ''}
+          </div>`).join('');
+      ex.style.display = '';
+    } else {
+      ex.innerHTML = ''; ex.style.display = 'none';
+    }
+  }
 
   if (parsing) parsing.style.display = 'none';
   if (content) content.style.display = '';
   if (card)    card.classList.add('visible');
+}
+
+// Build the company list from a candidate profile: each prior employer from the
+// work history (name + URL + role + dates), merged with the current employer's
+// extra metadata (industry/size/website). Deduped by LinkedIn URL, else by name.
+function _companiesFromProfile(prof){
+  if (!prof) return [];
+  const out = [], seen = new Map();   // key (url||name) → index in out
+  const keyOf = c => (c.linkedin_url || '').trim().toLowerCase() || (c.name || '').trim().toLowerCase();
+  (prof.experiences || []).forEach(e => {
+    if (!e || !e.company) return;
+    const c = { name: e.company, linkedin_url: e.company_url || null,
+                title: e.title || null, starts_at: e.starts_at || null, ends_at: e.ends_at || null };
+    const k = keyOf(c);
+    if (!seen.has(k)) { seen.set(k, out.length); out.push(c); }
+  });
+  const cc = prof.current_company;
+  if (cc && cc.name) {
+    const k = keyOf(cc), meta = { industry: cc.industry, size: cc.size, website: cc.website };
+    if (seen.has(k)) Object.assign(out[seen.get(k)], meta);
+    else out.push({ name: cc.name, linkedin_url: cc.linkedin_url || null, ...meta });
+  }
+  return out;
+}
+
+// Persist the current candidate's employers to the companies table (+ link who
+// worked there). Driven by the "Save companies" button in the work-history panel.
+async function saveCompanies(btn){
+  const prof = _currentCandidateProfile;
+  const name = (prof && prof.name || '').trim() || getCandidateName();
+  const companies = _companiesFromProfile(prof);
+  if (!name) { alert('Give the candidate a name first.'); return; }
+  if (!companies.length) { return; }
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = 'Saving…';
+  try {
+    const res  = await fetch('/api/saved/companies', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ candidate: name, companies, candidate_profile: prof }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'save failed');
+    btn.innerHTML = `✓ Saved ${data.saved}`;
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = orig; }, 2500);
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = orig;
+    alert('Could not save companies: ' + (e.message || e));
+  }
 }
 
 async function parseCandidate(text) {
@@ -1917,6 +2539,73 @@ function scheduleParsing(text) {
   clearTimeout(_parseProfileTimer);
   if (text.trim().length < 40) return;
   _parseProfileTimer = setTimeout(() => parseCandidate(text.trim()), 1400);
+}
+
+// ── LinkedIn URL enrichment (Apify) ───────────────────────────
+// Scraping is the first step of "Run matching" in LinkedIn mode (no separate
+// button): scrape the profile(s) via the backend Apify actor, render the first
+// profile as the active candidate (card + matcher text), then matching proceeds
+// on that text. Every imported profile is also tracked as a Local candidate.
+let _linkedinText        = '';
+let _linkedinScrapedKey  = '';   // URL set last scraped — skip re-scraping the same one
+
+// Ensure the URLs in the box are scraped and _linkedinText is ready to match.
+// Returns true on success, false if there were no URLs / the scrape failed
+// (a message is shown in #liStatus either way). Caller drives the run button.
+async function ensureLinkedInScraped() {
+  const raw    = document.getElementById('liUrls').value;
+  const urls   = raw.split(/[\n,]+/).map(s => s.trim()).filter(s => /linkedin\.com\//i.test(s));
+  const status = document.getElementById('liStatus');
+  if (!urls.length) { status.className='li-status err'; status.textContent='Paste at least one LinkedIn profile URL.'; return false; }
+
+  // Reuse the previous scrape when the exact same URL set is already loaded.
+  const key = urls.join('\n');
+  if (key === _linkedinScrapedKey && _linkedinText) return true;
+
+  document.getElementById('runLabel').textContent = 'Scraping profile…';
+  status.className = 'li-status';
+  status.innerHTML = `<span class="spinner"></span> Scraping profile${urls.length!==1?'s':''}…`;
+  try {
+    const res  = await fetch('/api/candidate/enrich-linkedin', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ urls }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'enrichment failed');
+    const profiles = (data.profiles || []).filter(p => p && p.profile);
+    if (!profiles.length) throw new Error('No profiles returned');
+
+    // Every imported profile becomes a session ("Local") candidate, ready to save.
+    profiles.forEach(p => _trackLocalCandidate(p.profile));
+
+    // Load the first one as the active candidate (card + matcher text); the rest
+    // wait in Saved → Local. Matching then runs on this profile's text.
+    _linkedinText       = profiles[0].text || '';
+    _lastParsedText     = _linkedinText;
+    _linkedinScrapedKey = key;
+    _renderCandidateProfile(profiles[0].profile);
+
+    const n  = profiles.length;
+    const nm = esc(profiles[0].profile.name || 'First profile');
+    status.className = 'li-status ok';
+    status.innerHTML = (n > 1)
+      ? `✓ Imported ${n} profiles — “${nm}” matching below; all ${n} added to <a href="#" onclick="_gotoSavedLocal();return false">Saved → Local</a>.`
+      : `✓ Imported “${nm}” — matching now…`;
+    if (data.requested && data.count < data.requested)
+      status.innerHTML += ` <span style="color:#c0392b">(${data.requested - data.count} URL(s) returned no data.)</span>`;
+    return true;
+  } catch(e) {
+    status.className = 'li-status err';
+    status.textContent = 'Could not scrape: ' + (e.message || e);
+    return false;
+  }
+}
+
+// Jump to the Saved tab's Local list (where bulk-imported candidates wait to save).
+function _gotoSavedLocal() {
+  _activateTab('saved');
+  _savedView = 'table';
+  setSavedSource('local');
+  _applySavedView();
 }
 
 // ── CV loaded chip + preview ──────────────────────────────────
@@ -2103,16 +2792,26 @@ function _renderCompanyPanel(d) {
 function clearCandidateProfile() {
   document.getElementById('candProfileCard').classList.remove('visible');
   setCandidateName('');
+  checkCandidateDuplicate('');   // clears the duplicate warning
   _lastParsedText = '';
   _cvLoadedName   = '';
   _currentCandidateProfile = null;
-  ['cvPasteText','freeText'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _linkedinText       = '';
+  _linkedinScrapedKey = '';
+  ['cvPasteText', 'liUrls'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('dropText').innerHTML =
     'Drop a PDF CV here, or <a href="#" onclick="event.stopPropagation();document.getElementById(\'cvFileInput\').click();return false">browse to upload</a> — or paste CV text directly below';
 }
 
 document.getElementById('cvPasteText').addEventListener('input', e => scheduleParsing(e.target.value));
-document.getElementById('freeText').addEventListener('input',    e => scheduleParsing(e.target.value));
+
+// LinkedIn URL box: debounced lookup so we warn (with a DB-reload button) when the
+// pasted profile is already on file, before the user pays to re-scrape it.
+let _liDupTimer = null;
+document.getElementById('liUrls').addEventListener('input', () => {
+  clearTimeout(_liDupTimer);
+  _liDupTimer = setTimeout(checkLinkedInDuplicate, 500);
+});
 
 // ── Example Candidate 1: Anna Bauer (text) ───────────────────
 const _EXAMPLE_CANDIDATE = {
@@ -2252,28 +2951,495 @@ function loadExample3() {
   _renderCandidateProfile(_EXAMPLE_PROFILE_3);
 }
 
+// ── Example Candidate 4: Sophie Wagner (Data Engineer) ───────
+const _EXAMPLE_CANDIDATE_4 = {
+  name: 'Sophie Wagner',
+  text: `Data Engineer with 5 years of experience in data pipelines, analytics and BI, based in Vienna.
+
+Currently Data Engineer at FinanzGroup Austria (2022–present): building and maintaining ETL pipelines with Apache Airflow and Spark on Azure Databricks, designing star-schema data warehouses in Azure Synapse, delivering Power BI dashboards for the finance and operations departments. Previously Data Analyst at MediaPlus GmbH (2020–2022): built SQL-based reporting in PostgreSQL, automated Excel reporting via Python scripts, introduced Power BI company-wide. Internship at Statistik Austria (2019–2020): assisted with official statistics data processing in R and SAS.
+
+Education: WU Wien – BSc Business Informatics (2019).
+Key skills: Python, SQL, Apache Spark, Airflow, Azure Databricks, Azure Synapse, Power BI, Tableau, dbt, PostgreSQL, Git, Docker, statistics.
+Languages: German (native), English C1.
+Salary expectation: €3,800–4,600 gross/month.
+Availability: 2 months notice. Seeking Data Engineer or Senior Analyst roles in Vienna.`,
+};
+const _EXAMPLE_PROFILE_4 = {
+  name: 'Sophie Wagner',
+  title: 'Data Engineer',
+  experience_years: '5 years',
+  skills: ['Python','SQL','Apache Spark','Apache Airflow','Azure Databricks','Power BI','dbt','PostgreSQL','Docker','Statistics'],
+  location: 'Vienna',
+  languages: 'German (native), English C1',
+  salary_expectation: '€3,800–4,600/month',
+  availability: '2 months notice',
+  summary: 'Data engineer with 5 years building production pipelines on Azure; strong in Spark, Airflow and Power BI with a business informatics background.',
+};
+
+// ── Example Candidate 5: Nina Fuchs (HR Manager) ─────────────
+const _EXAMPLE_CANDIDATE_5 = {
+  name: 'Nina Fuchs',
+  text: `HR Manager with 7 years of experience in full-cycle recruiting, HR operations and people development, based in Vienna.
+
+Currently HR Manager at RetailGroup Austria GmbH (2021–present): responsible for end-to-end recruiting (100+ hires/year across retail and corporate), manage SAP SuccessFactors HRIS, run onboarding and offboarding processes, coordinate annual performance review cycles, advise line managers on Austrian labor law (ABGB, AngG). Previously HR Generalist at BauService AG, Vienna (2019–2021): payroll processing in SAP HR, administering collective bargaining agreements (KV), welfare and health programs. HR Assistant at AMS Wien (2017–2019): candidate counselling, job placement, labor market analysis.
+
+Education: Uni Wien – BSc Psychology (2017). WIFI HR-Fachkraft certificate (2018).
+Key skills: Full-cycle recruiting, SAP SuccessFactors, SAP HR, Austrian labor law, onboarding, payroll, performance management, employee relations, KV administration.
+Languages: German (native), English B2.
+Salary expectation: €3,200–3,900 gross/month.
+Availability: 1 month notice. Open to HR Manager or People Partner roles in Vienna.`,
+};
+const _EXAMPLE_PROFILE_5 = {
+  name: 'Nina Fuchs',
+  title: 'HR Manager',
+  experience_years: '7 years',
+  skills: ['Full-cycle Recruiting','SAP SuccessFactors','SAP HR','Austrian Labor Law','Onboarding','Payroll','Performance Management','Employee Relations','KV Administration'],
+  location: 'Vienna',
+  languages: 'German (native), English B2',
+  salary_expectation: '€3,200–3,900/month',
+  availability: '1 month notice',
+  summary: 'Generalist HR manager with 7 years across retail and public sector; expert in SAP SuccessFactors, Austrian labor law and high-volume recruiting.',
+};
+
+// ── Example Candidate 6: Felix Kraus (PR & Marketing Manager) ─
+const _EXAMPLE_CANDIDATE_6 = {
+  name: 'Felix Kraus',
+  text: `PR & Marketing Manager with 6 years of experience in corporate communications, content marketing and brand management, based in Vienna.
+
+Currently PR & Marketing Manager at TravelPlus Austria GmbH (2021–present): managing all external communications (press releases, journalist relationships, crisis PR), running paid and organic social media across LinkedIn, Instagram and TikTok (combined reach 180k), coordinating content calendar and copywriting team of 3, responsible for brand guidelines and visual identity refresh (2023). Previously Content & Social Media Manager at AgencyOne Wien (2019–2021): produced content for 8 B2C clients, managed Google Ads and Meta campaigns (€20k/month budget), grew LinkedIn company pages by an average of 45%. Marketing Coordinator at Eventim Austria (2018–2019): copywriting, event communications, newsletter campaigns (Mailchimp).
+
+Education: FH Wien – BA Media & Communications (2018).
+Key skills: PR, content marketing, social media management (LinkedIn, Instagram, TikTok), copywriting, brand strategy, Google Ads, Meta Ads, SEO basics, Adobe Creative Suite, Mailchimp, crisis communications.
+Languages: German (native), English C1.
+Salary expectation: €3,000–3,800 gross/month.
+Availability: Immediately. Seeking PR/Marketing Manager or Head of Communications roles in Vienna.`,
+};
+const _EXAMPLE_PROFILE_6 = {
+  name: 'Felix Kraus',
+  title: 'PR & Marketing Manager',
+  experience_years: '6 years',
+  skills: ['PR & Communications','Content Marketing','Social Media Management','Copywriting','Brand Strategy','Google Ads','Meta Ads','Adobe Creative Suite','SEO','Crisis Communications'],
+  location: 'Vienna',
+  languages: 'German (native), English C1',
+  salary_expectation: '€3,000–3,800/month',
+  availability: 'Immediately',
+  summary: 'PR and marketing manager with 6 years in corporate comms and digital; managed 180k social reach and €20k/month ad budgets across B2B and B2C brands.',
+};
+
+// ── Example Candidate 7: Stefan Hofer (B2B Sales Manager) ─────
+const _EXAMPLE_CANDIDATE_7 = {
+  name: 'Stefan Hofer',
+  text: `B2B Sales Manager with 10 years of experience in enterprise software and SaaS sales, based in Vienna.
+
+Currently Senior Account Executive at CloudSoft GmbH Austria (2020–present): managing a portfolio of 35 enterprise accounts (€2.4M ARR), consistently exceeding quota 115–130% per year, running full sales cycle from cold outreach to contract close, coordinating with pre-sales and customer success. Previously Account Manager at BusinessSoft AG, Vienna (2016–2020): grew SME segment revenue by 40% over 3 years, introduced Salesforce CRM replacing spreadsheet-based tracking, mentored two junior sales reps. Inside Sales Rep at TeleSolutions Austria (2014–2016): 200+ cold calls/week, exceeded monthly quota 18 out of 24 months.
+
+Education: FH Wiener Neustadt – BA Business Administration (2014).
+Key skills: B2B sales, SaaS, enterprise account management, Salesforce CRM, cold calling, pipeline management, contract negotiation, consultative selling, upsell/cross-sell, CRM analytics.
+Languages: German (native), English C1.
+Salary expectation: €4,500–5,500 gross/month + variable.
+Availability: 3 months notice. Open to Sales Manager or Head of Sales roles in Austria.`,
+};
+const _EXAMPLE_PROFILE_7 = {
+  name: 'Stefan Hofer',
+  title: 'B2B Sales Manager',
+  experience_years: '10 years',
+  skills: ['B2B Sales','SaaS','Enterprise Account Management','Salesforce CRM','Pipeline Management','Contract Negotiation','Consultative Selling','Cold Calling','Upsell/Cross-sell'],
+  location: 'Vienna',
+  languages: 'German (native), English C1',
+  salary_expectation: '€4,500–5,500/month + variable',
+  availability: '3 months notice',
+  summary: 'Enterprise SaaS sales manager with 10 years; consistently 115–130% quota, €2.4M ARR portfolio, Salesforce power user and team mentor.',
+};
+
+// ── Example Candidate 8: Julia Reiter (IT Project Manager) ────
+const _EXAMPLE_CANDIDATE_8 = {
+  name: 'Julia Reiter',
+  text: `IT Project Manager and Scrum Master with 8 years of experience managing software delivery and digital transformation projects, based in Vienna.
+
+Currently Senior IT Project Manager at InsureTech Austria AG (2020–present): leading a portfolio of 4 simultaneous software projects (total budget €3.2M), acting as Scrum Master for two agile squads (8–10 devs each), coordinating with C-level stakeholders, managing vendors and third-party integrations, running steering committee meetings and risk registers. Previously IT Project Manager at ConsultCo Wien (2018–2020): delivered ERP implementation (SAP S/4HANA) on time and €120k under budget, managed cross-functional team of 15. Junior PM at Telekom Austria (2016–2018): tracked project milestones, maintained JIRA boards, facilitated retrospectives.
+
+Education: TU Wien – MSc Software Engineering & Internet Computing (2016). PMP certified (2019). PSM I (Professional Scrum Master) certified (2020).
+Key skills: IT project management, Scrum / Agile, PMP, PSM I, JIRA, Confluence, SAP S/4HANA delivery, stakeholder management, vendor management, risk management, budgeting, change management.
+Languages: German (native), English C1.
+Salary expectation: €4,500–5,500 gross/month.
+Availability: 2 months notice. Open to IT PM or Programme Manager roles in Vienna.`,
+};
+const _EXAMPLE_PROFILE_8 = {
+  name: 'Julia Reiter',
+  title: 'IT Project Manager / Scrum Master',
+  experience_years: '8 years',
+  skills: ['IT Project Management','Scrum / Agile','PMP','JIRA','Confluence','SAP S/4HANA','Stakeholder Management','Vendor Management','Risk Management','Change Management'],
+  location: 'Vienna',
+  languages: 'German (native), English C1',
+  salary_expectation: '€4,500–5,500/month',
+  availability: '2 months notice',
+  summary: 'Certified PMP & Scrum Master with 8 years delivering IT projects up to €3.2M; SAP S/4HANA experience and strong agile + stakeholder management track record.',
+};
+
+// ── Unified example catalogue ─────────────────────────────────
+const _EXAMPLES = [
+  { area:'IT',        areaClass:'it',       name:'Max Weber',     desc:'Python · FastAPI · React · PostgreSQL · Docker',    badge:'PDF',  load: ()=>loadExamplePdf() },
+  { area:'IT',        areaClass:'it',       name:'Julia Reiter',  desc:'IT Project Mgmt · Scrum · PMP · JIRA · SAP S/4HANA', load: ()=>_loadExDirect(8) },
+  { area:'Data',      areaClass:'data',     name:'Sophie Wagner', desc:'Python · Spark · Airflow · Azure · Power BI · dbt', load: ()=>_loadExDirect(4) },
+  { area:'HR',        areaClass:'hr',       name:'Nina Fuchs',    desc:'Recruiting · SAP SuccessFactors · Labor Law · Payroll', load: ()=>_loadExDirect(5) },
+  { area:'PR',        areaClass:'pr',       name:'Felix Kraus',   desc:'PR · Content Marketing · Social Media · Brand Strategy', load: ()=>_loadExDirect(6) },
+  { area:'Sales',     areaClass:'sales',    name:'Stefan Hofer',  desc:'B2B Sales · SaaS · Salesforce · Enterprise Accounts', load: ()=>_loadExDirect(7) },
+  { area:'Finance',   areaClass:'finance',  name:'Thomas Gruber', desc:'IFRS · Group Consolidation · SAP S/4HANA · M&A',    load: ()=>loadExample3() },
+  { area:'Logistics', areaClass:'logistics',name:'Anna Bauer',    desc:'SAP WM · Forklift · Team Leadership · KPI Reporting', load: ()=>loadExampleText() },
+];
+
+function _loadExDirect(n) {
+  const map = {
+    4: [_EXAMPLE_CANDIDATE_4, _EXAMPLE_PROFILE_4, 'Sophie Wagner (example)'],
+    5: [_EXAMPLE_CANDIDATE_5, _EXAMPLE_PROFILE_5, 'Nina Fuchs (example)'],
+    6: [_EXAMPLE_CANDIDATE_6, _EXAMPLE_PROFILE_6, 'Felix Kraus (example)'],
+    7: [_EXAMPLE_CANDIDATE_7, _EXAMPLE_PROFILE_7, 'Stefan Hofer (example)'],
+    8: [_EXAMPLE_CANDIDATE_8, _EXAMPLE_PROFILE_8, 'Julia Reiter (example)'],
+  };
+  const [cand, prof, label] = map[n];
+  _activateCVMode();
+  const paste = document.getElementById('cvPasteText');
+  if (paste) paste.value = cand.text;
+  _setCvLoaded(label);
+  _lastParsedText = cand.text;
+  _renderCandidateProfile(prof);
+}
+
+function _exToggle() {
+  const dd = document.getElementById('exDropdown');
+  dd.classList.toggle('open');
+}
+
+function _exClose() {
+  document.getElementById('exDropdown')?.classList.remove('open');
+}
+
+// Build dropdown items once DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = document.getElementById('exDropdownPanel');
+  if (!panel) return;
+  _EXAMPLES.forEach((ex, i) => {
+    const el = document.createElement('div');
+    el.className = 'ex-dropdown-item';
+    el.innerHTML = `<span class="ex-area ex-area--${ex.areaClass}">${ex.area}</span>
+      <div class="ex-item-body">
+        <div class="ex-item-name">${ex.name}${ex.badge ? `<span class="ex-item-badge">${ex.badge}</span>` : ''}</div>
+        <div class="ex-item-desc">${ex.desc}</div>
+      </div>`;
+    el.addEventListener('click', () => { ex.load(); _exClose(); });
+    panel.appendChild(el);
+  });
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!document.getElementById('exDropdown')?.contains(e.target)) _exClose();
+  });
+});
+
 // ════════════════════════════════════════════════════════════
 //  Build candidate text from active mode
 // ════════════════════════════════════════════════════════════
 function buildCandidateText() {
-  if (activeMode === 'cv')   return document.getElementById('cvPasteText').value.trim();
-  if (activeMode === 'free') return document.getElementById('freeText').value.trim();
+  if (activeMode === 'cv')       return document.getElementById('cvPasteText').value.trim();
+  if (activeMode === 'linkedin') return (_linkedinText || '').trim();
+  // Guided: assemble from the shared draft object.
+  const d = gbDraft;
   const parts = [];
-  const role   = document.getElementById('g_role').value.trim();
-  const level  = document.getElementById('g_level').value;
-  const skills = document.getElementById('g_skills').value.trim();
-  const langs  = document.getElementById('g_langs').value.trim();
-  const certs  = document.getElementById('g_certs').value.trim();
-  const loc    = document.getElementById('g_loc').value.trim();
-  const notes  = document.getElementById('g_notes').value.trim();
-  if (role)   parts.push(`Target role: ${role}`);
-  if (level)  parts.push(`Experience: ${level}`);
-  if (skills) parts.push(`Key skills: ${skills}`);
-  if (langs)  parts.push(`Languages: ${langs}`);
-  if (certs)  parts.push(`Certifications/licenses: ${certs}`);
-  if (loc)    parts.push(`Location preference: ${loc}`);
-  if (notes)  parts.push(notes);
+  const list = (arr) => (arr || []).filter(Boolean).join(', ');
+  if (list(d.roles))      parts.push(`Target role: ${list(d.roles)}`);
+  if (list(d.levels))     parts.push(`Experience: ${list(d.levels)}`);
+  if (list(d.skills))     parts.push(`Key skills: ${list(d.skills)}`);
+  if (list(d.languages))  parts.push(`Languages: ${list(d.languages)}`);
+  if (list(d.certs))      parts.push(`Certifications/licenses: ${list(d.certs)}`);
+  if (list(d.states))     parts.push(`Location preference: ${list(d.states)}`);
+  if (list(d.sector))     parts.push(`Sector: ${list(d.sector)}`);
+  if (d.salary)           parts.push(`Salary expectation: ${d.salary}`);
+  if (d.availability)     parts.push(`Availability: ${d.availability}`);
+  if (d.notes)            parts.push(d.notes);
   return parts.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════
+//  Guided candidate builder
+// ════════════════════════════════════════════════════════════
+const GB_LEVELS = ['Entry (0–2 yrs)', 'Mid (3–5 yrs)', 'Senior (6–10 yrs)', 'Expert / Lead (10+ yrs)'];
+// The 14 sectors (mirror of core/categories.SECTORS labels) for the manual picker.
+const GB_SECTORS = ['Healthcare & Care', 'Beauty & Personal Care', 'Education & Childcare',
+  'Hospitality & Gastronomy', 'IT & Software', 'Construction & Trades', 'Logistics & Transport',
+  'Retail & Sales', 'Office / Finance & Legal', 'Production & Manufacturing', 'Cleaning & Facility',
+  'Security', 'Technical & Engineering', 'Management & Business'];
+const GB_FIELDS = [
+  { key:'sector',     label:'Sector',         type:'opts', opts:() => GB_SECTORS },
+  { key:'roles',      label:'Target role',    type:'free', ph:'role + Enter' },
+  { key:'skills',     label:'Key skills',     type:'free', ph:'skill + Enter' },
+  { key:'levels',     label:'Seniority',      type:'opts', opts:() => GB_LEVELS },
+  { key:'states',     label:'States',         type:'opts', opts:() => _filterOpts.states },
+  { key:'languages',  label:'Languages',      type:'free', ph:'e.g. German C1 + Enter' },
+  { key:'certs',      label:'Certifications', type:'free', ph:'cert + Enter' },
+  { key:'salary',     label:'Salary',         type:'text', ph:'e.g. €2,200+ or 4500–5500' },
+  { key:'availability',label:'Availability',  type:'text', ph:'e.g. immediate or 2026-09' },
+  { key:'notes',      label:'Notes',          type:'area', ph:'Industry preference, other context…', full:true },
+];
+const GB_LIST = ['sector','roles','skills','levels','states','languages','certs'];
+
+let gbDraft     = { name:'', sector:[], roles:[], skills:[], levels:[], states:[], languages:[], certs:[], salary:'', availability:'', notes:'' };
+let gbHistory   = [];   // {role:'ai'|'user', text, updates?, q?}
+let gbUserEdits = [];   // manual edits since last send
+let gbLastOffer = null; // options offered last turn: {kind, values} — for "choose all"
+let gbLastField = '';   // draft field the last question targeted — for answer routing
+let gbSel       = new Set(); // multi-select state for the current data-option chips
+let gbReady     = false;
+let gbBusy      = false;
+
+// Broad sector starters shown under the opening question (single-click).
+const GB_STARTERS = ['IT', 'Healthcare & care', 'Logistics & warehouse',
+  'Retail & sales', 'Office & admin', 'Skilled trades', 'Hospitality'];
+
+function gbInit() {
+  if (gbReady) return;
+  gbReady = true;
+  gbRenderFields();
+  gbHistory.push({ role:'ai',
+    text:"Hi — I'll help you build a target candidate. Which role(s) are you hiring for?",
+    chips: GB_STARTERS.map(s => ({ label: s, value: s })), chipsMulti: false });
+  gbRenderThread();
+}
+
+function gbRenderFields() {
+  const wrap = document.getElementById('gbFields');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  GB_FIELDS.forEach(f => {
+    const cell = document.createElement('div');
+    cell.className = 'gb-field' + (f.full ? ' full' : '');
+    const lbl = `<label>${f.label}</label>`;
+    if (f.type === 'free' || f.type === 'opts') {
+      const chips = (gbDraft[f.key] || []).map((v, i) =>
+        `<span class="gb-chip">${esc(v)}<span class="x" onclick="gbRemoveItem('${f.key}',${i})">×</span></span>`).join('');
+      let entry;
+      if (f.type === 'free') {
+        entry = `<input type="text" placeholder="${f.ph}" data-gbfree="${f.key}"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();gbAddItem('${f.key}',this.value);this.value='';}">`;
+      } else {
+        const opts = (f.opts() || []).filter(o => !(gbDraft[f.key] || []).includes(o));
+        entry = `<select onchange="if(this.value){gbAddItem('${f.key}',this.value);this.value='';}">
+          <option value="">+ add…</option>${opts.map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
+      }
+      cell.innerHTML = `${lbl}<div class="gb-chips" id="gbc-${f.key}">${chips}${entry}</div>`;
+    } else if (f.type === 'area') {
+      cell.innerHTML = `${lbl}<textarea class="gb-text" id="gbt-${f.key}" placeholder="${f.ph}"
+        oninput="gbSetScalar('${f.key}',this.value)">${esc(gbDraft[f.key] || '')}</textarea>`;
+    } else {
+      cell.innerHTML = `${lbl}<input type="text" class="gb-text" id="gbt-${f.key}" placeholder="${f.ph}"
+        value="${esc(gbDraft[f.key] || '')}" oninput="gbSetScalar('${f.key}',this.value)">`;
+    }
+    wrap.appendChild(cell);
+  });
+}
+
+function gbAddItem(key, val) {
+  val = (val || '').trim();
+  if (!val) return;
+  if (!gbDraft[key].includes(val)) {
+    gbDraft[key].push(val);
+    gbRecordEdit(`added "${val}" to ${gbLabel(key)}`);
+    gbRenderFields();
+  }
+}
+function gbRemoveItem(key, idx) {
+  const removed = gbDraft[key][idx];
+  gbDraft[key].splice(idx, 1);
+  gbRecordEdit(`removed "${removed}" from ${gbLabel(key)}`);
+  gbRenderFields();
+}
+let _gbScalarTimer = {};
+function gbSetScalar(key, val) {
+  gbDraft[key] = val;
+  clearTimeout(_gbScalarTimer[key]);
+  _gbScalarTimer[key] = setTimeout(() => {
+    if (val.trim()) gbRecordEdit(`set ${gbLabel(key)} to "${val.trim()}"`);
+  }, 700);
+}
+function gbLabel(key) {
+  if (key === 'name') return 'Template name';
+  return (GB_FIELDS.find(f => f.key === key) || {}).label || key;
+}
+function gbRecordEdit(text) { gbUserEdits.push(text); }
+
+function gbRenderThread() {
+  const t = document.getElementById('gbThread');
+  if (!t) return;
+  t.innerHTML = gbHistory.map((m, i) => {
+    if (m.role === 'user') return `<div class="gb-msg user">${esc(m.text)}</div>`;
+    const updates = (m.updates && m.updates.length)
+      ? `<div class="gb-msg-updates">${m.updates.map(u => `<span class="u">${esc(u)}</span>`).join('')}</div>` : '';
+    const main = `<div class="gb-msg ai">${esc(m.text)}${updates}</div>`;
+    const q = m.q ? `<div class="gb-msg q">${esc(m.q)}</div>` : '';
+    // Quick-reply chips — only on the most recent message.
+    let chips = '';
+    if (i === gbHistory.length - 1 && m.chips && m.chips.length) {
+      if (m.chipsMulti) {
+        // Multi-select toggles + green Done. A meta chip (label ending in "?",
+        // e.g. "What are the options?") stays single-click and is never selected.
+        const btns = m.chips.map(c => {
+          if (/\?\s*$/.test(c.label))
+            return `<button type="button" class="gb-quick-chip" onclick="gbQuick(this.dataset.v)" data-v="${esc(c.value)}">${esc(c.label)}</button>`;
+          return `<button type="button" class="gb-quick-chip${gbSel.has(c.value) ? ' sel' : ''}" `
+            + `onclick="gbToggle(this.dataset.v)" data-v="${esc(c.value)}">${esc(c.label)}</button>`;
+        }).join('');
+        const done = `<button type="button" class="gb-quick-done" onclick="gbDone()"`
+          + `${gbSel.size ? '' : ' disabled'}>Done${gbSel.size ? ' (' + gbSel.size + ')' : ''}</button>`;
+        chips = `<div class="gb-quick">${btns}${done}</div>`;
+      } else {
+        // Suggestions / starters: single-click send.
+        chips = `<div class="gb-quick">${m.chips.map(c =>
+          `<button type="button" class="gb-quick-chip" onclick="gbQuick(this.dataset.v)" data-v="${esc(c.value)}">${esc(c.label)}</button>`).join('')}</div>`;
+      }
+    }
+    return main + q + chips;
+  }).join('');
+  if (gbBusy) t.innerHTML += `<div class="gb-typing">assistant is typing…</div>`;
+  t.scrollTop = t.scrollHeight;
+}
+
+async function gbSend() {
+  const inp = document.getElementById('gbMsg');
+  const msg = inp.value.trim();
+  if (!msg || gbBusy) return;
+  inp.value = '';
+  gbSel = new Set();   // clear any multi-select from the previous turn
+  // The assistant's last question — so "what are the options?" stays on-topic.
+  const prevQ = [...gbHistory].reverse().find(m => m.role === 'ai' && m.q);
+  const lastQuestion = prevQ ? prevQ.q : '';
+  gbHistory.push({ role:'user', text:msg });
+  const edits = gbUserEdits.slice();
+  gbUserEdits = [];
+  gbBusy = true;
+  document.getElementById('gbSendBtn').disabled = true;
+  gbRenderThread();
+
+  try {
+    const res = await fetch('/api/guided/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: msg, draft: gbDraft, user_edits: edits, last_offer: gbLastOffer, lang: jobChatLang, last_question: lastQuestion, last_field: gbLastField }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    const changed = gbApplyDraft(data.draft, data.field_updates);
+    const chips = gbBuildChips(data.options, data.suggestions, !!data.next_question);
+    // Both data-option chips (sector/role/region) and free-text suggestions
+    // (skills, seniority…) are multi-select + Done, so several can be picked.
+    const chipsMulti = chips.length > 0;
+    gbHistory.push({ role:'ai', text:data.reply, updates:changed,
+                     q:data.next_question || '', chips, chipsMulti });
+    // Remember the field the question targets, so the next answer is filed there.
+    gbLastField = data.answer_field || '';
+    // Remember what we offered so a multi-pick "Done" resolves to the right field —
+    // facet picks by their facet, free-text suggestions by their answer_field
+    // (excluding any "…?" meta chip, which must never be filed as an answer).
+    gbLastOffer = (data.options && data.options.length && data.facet)
+      ? { kind: data.facet, values: data.options.map(o => o.value) }
+      : (data.suggestions && data.suggestions.length && data.answer_field)
+        ? { kind: data.answer_field, values: data.suggestions.filter(s => !/\?\s*$/.test(s)) }
+        : null;
+  } catch(e) {
+    gbHistory.push({ role:'ai', text:'Sorry — something went wrong (' + e.message + '). Try again.' });
+  } finally {
+    gbBusy = false;
+    document.getElementById('gbSendBtn').disabled = false;
+    gbRenderThread();
+  }
+}
+
+// Build quick-reply chips shown under a question. Two sources:
+//  • options    — real data-backed picks (role families / regions) with counts;
+//                 carry the canonical German `value` (sent on click / stored).
+//  • suggestions — short model-proposed answers for open questions (skills,
+//                 seniority, salary…), incl. a "What are the options?" chip;
+//                 the label is also the value sent on click.
+// Chips show only when there's a question to answer.
+function gbBuildChips(options, suggestions, hasQuestion) {
+  if (!hasQuestion) return [];
+  if (options && options.length)
+    return options.slice(0, 5).map(o => ({ label: `${o.label} (${o.n})`, value: o.value }));
+  return (suggestions || []).slice(0, 5).map(s => ({ label: s, value: s }));
+}
+
+// Click a quick-reply chip → send its value as the user's next message.
+function gbQuick(value) {
+  if (gbBusy || !value) return;
+  const inp = document.getElementById('gbMsg');
+  inp.value = value;
+  gbSend();
+}
+
+// Multi-select: toggle a data-option chip on/off, then submit the lot with Done.
+function gbToggle(value) {
+  if (gbBusy || !value) return;
+  if (gbSel.has(value)) gbSel.delete(value); else gbSel.add(value);
+  gbRenderThread();
+}
+function gbDone() {
+  if (gbBusy || !gbSel.size) return;
+  const vals = [...gbSel];
+  gbSel = new Set();
+  document.getElementById('gbMsg').value = vals.join(', ');
+  gbSend();
+}
+
+// Replace draft, re-render, flash changed fields. Returns human labels of changes.
+function gbApplyDraft(newDraft, fieldUpdates) {
+  const changedKeys = Object.keys(fieldUpdates || {}).filter(k => k in gbDraft);
+  gbDraft = { ...gbDraft, ...newDraft };
+  gbRenderFields();
+  const labels = [];
+  changedKeys.forEach(k => {
+    labels.push(gbLabel(k));
+    const el = document.getElementById('gbc-' + k) || document.getElementById('gbt-' + k);
+    if (el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400); }
+  });
+  return labels;
+}
+
+// Build the candidate profile object (Match Insights shape) from the draft.
+function gbProfileFromDraft() {
+  const d = gbDraft;
+  const j = (a) => (a || []).filter(Boolean).join(', ');
+  return {
+    name: d.name || document.getElementById('candidateName').value.trim() || 'Template candidate',
+    title: j(d.roles),
+    skills: (d.skills || []).filter(Boolean),
+    languages: j(d.languages),
+    salary_expectation: d.salary || '',
+    location: j(d.states),
+    availability: d.availability || '',
+    source: 'template',   // marks this as a template candidate (vs a real CV one)
+  };
+}
+
+async function gbSaveTemplate() {
+  const ab = lastResults.filter(j => j.grade !== 'C');
+  if (!ab.length) { alert('Run matching first — then save the matched A/B roles as a template candidate.'); return; }
+
+  // Name the template candidate (draft name → prompt fallback).
+  let name = (gbDraft.name || '').trim();
+  if (!name) name = (prompt('Name this template candidate:', gbProfileFromDraft().title || 'Template candidate') || '').trim();
+  if (!name) return;
+  gbDraft.name = name;
+
+  // Wire the profile so saved jobs carry the template profile for Match Insights.
+  _currentCandidateProfile = { ...gbProfileFromDraft(), name };
+  _trackLocalCandidate(_currentCandidateProfile);
+  document.getElementById('candidateName').value = name;
+
+  const btn = document.getElementById('gbSaveTemplateBtn');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Saving…';
+  try {
+    await saveAll();   // saves A/B roles under getCandidateName() with the profile
+    btn.textContent = '✓ Saved to pipeline';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+  } catch(e) {
+    btn.textContent = 'Error — retry'; btn.disabled = false;
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2282,8 +3448,26 @@ function buildCandidateText() {
 document.getElementById('btnRun').addEventListener('click', runMatching);
 
 async function runMatching() {
+  const btn = document.getElementById('btnRun');
+
+  // LinkedIn mode: scrape the profile(s) first, then match on the scraped text.
+  if (activeMode === 'linkedin') {
+    btn.disabled = true;
+    const ok = await ensureLinkedInScraped();
+    if (!ok) {
+      btn.disabled = false;
+      document.getElementById('runLabel').textContent = 'Run matching';
+      return;
+    }
+  }
+
   const text = buildCandidateText();
-  if (!text) { alert('Please enter a candidate profile.'); return; }
+  if (!text) {
+    btn.disabled = false;
+    document.getElementById('runLabel').textContent = activeMode === 'guided' ? 'Find roles' : 'Run matching';
+    alert('Please enter a candidate profile.');
+    return;
+  }
 
   const filters  = {};
   const state    = document.getElementById('filterState').value;
@@ -2307,7 +3491,6 @@ async function runMatching() {
   document.getElementById('resultsStatus').innerHTML =
     '<div class="spinner"></div><span>Running AI matching — embedding candidate profile and searching vector store…</span>';
 
-  const btn = document.getElementById('btnRun');
   btn.disabled = true;
   document.getElementById('runLabel').textContent = 'Matching…';
 
@@ -2329,7 +3512,7 @@ async function runMatching() {
     document.getElementById('resultsStatus').innerHTML = '<span>Error — check Flask console.</span>';
   } finally {
     btn.disabled = false;
-    document.getElementById('runLabel').textContent = 'Run matching';
+    document.getElementById('runLabel').textContent = activeMode === 'guided' ? 'Find roles' : 'Run matching';
   }
 }
 
@@ -2433,7 +3616,7 @@ async function toggleSave(btn, jobId) {
     const res  = await fetch('/api/saved', {
       method:  'POST',
       headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({ job: jobWithCandidate }),
+      body:    JSON.stringify({ job: jobWithCandidate, candidate_profile: _currentCandidateProfile || null }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -2454,10 +3637,8 @@ async function saveAll() {
 
 function updateSavedBadge() {
   const n  = savedJobs.length;
-  document.getElementById('savedCountLabel').textContent = n;
   const nb = document.getElementById('savedBadgeNav');
-  nb.style.display = n ? 'inline' : 'none';
-  nb.textContent   = n;
+  if (nb) { nb.style.display = n ? 'inline' : 'none'; nb.textContent = n; }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2595,7 +3776,7 @@ async function doSaveWithExtras() {
   try {
     const res  = await fetch('/api/saved', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras }),
+      body: JSON.stringify({ job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras, candidate_profile: _currentCandidateProfile || null }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -2643,204 +3824,1118 @@ async function loadTestData() {
 // ════════════════════════════════════════════════════════════
 //  Saved jobs panel
 // ════════════════════════════════════════════════════════════
-async function loadSaved() {
+// ── Match Insights dashboard state ───────────────────────────────────────────
+let _miCandidates = [];   // [{name, initials, matches, gradeA, createdBy, createdAt, hasProfile}]
+let _miIdx        = 0;
+let _miD          = null; // current candidate insights payload
+const _miCache    = {};   // candidate name → insights payload
+let _savedView    = 'table'; // 'table' (candidate list, default) | 'dash' (insights)
+let _savedSource  = 'db';   // 'db' (persisted) | 'local' (session, not yet saved)
+let _savedKind    = 'real'; // 'real' (CV candidates) | 'template' (guided builder)
+let _savedDbLoaded = false;  // has the user explicitly pulled from MySQL this session?
+let _localCandidates = [];  // session candidate profiles not yet pushed to MySQL
+
+// A template candidate is one built in the guided builder (is_template flag).
+function _isTemplate(c){ return !!c.isTemplate; }
+
+// Remember a candidate built/parsed in this session so it can be reviewed and
+// saved from the Saved-tab "Local" view. Keyed by name; later edits overwrite.
+function _trackLocalCandidate(profile){
+  if (!profile) return;
+  const name = (profile.name || '').trim();
+  if (!name || name === 'Unassigned') return;
+  const entry = { ...profile, name };
+  const i = _localCandidates.findIndex(c => c.name === name);
+  if (i >= 0) _localCandidates[i] = entry; else _localCandidates.push(entry);
+  _refreshLocalCount();
+}
+
+// Local candidates still worth showing = those not already persisted in the DB.
+function _localCandidatesForView(){
+  const dbNames = new Set(_miCandidates.map(c => c.name));
+  return _localCandidates
+    .filter(p => !dbNames.has((p.name || '').trim()))
+    .map(_localToRow);
+}
+
+// Shape a session profile like a /api/saved/candidates row so the table renders
+// it uniformly. _local/_profile flag it for the "Save to database" action.
+function _localToRow(p){
+  const skillSrc = (Array.isArray(p.top_skills) && p.top_skills.length) ? p.top_skills : p.skills;
+  const skills = Array.isArray(skillSrc) ? skillSrc.join(', ') : (skillSrc || '');
+  const name = p.name || '';
+  return {
+    name, initials: _initials(name || '?'),
+    status: p.status || 'New', title: p.title || '', summary: p.summary || '',
+    email: p.email || '', phone: p.phone || '', linkedin: p.linkedin || '',
+    location: p.location || '', languages: p.languages || '', skills,
+    experience: (p.years_experience ? `${p.years_experience} years` : (p.experience_years || '')),
+    salary: p.salary_expectation || '',
+    availability: p.availability || '', source: '', matches: 0, gradeA: 0,
+    // AI-analysed fields (LinkedIn imports)
+    seniority: p.seniority || '', industry: p.industry || '',
+    roleCategory: p.role_category || '', educationLevel: p.education_level || '',
+    estSalary: _fmtEstSalary(p), aiSummary: p.ai_summary || '',
+    isTemplate: (p.source || '').toLowerCase() === 'template',
+    createdBy: '', createdAt: '', lastSaved: '', hasProfile: true,
+    _local: true, _profile: p,
+  };
+}
+
+// "€3,000–4,200/mo" from a profile's AI salary estimate, or '' if absent.
+function _fmtEstSalary(p){
+  const lo = p.estimated_salary_min, hi = p.estimated_salary_max;
+  if (!lo || !hi) return '';
+  return `€${(+lo).toLocaleString()}–${(+hi).toLocaleString()}/mo`;
+}
+
+// The candidate list backing the table for the active source AND kind.
+function _svActiveList(){
+  const base = _savedSource === 'local' ? _localCandidatesForView() : _miCandidates;
+  const wantTemplate = _savedKind === 'template';
+  return base.filter(c => _isTemplate(c) === wantTemplate);
+}
+
+function _refreshLocalCount(){
+  const el = document.getElementById('svLocalCount');
+  if (!el) return;
+  // Count only the local candidates of the kind currently in view.
+  const wantTemplate = _savedKind === 'template';
+  const n = _localCandidatesForView().filter(c => _isTemplate(c) === wantTemplate).length;
+  el.textContent = n ? String(n) : '';
+}
+
+const _MI_SPARK = '<svg viewBox="0 0 24 24"><path d="M12 2l2.2 5.8L20 10l-5.8 2.2L12 18l-2.2-5.8L4 10l5.8-2.2L12 2z"/></svg>';
+function _miEl(h){ const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstChild; }
+function _miSparkPath(vals,W,H,pad){
+  const mn=Math.min(...vals), mx=Math.max(...vals);
+  const xs=i=>pad+i*(W-2*pad)/(vals.length-1), ys=v=>H-pad-((v-mn)/((mx-mn)||1))*(H-2*pad);
+  return { line:vals.map((v,i)=>`${i?'L':'M'}${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).join(' '),
+           area:`M${xs(0)} ${H-pad} `+vals.map((v,i)=>`L${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).join(' ')+` L${xs(vals.length-1)} ${H-pad} Z`,
+           lastX:xs(vals.length-1), lastY:ys(vals[vals.length-1]) };
+}
+
+// Explicit "Load from database" — drops cached insights and re-pulls everything
+// the API now persists in MySQL (candidates, profiles, saved jobs) from any
+// previous session, then re-renders the dashboard.
+// Open the Saved tab WITHOUT touching the database. The DB is only ever pulled
+// on the explicit "Load from database" action, so opening the tab is predictable:
+// it shows this session's ("Local") candidates until the user asks for more.
+function openSavedTab(){
+  if (!_savedDbLoaded){
+    _savedView = 'table';
+    setSavedSource('local');   // also flips the toggle's active state
+  }
+  _applySavedView();
+}
+
+async function reloadSavedFromDb() {
+  _savedDbLoaded = true;
+  Object.keys(_miCache).forEach(k => delete _miCache[k]);   // _miCache is const
+  const btn    = document.getElementById('savedReloadBtn');
+  const status = document.getElementById('savedLoadStatus');
+  if (btn)    btn.disabled = true;
+  if (status) status.textContent = 'Loading…';
   try {
-    const res  = await fetch('/api/saved');
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    savedJobs = data.jobs;
-    updateSavedBadge();
-    renderSaved(savedJobs);
-  } catch(e) {
-    document.getElementById('savedContent').innerHTML =
-      `<div class="error-box" style="margin:0">Error: ${esc(e.message)}</div>`;
-  }
-}
-
-let _savedFilter = '';
-
-function filterSaved(candidateName) {
-  _savedFilter = candidateName || '';
-  const filtered = _savedFilter
-    ? savedJobs.filter(j => (j.candidate_name || 'Unassigned') === _savedFilter)
-    : savedJobs;
-  renderSaved(filtered, true);
-}
-
-function renderSaved(jobs, skipFilterUpdate) {
-  const container = document.getElementById('savedContent');
-
-  // Keep filter select in sync with full savedJobs list
-  if (!skipFilterUpdate) {
-    const filter = document.getElementById('savedCandidateFilter');
-    if (filter) {
-      const candidates = [...new Set(savedJobs.map(j => j.candidate_name || 'Unassigned'))];
-      filter.innerHTML = '<option value="">All candidates</option>' +
-        candidates.map(c => `<option value="${esc(c)}"${c === _savedFilter ? ' selected' : ''}>${esc(c)}</option>`).join('');
+    await loadSaved();
+    setSavedSource('db');       // show what was just pulled from the database
+    if (status) {
+      const n = _miCandidates.length;
+      const j = savedJobs.length;
+      status.textContent = n
+        ? `Loaded ${n} candidate${n!==1?'s':''} · ${j} saved job${j!==1?'s':''}`
+        : 'Nothing saved in the database yet';
     }
+  } catch (e) {
+    if (status) status.textContent = 'Load failed: ' + (e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
   }
+}
 
-  if (!jobs.length) {
-    container.innerHTML = '<div class="saved-empty">No saved jobs yet — run a search and save matches.</div>';
+async function loadSaved() {
+  const empty = document.getElementById('savedEmpty');
+  try {
+    // Keep the legacy savedJobs array + badge in sync (used by Excel export etc.)
+    const sres = await fetch('/api/saved');
+    const sdata = await sres.json();
+    if (sdata.ok) { savedJobs = sdata.jobs; updateSavedBadge(); }
+
+    const res  = await fetch('/api/saved/candidates');
+    const data = await res.json();
+    _miCandidates = (data.ok && data.candidates) ? data.candidates : [];
+    if (_miIdx >= _miCandidates.length) _miIdx = 0;
+    // Before any explicit DB load: if session candidates exist, land on
+    // Table · Local so they're visible and one click from being saved.
+    if (!_savedDbLoaded && !_miCandidates.length && _localCandidatesForView().length){
+      _savedView = 'table';
+      setSavedSource('local');
+    }
+    _applySavedView();
+  } catch(e) {
+    document.getElementById('csBar').style.display = 'none';
+    document.getElementById('savedDashBody').style.display = 'none';
+    document.getElementById('savedTableWrap').style.display = 'none';
+    empty.style.display = '';
+    empty.innerHTML = `<div class="error-box" style="margin:0">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// Switch between the insights dashboard and the candidate table view.
+function setSavedView(v){ _savedView = v; _applySavedView(); }
+
+// "Save all to database" only applies to a non-empty Local table.
+function _updateSaveAllBtn(){
+  const b = document.getElementById('svSaveAllBtn');
+  if (b) b.style.display =
+    (_savedView==='table' && _savedSource==='local' && _svActiveList().length) ? '' : 'none';
+}
+
+// Switch the table's data source between persisted (db) and session (local).
+function setSavedSource(src){
+  _savedSource = src;
+  document.getElementById('svSrcDb').classList.toggle('active', src==='db');
+  document.getElementById('svSrcLocal').classList.toggle('active', src==='local');
+  _svClosePops();
+  _refreshLocalCount();
+  _updateSaveAllBtn();
+  renderCandTable();
+}
+
+// Switch the table between real (CV) candidates and template candidates.
+function setSavedKind(kind){
+  _savedKind = kind;
+  document.getElementById('svKindReal').classList.toggle('active', kind==='real');
+  document.getElementById('svKindTpl').classList.toggle('active', kind==='template');
+  _svClosePops();
+  _refreshLocalCount();
+  _updateSaveAllBtn();
+  renderCandTable();
+}
+
+// Show the panels for the active view, given the current candidate lists.
+function _applySavedView(){
+  const bar     = document.getElementById('csBar');
+  const body    = document.getElementById('savedDashBody');
+  const table   = document.getElementById('savedTableWrap');
+  const empty   = document.getElementById('savedEmpty');
+  const colsBtn  = document.getElementById('svColsBtn');
+  const srcTog   = document.getElementById('svSourceToggle');
+  const kindTog  = document.getElementById('svKindToggle');
+  const saveAll  = document.getElementById('svSaveAllBtn');
+  document.getElementById('svTabDash').classList.toggle('active', _savedView==='dash');
+  document.getElementById('svTabTable').classList.toggle('active', _savedView==='table');
+  _refreshLocalCount();
+
+  const hasDb    = _miCandidates.length > 0;
+  const hasLocal = _localCandidatesForView().length > 0;
+
+  // ── Dashboard view: always insights over persisted (db) candidates ──────────
+  if (_savedView !== 'table'){
+    srcTog.style.display='none'; kindTog.style.display='none'; colsBtn.style.display='none';
+    saveAll.style.display='none'; _svClosePops();
+    if (!hasDb){
+      bar.style.display='none'; body.style.display='none'; table.style.display='none';
+      empty.style.display=''; return;
+    }
+    empty.style.display='none'; table.style.display='none';
+    bar.style.display=''; body.style.display='';
+    _miBuildSwitcher(); _miGo(_miIdx);
     return;
   }
-  const statuses = ['New', 'Contacted', 'Placed', 'Rejected'];
 
-  // Build the tab strip shown inside the Job cell
-  const buildTabStrip = j => {
-    const ex = j.extras;
-    if (!ex) return '';
-    const tabs = [];
-    if (ex.salary)       tabs.push(['salary',   'Salary']);
-    if (ex.quality)      tabs.push(['quality',  'Quality']);
-    if (ex.strength)     tabs.push(['strength', 'Candidate Strength']);
-    if (ex.compact)      tabs.push(['compact',  'Description']);
-    if (ex.cv_questions) tabs.push(['questions','Questions']);
-    if (ex.outreach)     tabs.push(['outreach', 'Outreach']);
-    if (!tabs.length) return '';
-    const btns = tabs.map(([key, label]) =>
-      `<button class="extras-tab-btn" id="etab-${key}-${j.job_id}" onclick="toggleExtraTab('${j.job_id}','${key}')">${label}</button>`
-    ).join('');
-    return `<div class="extras-tab-strip"><span class="extras-tab-label">Extras:</span>${btns}</div>`;
-  };
-
-  // Build per-pane content for the extras row
-  const buildExtrasPanes = j => {
-    const ex = j.extras;
-    if (!ex) return '';
-    const panes = [];
-
-    if (ex.salary) {
-      const s = ex.salary;
-      const diffVal = s.diff_mean != null ? (s.diff_mean >= 0 ? `+€${s.diff_mean.toLocaleString()}` : `-€${Math.abs(s.diff_mean).toLocaleString()}`) : null;
-      const cls = s.diff_mean != null ? (s.diff_mean >= 0 ? 'above' : 'below') : '';
-      panes.push(`<div id="extras-pane-salary-${j.job_id}" class="extras-pane-wrap pipeline-extras-content">
-        <div>
-          <div class="pipeline-extra-label">Salary benchmark — ${esc(s.occ_group || '')}</div>
-          <div class="extras-salary-stats">
-            ${s.job_salary ? `<div class="extras-salary-stat"><span class="extras-salary-stat-key">This job</span><span class="extras-salary-stat-val">€${s.job_salary.toLocaleString()}</span></div>` : ''}
-            <div class="extras-salary-stat"><span class="extras-salary-stat-key">Market mean</span><span class="extras-salary-stat-val">€${(s.mean||0).toLocaleString()}</span></div>
-            <div class="extras-salary-stat"><span class="extras-salary-stat-key">Median</span><span class="extras-salary-stat-val">€${(s.median||0).toLocaleString()}</span></div>
-            ${diffVal ? `<div class="extras-salary-stat"><span class="extras-salary-stat-key">vs. mean</span><span class="extras-salary-stat-val ${cls}">${diffVal}</span></div>` : ''}
-            ${s.pct_below != null ? `<div class="extras-salary-stat"><span class="extras-salary-stat-key">Percentile</span><span class="extras-salary-stat-val">Top ${100 - s.pct_below}%</span></div>` : ''}
-            ${s.count ? `<div class="extras-salary-stat"><span class="extras-salary-stat-key">Sample</span><span class="extras-salary-stat-val">${s.count} jobs</span></div>` : ''}
-          </div>
-        </div>
-      </div>`);
-    }
-
-    if (ex.quality) {
-      const q = ex.quality;
-      const badge = {high:'High quality', mid:'Mid quality', low:'Low quality'}[q.grade] || q.grade;
-      const badgeCls = {high:'extras-quality-high', mid:'extras-quality-mid', low:'extras-quality-low'}[q.grade] || 'extras-quality-mid';
-      const fitLabel = {fair:'Fair compensation', overpaying:'Above-market pay', underpaying:'Below-market pay', unknown:'Salary unknown'}[q.fit] || (q.fit || '');
-      const score = q.score != null ? ` · ${Math.round(q.score * 100)}%` : '';
-      panes.push(`<div id="extras-pane-quality-${j.job_id}" class="extras-pane-wrap pipeline-extras-content">
-        <div>
-          <div class="pipeline-extra-label">Quality assessment</div>
-          <div><span class="extras-quality-badge ${badgeCls}">${badge}${score}</span>${fitLabel ? ` &nbsp;<span style="font-size:11px;color:#666">${esc(fitLabel)}</span>` : ''}</div>
-          ${q.verdict ? `<div class="extras-quality-verdict">${esc(q.verdict)}</div>` : ''}
-          ${(q.flags||[]).map(f => `<div class="extras-quality-flag">· ${esc(f)}</div>`).join('')}
-        </div>
-      </div>`);
-    }
-
-    if (ex.strength) {
-      const axesJson   = esc(JSON.stringify(ex.strength.axes));
-      const scoresJson = esc(JSON.stringify(ex.strength.scores));
-      const rows = ex.strength.axes.map((ax, i) =>
-        `<div class="extras-strength-row">
-           <span class="extras-strength-axis">${esc(ax)}</span>
-           <span class="extras-strength-score">${ex.strength.scores[i]}/10</span>
-           <span class="extras-strength-reason">${esc((ex.strength.reasons||[])[i]||'')}</span>
-         </div>`).join('');
-      panes.push(`<div id="extras-pane-strength-${j.job_id}" class="extras-pane-wrap pipeline-extras-content">
-        <div>
-          <div class="pipeline-extra-label">Candidate strength</div>
-          <div id="extras-chart-${j.job_id}" style="height:200px" data-axes="${axesJson}" data-scores="${scoresJson}"></div>
-          <div class="extras-strength-compact">${rows}</div>
-          ${ex.strength.overall ? `<div class="extras-strength-overall">${esc(ex.strength.overall)}</div>` : ''}
-        </div>
-      </div>`);
-    }
-
-    if (ex.compact) panes.push(`<div id="extras-pane-compact-${j.job_id}" class="extras-pane-wrap pipeline-extras-content">
-      <div><div class="pipeline-extra-label">Compact description</div><div class="pipeline-extra-text">${esc(ex.compact)}</div></div>
-    </div>`);
-
-    if (ex.cv_questions) panes.push(`<div id="extras-pane-questions-${j.job_id}" class="extras-pane-wrap pipeline-extras-content">
-      <div><div class="pipeline-extra-label">Interview questions</div><div class="pipeline-extra-text">${esc(ex.cv_questions)}</div></div>
-    </div>`);
-
-    if (ex.outreach) panes.push(`<div id="extras-pane-outreach-${j.job_id}" class="extras-pane-wrap pipeline-extras-content">
-      <div><div class="pipeline-extra-label">Outreach draft</div><div class="pipeline-extra-text">${esc(ex.outreach)}</div></div>
-    </div>`);
-
-    if (!panes.length) return '';
-    return `<tr id="extras-row-${j.job_id}" class="pipeline-extras-row">
-      <td colspan="8">${panes.join('')}</td>
-    </tr>`;
-  };
-
-  const buildRow = j => {
-    const hasExtras = j.extras && Object.keys(j.extras).some(k => j.extras[k]);
-    const tabStrip = hasExtras ? buildTabStrip(j) : '';
-    return `
-    <tr id="srow-${j.job_id}">
-      <td><span class="grade ${gradeClass(j.grade || 'C')}">${j.grade || '?'}</span><span class="pct">${j.score_pct || ''}</span></td>
-      <td>
-        <div style="font-weight:500">${esc(j.title)}</div>
-        <div style="font-size:11px">${j.company ? `<span class="company-link" data-company="${esc(j.company)}">${esc(j.company)}</span>` : ''}</div>
-        ${tabStrip}
-      </td>
-      <td>${esc([j.city, j.state].filter(Boolean).join(', ') || '—')}</td>
-      <td>${esc(j.salary || '—')}</td>
-      <td><select class="status-select s-${j.pipeline_status || 'New'}" onchange="updateStatus('${j.job_id}',this)">
-        ${statuses.map(s => `<option${s === (j.pipeline_status || 'New') ? ' selected' : ''}>${s}</option>`).join('')}
-      </select></td>
-      <td><input class="notes-inp" type="text" value="${esc(j.notes || '')}" placeholder="Notes…" onblur="updateNotes('${j.job_id}',this.value)"></td>
-      <td>${j.url ? `<a href="${esc(j.url)}" target="_blank" class="link-btn" title="View posting">
-        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-      </a>` : '—'}</td>
-      <td><button class="btn-remove" onclick="removeJob('${j.job_id}')">✕</button></td>
-    </tr>
-    ${hasExtras ? buildExtrasPanes(j) : ''}`;
-  };
-
-  const tableHead = `<thead><tr>
-    <th style="width:80px">Score</th>
-    <th>Job</th><th>Location</th><th>Salary</th>
-    <th>Status</th><th>Notes</th>
-    <th style="width:44px"></th><th style="width:44px"></th>
-  </tr></thead>`;
-
-  // Group by candidate_name
-  const groups = new Map();
-  jobs.forEach(j => {
-    const key = j.candidate_name || 'Unassigned';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(j);
-  });
-
-  let html = '';
-  groups.forEach((groupJobs, candidateName) => {
-    const nA = groupJobs.filter(j => (j.grade || 'C') === 'A').length;
-    const nB = groupJobs.filter(j => (j.grade || 'C') === 'B').length;
-    const badges = [
-      nA ? `<span class="grade grade-a" style="font-size:10px;padding:1px 6px;vertical-align:middle">A ×${nA}</span>` : '',
-      nB ? `<span class="grade grade-b" style="font-size:10px;padding:1px 6px;vertical-align:middle">B ×${nB}</span>` : '',
-    ].join(' ');
-    html += `<div class="saved-candidate-group">
-      <div class="saved-candidate-heading">
-        <span class="saved-candidate-name">${esc(candidateName)}</span>
-        <span class="saved-candidate-count">${groupJobs.length} job${groupJobs.length !== 1 ? 's' : ''}</span>
-        ${badges}
-      </div>
-      <table>${tableHead}<tbody>${groupJobs.map(buildRow).join('')}</tbody></table>
-    </div>`;
-  });
-  container.innerHTML = html;
+  // ── Table view: db / local switch ───────────────────────────────────────────
+  bar.style.display='none'; body.style.display='none';
+  if (!hasDb && !hasLocal){
+    table.style.display='none'; colsBtn.style.display='none';
+    srcTog.style.display='none'; kindTog.style.display='none'; saveAll.style.display='none';
+    _svClosePops();
+    empty.style.display=''; return;
+  }
+  empty.style.display='none'; table.style.display='';
+  colsBtn.style.display=''; srcTog.style.display=''; kindTog.style.display='';
+  // "Save all to database" only makes sense for the Local source with rows present.
+  saveAll.style.display = (_savedSource==='local' && _svActiveList().length) ? '' : 'none';
+  renderCandTable();
 }
+
+// ── Candidate table: columns, filters, column chooser ───────────────────────
+const SV_STATUS_OPTIONS = ['New','Screening','Interviewing','Offer','Hired','Rejected','On hold'];
+// type: cand | status | num | email | link | text | date.  def = visible by default.
+// edit:true → inline-editable for DB candidates; field = the DB column to PATCH.
+const SV_COLUMNS = [
+  { key:'name',        label:'Candidate',    type:'cand',   def:true,  always:true },
+  { key:'status',      label:'Status',       type:'status', def:true  },
+  { key:'title',       label:'Title',        type:'text',   def:true,  edit:true, field:'title' },
+  { key:'seniority',   label:'Seniority',    type:'text',   def:true  },
+  { key:'location',    label:'Location',     type:'text',   def:true,  edit:true, field:'location' },
+  { key:'matches',     label:'Matches',      type:'num',    def:true  },
+  { key:'gradeA',      label:'A-grade',      type:'num',    def:true  },
+  { key:'email',       label:'Email',        type:'email',  def:true,  edit:true, field:'email' },
+  { key:'linkedin',    label:'LinkedIn',     type:'link',   def:true,  edit:true, field:'linkedin' },
+  { key:'createdBy',   label:'Created by',   type:'text',   def:true  },
+  { key:'lastSaved',   label:'Last saved',   type:'date',   def:true  },
+  { key:'phone',       label:'Phone',        type:'text',   def:false, edit:true, field:'phone' },
+  { key:'experience',  label:'Experience',   type:'text',   def:false, edit:true, field:'experience_years' },
+  { key:'industry',    label:'Industry',     type:'text',   def:false },
+  { key:'roleCategory',label:'Role',         type:'text',   def:false },
+  { key:'educationLevel',label:'Education',  type:'text',   def:false },
+  { key:'languages',   label:'Languages',    type:'text',   def:false, edit:true, field:'languages' },
+  { key:'skills',      label:'Skills',       type:'text',   def:false, edit:true, field:'skills' },
+  { key:'salary',      label:'Salary exp.',  type:'text',   def:false, edit:true, field:'salary_expectation' },
+  { key:'estSalary',   label:'Est. salary',  type:'text',   def:false },
+  { key:'availability',label:'Availability', type:'text',   def:false, edit:true, field:'availability' },
+  { key:'aiSummary',   label:'AI summary',   type:'text',   def:false },
+  { key:'summary',     label:'Summary',      type:'text',   def:false, edit:true, field:'summary' },
+  { key:'source',      label:'Source',       type:'text',   def:false },
+  { key:'createdAt',   label:'Created',      type:'date',   def:false },
+];
+let _svVisible = null;   // Set of visible column keys
+let _svFilters = {};     // key → filter string (status: exact, else contains)
+
+function _svLoadPrefs(){
+  try {
+    const cols = JSON.parse(localStorage.getItem('jia_sv_cols') || 'null');
+    _svVisible = new Set(Array.isArray(cols) && cols.length
+      ? cols : SV_COLUMNS.filter(c=>c.def).map(c=>c.key));
+    _svFilters = JSON.parse(localStorage.getItem('jia_sv_filters') || '{}') || {};
+  } catch(e){
+    _svVisible = new Set(SV_COLUMNS.filter(c=>c.def).map(c=>c.key));
+    _svFilters = {};
+  }
+  _svVisible.add('name');   // candidate column is always on
+}
+function _svSavePrefs(){
+  localStorage.setItem('jia_sv_cols', JSON.stringify([...SV_COLUMNS.map(c=>c.key).filter(k=>_svVisible.has(k))]));
+  localStorage.setItem('jia_sv_filters', JSON.stringify(_svFilters));
+}
+function _svVisibleCols(){ return SV_COLUMNS.filter(c => _svVisible.has(c.key)); }
+
+// Apply the active per-column filters to the candidate list.
+function _svFilterRows(){
+  const list   = _svActiveList();
+  const active = Object.entries(_svFilters).filter(([k,v]) => v !== '' && v != null);
+  if (!active.length) return list.map((c,i)=>({c,i}));
+  return list.map((c,i)=>({c,i})).filter(({c}) =>
+    active.every(([k,v]) => {
+      const col = SV_COLUMNS.find(x=>x.key===k);
+      const cell = (c[k] ?? '').toString();
+      if (col && col.type==='status') return cell === v;
+      return cell.toLowerCase().includes(String(v).toLowerCase());
+    }));
+}
+
+function renderCandTable(){
+  if (_svVisible === null) _svLoadPrefs();
+  const head = document.getElementById('savedTableHead');
+  const tb   = document.getElementById('savedTableBody');
+  const cols = _svVisibleCols();
+
+  // The actions column sits right after Status (or after the name column when
+  // Status is hidden) instead of being stranded at the far right of the table.
+  const statusIdx = cols.findIndex(col => col.key==='status');
+  const actIdx = (statusIdx >= 0 ? statusIdx : 0) + 1;
+
+  // Header: each label is a button that opens that column's filter.
+  const ths = cols.map(col => {
+    const th = document.createElement('th');
+    if (col.type==='num') th.className = 'sv-c-center';
+    const filtered = _svFilters[col.key] != null && _svFilters[col.key] !== '';
+    const btn = _miEl(`<button class="sv-th ${filtered?'filtered':''}" type="button">
+        <span>${esc(col.label)}</span><span class="sv-fdot"></span><span class="sv-caret">▼</span></button>`);
+    btn.addEventListener('click', (e)=>openColFilter(col.key, e.currentTarget));
+    th.appendChild(btn);
+    return th;
+  });
+  ths.splice(actIdx, 0, _miEl('<th class="sv-actions-h">Actions</th>'));
+  head.innerHTML = '';
+  ths.forEach(th => head.appendChild(th));
+
+  // Body
+  const rows = _svFilterRows();
+  tb.innerHTML = '';
+  document.getElementById('savedTableEmpty').style.display = rows.length ? 'none' : '';
+  rows.forEach(({c, i}) => {
+    const tr  = document.createElement('tr');
+    const tds = cols.map(col => _svCell(col, c, i));
+    tds.splice(actIdx, 0, _svActionsCell(c, tr));
+    tds.forEach(td => tr.appendChild(td));
+    // Arm a DB row's "Save changes" button as soon as any editable cell changes.
+    const saveBtn = tr.querySelector('.sv-save-changes');
+    if (saveBtn){
+      tr.querySelectorAll('.sv-edit').forEach(inp =>
+        inp.addEventListener('input', ()=>{ saveBtn.disabled=false; saveBtn.classList.add('dirty'); }));
+    }
+    tb.appendChild(tr);
+  });
+  const total = _svActiveList().length;
+  const noun  = _savedKind==='template' ? 'template' : 'candidate';
+  document.getElementById('savedLoadStatus').textContent =
+    `${rows.length} of ${total} ${_savedSource==='local'?'local ':''}${noun}${total!==1?'s':''}`;
+}
+
+// Build the actions cell: Open / Save changes / Erase for DB rows; Save to
+// database / Remove for local (session) rows.
+function _svActionsCell(c, tr){
+  const act = document.createElement('td');
+  act.className = 'sv-actions';
+  if (c._local){
+    act.innerHTML = `<button class="sv-link sv-save" type="button">Save to database</button>
+                     <button class="sv-link sv-danger" type="button">Remove</button>`;
+    const [saveBtn, rmBtn] = act.querySelectorAll('button');
+    saveBtn.addEventListener('click', ()=>saveLocalCandidate(c, saveBtn));
+    rmBtn.addEventListener('click', ()=>removeLocalCandidate(c));
+  } else {
+    act.innerHTML = `<button class="sv-link" type="button">Open</button>
+                     <button class="sv-link sv-save-changes" type="button" disabled title="Save edited fields, then recalculate insights">Save changes</button>
+                     <button class="sv-link sv-danger" type="button">Erase</button>`;
+    const [openBtn, saveBtn, eraseBtn] = act.querySelectorAll('button');
+    openBtn.addEventListener('click', ()=>loadCandidateFromTable(c));
+    saveBtn.addEventListener('click', ()=>saveCandidateEdits(c, tr, saveBtn));
+    eraseBtn.addEventListener('click', ()=>eraseCandidateFromTable(c));
+  }
+  return act;
+}
+
+// Build one <td> for a column/candidate.
+function _svCell(col, c, i){
+  const td = document.createElement('td');
+  const v = c[col.key];
+  // Inline-editable field for a DB candidate → render an input the recruiter can
+  // tweak; the row's "Save changes" button persists it. (Local rows stay static.)
+  if (col.edit && !c._local){
+    const inp = document.createElement('input');
+    inp.className = 'sv-edit';
+    inp.value = (v == null) ? '' : v;
+    inp.dataset.field = col.field;
+    inp.dataset.key   = col.key;
+    if (col.key === 'email') inp.type = 'email';
+    if (col.key === 'skills') inp.placeholder = 'comma, separated, skills';
+    td.appendChild(inp);
+    return td;
+  }
+  switch (col.type){
+    case 'cand':
+      td.innerHTML = `<div class="sv-cand"><span class="sv-av">${esc(c.initials)}</span>
+        <b>${esc(c.name)}</b>${c.hasProfile?'':'<span class="sv-noprof">no CV</span>'}</div>`;
+      break;
+    case 'status': {
+      const sel = document.createElement('select');
+      sel.className = 'sv-status-sel sv-st-' + (v||'New').replace(/\s+/g,'-');
+      SV_STATUS_OPTIONS.forEach(o=>{
+        const op=document.createElement('option'); op.value=o; op.textContent=o;
+        if (o===(v||'New')) op.selected=true; sel.appendChild(op);
+      });
+      if (c._local){
+        sel.addEventListener('change', ()=>{
+          c._profile.status = sel.value;
+          sel.className = 'sv-status-sel sv-st-' + sel.value.replace(/\s+/g,'-');
+        });
+      } else {
+        sel.addEventListener('change', ()=>updateCandidateStatus(c, sel.value, sel));
+      }
+      td.appendChild(sel);
+      break;
+    }
+    case 'num':
+      td.className = 'sv-c-center';
+      td.innerHTML = (col.key==='gradeA' && v) ? `<span class="sv-badge-a">${v}</span>` : (v ?? 0);
+      break;
+    case 'email':
+      td.innerHTML = v ? `<a class="sv-cell-link" href="mailto:${esc(v)}">${esc(v)}</a>` : '<span class="sv-muted">—</span>';
+      break;
+    case 'link':
+      td.innerHTML = v ? `<a class="sv-li" href="${esc(v)}" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="#0a66c2"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14zM8.34 17V10.4H6.2V17h2.14zM7.27 9.5a1.24 1.24 0 1 0 0-2.48 1.24 1.24 0 0 0 0 2.48zM18 17v-3.62c0-1.93-1.03-2.83-2.4-2.83-1.11 0-1.6.61-1.88 1.04v-.89H11.6c.03.6 0 6.3 0 6.3h2.13v-3.52c0-.19.01-.38.07-.52.15-.38.5-.77 1.08-.77.76 0 1.07.58 1.07 1.43V17H18z"/></svg>
+          Profile</a>` : '<span class="sv-muted">—</span>';
+      break;
+    case 'date':
+      td.textContent = (v||'').slice(0,10) || '—';
+      break;
+    default:
+      td.textContent = (v==null || v==='') ? '—' : v;
+      if ((v||'').length > 60){ td.title = v; td.textContent = v.slice(0,57)+'…'; }
+  }
+  return td;
+}
+
+// PATCH a candidate's status; revert the dropdown on failure.
+async function updateCandidateStatus(c, status, sel){
+  if (!c) return;
+  const prev = c.status;
+  try {
+    const res = await fetch('/api/saved/candidate/' + encodeURIComponent(c.name), {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error||'update failed');
+    c.status = status;
+    sel.className = 'sv-status-sel sv-st-' + status.replace(/\s+/g,'-');
+  } catch(e){
+    alert('Could not update status: ' + (e.message||e));
+    sel.value = prev; c.status = prev;
+  }
+}
+
+// Persist all edited fields of one DB candidate row, then drop the cached
+// insights so the dashboard recalculates from the updated profile.
+async function saveCandidateEdits(c, tr, btn){
+  const inputs = [...tr.querySelectorAll('.sv-edit')];
+  const fields = {};
+  inputs.forEach(inp => { fields[inp.dataset.field] = inp.value; });
+  if (!Object.keys(fields).length) return;
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/saved/candidate/' + encodeURIComponent(c.name), {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(fields) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'save failed');
+    // Reflect new values on the row object and invalidate cached insights so the
+    // next time this candidate's dashboard opens it recomputes from the edits.
+    inputs.forEach(inp => { c[inp.dataset.key] = inp.value; });
+    delete _miCache[c.name];
+    btn.classList.remove('dirty');
+    btn.textContent = '✓ Saved';
+    setTimeout(()=>{ btn.textContent = orig; btn.disabled = true; }, 1600);
+  } catch(e){
+    alert('Could not save changes: ' + (e.message || e));
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+// ── Column chooser ───────────────────────────────────────────────────────────
+function toggleColChooser(ev){
+  ev.stopPropagation();
+  const pop = document.getElementById('svColChooser');
+  if (pop.style.display !== 'none'){ pop.style.display='none'; return; }
+  if (_svVisible === null) _svLoadPrefs();
+  _svClosePops();
+  pop.innerHTML = '<h4>Show columns</h4>' + SV_COLUMNS.map(col => `
+    <label class="sv-ck">
+      <input type="checkbox" data-k="${col.key}" ${_svVisible.has(col.key)?'checked':''} ${col.always?'disabled':''}>
+      ${esc(col.label)}
+    </label>`).join('');
+  pop.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if (cb.checked) _svVisible.add(cb.dataset.k); else _svVisible.delete(cb.dataset.k);
+      _svSavePrefs(); renderCandTable();
+    });
+  });
+  pop.style.display = '';
+}
+
+// ── Per-column filter popover ────────────────────────────────────────────────
+function openColFilter(key, anchor){
+  const pop = document.getElementById('svFilterPop');
+  const col = SV_COLUMNS.find(c=>c.key===key);
+  if (pop.style.display !== 'none' && pop.dataset.k === key){ pop.style.display='none'; return; }
+  _svClosePops();
+  pop.dataset.k = key;
+  const cur = _svFilters[key] || '';
+  let inner = `<div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Filter · ${esc(col.label)}</div>`;
+  if (col.type === 'status'){
+    inner += `<select id="svFilterInput"><option value="">All statuses</option>` +
+      SV_STATUS_OPTIONS.map(o=>`<option value="${o}" ${cur===o?'selected':''}>${o}</option>`).join('') + `</select>`;
+  } else {
+    inner += `<input id="svFilterInput" type="text" placeholder="contains…" value="${esc(cur)}">`;
+  }
+  inner += `<div class="sv-filter-row">
+      <button class="sv-link" type="button" id="svFilterClear">Clear</button>
+      <button class="sv-link" type="button" id="svFilterClose">Done</button></div>`;
+  pop.innerHTML = inner;
+
+  // position under the clicked header
+  const wrap = document.getElementById('savedTableWrap').getBoundingClientRect();
+  const a = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(a.left - wrap.left, wrap.width - 220) + 'px';
+  pop.style.top  = (a.bottom - wrap.top + 6) + 'px';
+  pop.style.display = '';
+
+  const input = document.getElementById('svFilterInput');
+  input.focus();
+  const apply = ()=>{
+    const val = input.value;
+    if (val === '' ) delete _svFilters[key]; else _svFilters[key] = val;
+    _svSavePrefs(); renderCandTable();
+  };
+  input.addEventListener('input', apply);
+  input.addEventListener('change', apply);
+  document.getElementById('svFilterClear').addEventListener('click', ()=>{
+    delete _svFilters[key]; _svSavePrefs(); pop.style.display='none'; renderCandTable();
+  });
+  document.getElementById('svFilterClose').addEventListener('click', ()=>{ pop.style.display='none'; });
+}
+
+function _svClosePops(){
+  const a=document.getElementById('svColChooser'), b=document.getElementById('svFilterPop');
+  if (a) a.style.display='none';
+  if (b){ b.style.display='none'; b.dataset.k=''; }
+}
+// Close popovers when clicking outside them.
+document.addEventListener('click', (e)=>{
+  if (e.target.closest('#svColChooser') || e.target.closest('#svFilterPop') ||
+      e.target.closest('#svColsBtn') || e.target.closest('.sv-th')) return;
+  _svClosePops();
+});
+
+// Open a candidate from the table → switch to the dashboard view for them.
+function loadCandidateFromTable(c){
+  const idx = _miCandidates.findIndex(x => x.name === c.name);
+  if (idx < 0) return;
+  _miIdx = idx;
+  setSavedView('dash');
+}
+
+// GDPR erasure from the table — removes the candidate and all their saved jobs.
+async function eraseCandidateFromTable(c){
+  if (!c) return;
+  if (!confirm(`Erase "${c.name}" and all ${c.matches} saved job(s)?\n\nThis permanently deletes the candidate from the database and cannot be undone.`)) return;
+  try {
+    const res = await fetch('/api/saved/candidate/' + encodeURIComponent(c.name), { method:'DELETE' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'erase failed');
+    delete _miCache[c.name];
+    await reloadSavedFromDb();
+  } catch(e){
+    alert('Could not erase: ' + (e.message || e));
+  }
+}
+
+// Persist a session ("local") candidate to the MySQL candidate table.
+async function saveLocalCandidate(row, btn){
+  const profile = row._profile;
+  const name = profile && (profile.name || '').trim();
+  if (!name){ alert('Give the candidate a name before saving.'); return; }
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Saving…';
+  try {
+    const res  = await fetch('/api/saved/candidate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ profile }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'save failed');
+    // Persisted — drop it from the Local list. Only fold the fresh DB list in if
+    // the user is already viewing the database; otherwise leave the Database side
+    // untouched until they load it explicitly (keeps the tab predictable).
+    _localCandidates = _localCandidates.filter(c => (c.name||'').trim() !== name);
+    if (_savedDbLoaded && data.candidates) {
+      _miCandidates = data.candidates;
+      if (_miIdx >= _miCandidates.length) _miIdx = 0;
+    }
+    _refreshLocalCount();
+    const status = document.getElementById('savedLoadStatus');
+    if (_savedSource === 'local' && !_localCandidatesForView().length){
+      if (_savedDbLoaded && _miCandidates.length) setSavedSource('db');
+      else _applySavedView();   // nothing left locally → empty state
+    } else {
+      renderCandTable();
+    }
+    if (status) status.textContent = `Saved “${name}” to the database`;
+  } catch(e){
+    alert('Could not save candidate: ' + (e.message || e));
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+// Bulk-save every local candidate in the current view to the database.
+async function saveAllLocalCandidates(){
+  const rows = _svActiveList().filter(c => c._local);
+  if (!rows.length) return;
+  const noun = _savedKind==='template' ? 'template' : 'candidate';
+  if (!confirm(`Save all ${rows.length} local ${noun}${rows.length!==1?'s':''} to the database?`)) return;
+  const btn = document.getElementById('svSaveAllBtn');
+  const orig = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  let ok = 0, fail = 0;
+  for (const row of rows){
+    const profile = row._profile;
+    const name = profile && (profile.name || '').trim();
+    if (!name){ fail++; continue; }
+    try {
+      const res  = await fetch('/api/saved/candidate', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ profile }) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'save failed');
+      _localCandidates = _localCandidates.filter(c => (c.name||'').trim() !== name);
+      if (_savedDbLoaded && data.candidates) _miCandidates = data.candidates;
+      ok++;
+    } catch(e){ fail++; }
+  }
+  if (btn){ btn.disabled = false; btn.textContent = orig; }
+  if (_miIdx >= _miCandidates.length) _miIdx = 0;
+  _refreshLocalCount();
+  // Drop back to the Database view when nothing local is left and the DB is loaded.
+  if (_savedSource==='local' && !_svActiveList().length && _savedDbLoaded && _miCandidates.length)
+    setSavedSource('db');
+  else
+    _applySavedView();
+  const status = document.getElementById('savedLoadStatus');
+  if (status) status.textContent = `Saved ${ok} to the database${fail?` · ${fail} failed`:''}`;
+}
+
+// Drop a session candidate from the Local view (does not touch the database).
+function removeLocalCandidate(row){
+  const name = row._profile && (row._profile.name || '').trim();
+  if (!name) return;
+  if (!confirm(`Remove local candidate "${name}" from this session?\n\nThis only clears it from the Local list — nothing in the database changes.`)) return;
+  _localCandidates = _localCandidates.filter(c => (c.name||'').trim() !== name);
+  _refreshLocalCount();
+  if (!_localCandidatesForView().length && _miCandidates.length) setSavedSource('db');
+  else if (!_localCandidatesForView().length) _applySavedView();
+  else renderCandTable();
+}
+
+function _miBuildSwitcher(){
+  const list=document.getElementById('csList');
+  list.innerHTML='';
+  _miCandidates.forEach((c,i)=>{
+    const chip=_miEl(`<button class="cs-chip ${i===_miIdx?'active':''}" data-i="${i}">
+      <span class="cs-av">${esc(c.initials)}</span>
+      <span class="cs-nm">${esc(c.name)}<small>${c.matches} matches · ${c.gradeA} A-grade</small></span>
+    </button>`);
+    chip.addEventListener('click',()=>_miGo(i));
+    list.appendChild(chip);
+  });
+  document.getElementById('csCount').textContent=`${_miIdx+1} / ${_miCandidates.length}`;
+}
+
+async function _miGo(i){
+  if (!_miCandidates.length) return;
+  _miIdx=(i+_miCandidates.length)%_miCandidates.length;
+  document.querySelectorAll('#csList .cs-chip').forEach(ch=>ch.classList.toggle('active', +ch.dataset.i===_miIdx));
+  document.getElementById('csCount').textContent=`${_miIdx+1} / ${_miCandidates.length}`;
+  const name=_miCandidates[_miIdx].name;
+  _miD=null;
+  _miShowLoading(name);
+  try {
+    let payload=_miCache[name];
+    if (!payload) {
+      const res=await fetch('/api/saved/insights?candidate='+encodeURIComponent(name));
+      const data=await res.json();
+      if (!data.ok) throw new Error(data.error||'insights failed');
+      payload=data.insights; _miCache[name]=payload;
+    }
+    _miD=payload;
+    _miRender();
+    _icOnCandidateSwitch();
+  } catch(e){
+    document.getElementById('grid1').innerHTML=`<div class="error-box" style="margin:0">Could not build insights: ${esc(e.message)}</div>`;
+    document.getElementById('grid2').innerHTML='';
+  }
+}
+
+function _miShowLoading(name){
+  document.getElementById('candHeader').innerHTML=`<div style="padding:6px 2px;color:#9ca3af">Computing insights for ${esc(name)}…</div>`;
+  document.getElementById('briefing').innerHTML='';
+  document.getElementById('kpiStrip').innerHTML='';
+  document.getElementById('grid1').innerHTML='';
+  document.getElementById('grid2').innerHTML='';
+}
+
+function _miRefreshCurrent(){
+  // Drop cache for the active candidate and re-pull (after a save/remove).
+  if (_miCandidates[_miIdx]) delete _miCache[_miCandidates[_miIdx].name];
+  loadSaved();
+}
+
+function _miRender(){
+  _miRenderHeader(); _miRenderBriefing(); _miRenderKpis(); _miRenderCards();
+}
+
+// ── Interview chat ──────────────────────────────────────────────────────────
+let _icHistory = {};   // keyed by candidate name → [{role,content,overrides?}]
+
+function _icToggle(){
+  const panel = document.getElementById('icPanel');
+  const btn   = document.getElementById('icOpenBtn');
+  const isOpen = panel.classList.contains('open');
+  if (isOpen) {
+    panel.classList.remove('open','body-open');
+  } else {
+    panel.classList.add('open','body-open');
+    _icRenderThread();
+    setTimeout(()=>document.getElementById('icInput').focus(), 50);
+  }
+  btn.setAttribute('title', isOpen ? 'Open interview notes' : 'Close interview notes');
+}
+
+function _icToggleBody(){
+  const panel = document.getElementById('icPanel');
+  panel.classList.toggle('body-open');
+  if (panel.classList.contains('body-open'))
+    setTimeout(()=>document.getElementById('icInput').focus(), 50);
+}
+
+function _icCandKey(){
+  return (_miCandidates[_miIdx] || {}).name || '';
+}
+
+function _icRenderThread(){
+  const key    = _icCandKey();
+  const thread = document.getElementById('icThread');
+  const empty  = document.getElementById('icEmpty');
+  const msgs   = _icHistory[key] || [];
+  // remove old messages (keep the empty placeholder node)
+  Array.from(thread.children).forEach(n => { if (n !== empty) n.remove(); });
+  if (!msgs.length) { empty.style.display=''; return; }
+  empty.style.display='none';
+  msgs.forEach(m => {
+    const el = document.createElement('div');
+    el.className = `ic-msg ${m.role==='hr'?'hr':'ai'}`;
+    let inner = `<div class="ic-bubble">${esc(m.content)}</div>`;
+    if (m.role==='ai' && m.overrides && Object.keys(m.overrides).length) {
+      const tags = Object.entries(m.overrides).map(([k,v]) => {
+        const label = {salary_expectation:'Salary',location:'Location',skills:'Skills',
+          availability:'Available',title:'Role',languages:'Languages',experience_years:'Exp'}[k] || k;
+        const val = Array.isArray(v) ? v.join(', ') : String(v);
+        return `<span class="ic-tag">${esc(label)}: ${esc(val.length>30?val.slice(0,28)+'…':val)}</span>`;
+      }).join('');
+      inner += `<div class="ic-tags">${tags}</div>`;
+    }
+    el.innerHTML = inner;
+    thread.appendChild(el);
+  });
+  thread.scrollTop = thread.scrollHeight;
+}
+
+// Clear interview notes when switching candidates
+function _icOnCandidateSwitch(){
+  const panel = document.getElementById('icPanel');
+  // keep panel open if it was open, but re-render for the new candidate
+  if (panel.classList.contains('open')) _icRenderThread();
+  // update the "has notes" dot on the open button
+  const key = _icCandKey();
+  const btn = document.getElementById('icOpenBtn');
+  if (btn) btn.classList.toggle('has-notes', !!(_icHistory[key]||[]).length);
+}
+
+async function _icSend(){
+  const cand = _icCandKey();
+  if (!cand) return;
+  const input = document.getElementById('icInput');
+  const msg   = (input.value || '').trim();
+  if (!msg) return;
+
+  const send = document.getElementById('icSend');
+  input.value = '';
+  send.disabled = true;
+
+  // Append HR message immediately
+  if (!_icHistory[cand]) _icHistory[cand] = [];
+  _icHistory[cand].push({ role:'hr', content: msg });
+  _icRenderThread();
+
+  // Show typing indicator
+  const thread = document.getElementById('icThread');
+  const typing = document.createElement('div');
+  typing.className = 'ic-typing'; typing.textContent = 'Updating profile…';
+  thread.appendChild(typing); thread.scrollTop = thread.scrollHeight;
+
+  try {
+    const res = await fetch('/api/saved/interview', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ candidate: cand, message: msg }),
+    });
+    const data = await res.json();
+    typing.remove();
+    if (!data.ok) throw new Error(data.error || 'Server error');
+
+    _icHistory[cand].push({ role:'ai', content: data.reply, overrides: data.overrides || {} });
+
+    // Patch the live insights data and re-render in place — no full reload
+    if (data.insights) {
+      _miD = data.insights;
+      _miCache[cand] = data.insights;
+      _miRender();
+    }
+  } catch(e) {
+    typing.remove();
+    _icHistory[cand].push({ role:'ai', content: `Error: ${e.message}`, overrides:{} });
+  }
+
+  _icRenderThread();
+  // update dot indicator
+  const btn = document.getElementById('icOpenBtn');
+  if (btn) btn.classList.add('has-notes');
+  send.disabled = false;
+  input.focus();
+}
+
+// Wire Enter key in interview input
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('icInput');
+  if (inp) inp.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); _icSend(); } });
+});
+
+function _miRenderHeader(){
+  const D=_miD, h=document.getElementById('candHeader');
+  h.innerHTML='';
+  h.appendChild(_miEl(`<div class="cand-profile-top">
+    <div class="cand-profile-avatar">${esc(D.initials)}</div>
+    <div class="cand-profile-body">
+      <div class="cand-profile-name">${esc(D.name)}</div>
+      <div class="cand-profile-sub">${esc(D.title)} · ${D.years} yrs · ${esc(D.location)} · ${esc(D.langs)}</div>
+      <div class="cand-profile-skills">${(D.skills||[]).map(s=>`<span class="cand-profile-skill">${esc(s)}</span>`).join('')}</div>
+    </div>
+    <div class="cand-meta-inline">
+      <div><b>Asks</b> ${esc(D.asks)}</div>
+      <div><b>Available</b> ${esc(D.available)}</div>
+      <div><b>Prefers</b> ${esc(D.prefers)}</div>
+    </div>
+  </div>`));
+}
+
+function _miRenderBriefing(){
+  const D=_miD, b=document.getElementById('briefing');
+  b.innerHTML='';
+  b.appendChild(_miEl(`<div class="brief-head">
+    <span class="brief-icon">${_MI_SPARK}</span>
+    <span class="brief-title">Match briefing</span>
+    <span class="brief-meta"><span class="dot"></span> Synthesised from the panels below</span>
+  </div>`));
+  b.appendChild(_miEl(`<div class="brief-text">${(D.briefing||[]).map(p=>`<p>${p}</p>`).join('')}</div>`));
+  b.appendChild(_miEl(`<div class="brief-actions">${(D.actions||[]).map((a,i)=>`<div class="brief-action"><span class="num">${i+1}</span><span>${a}</span></div>`).join('')}</div>`));
+}
+
+function _miRenderKpis(){
+  const D=_miD, strip=document.getElementById('kpiStrip');
+  strip.innerHTML='';
+  const tot=(D.grades.A+D.grades.B+D.grades.C)||1;
+  strip.appendChild(_miEl(`<div class="kpi"><div class="kpi-lbl">Match strength</div>
+    <div class="kpi-num">${D.strength}<small>/100</small></div>
+    <div class="kpi-mini-bar"><i style="width:${D.grades.A/tot*100}%;background:#1a7a2e"></i><i style="width:${D.grades.B/tot*100}%;background:#e0a92a"></i><i style="width:${D.grades.C/tot*100}%;background:#c9c7bd"></i></div>
+    <div class="kpi-sub"><b>${D.grades.A} A</b> · ${D.grades.B} B · ${D.grades.C} C of ${tot}</div></div>`));
+  const dir=(D.demandPct>=0?'kpi-up':'kpi-down');
+  const sp=_miSparkPath(D.demandSpark&&D.demandSpark.some(v=>v)?D.demandSpark:[0,0,0,0,0,0,0,1],116,30,3);
+  strip.appendChild(_miEl(`<div class="kpi"><div class="kpi-lbl">Profile demand</div>
+    <div class="kpi-num ${dir}">${D.demandPct>=0?'+':''}${D.demandPct}%</div>
+    <svg class="kpi-spark" viewBox="0 0 116 30" width="100%" height="30"><path d="${sp.area}" fill="rgba(26,122,46,.12)"/><path d="${sp.line}" fill="none" stroke="#1a7a2e" stroke-width="1.6"/><circle cx="${sp.lastX}" cy="${sp.lastY}" r="2.4" fill="#1a7a2e"/></svg>
+    <div class="kpi-sub">${D.demandNow} new roles/wk · 8-wk trend</div></div>`));
+  strip.appendChild(_miEl(`<div class="kpi"><div class="kpi-lbl">Placeability</div>
+    <div class="kpi-num">${esc(D.placeText)}</div>
+    <div class="kpi-sub" style="margin-top:8px">Similar roles live ~<b>${D.placeabilityDays} days</b></div></div>`));
+  strip.appendChild(_miEl(`<div class="kpi"><div class="kpi-lbl">Salary headroom</div>
+    <div class="kpi-num">€${(D.salaryCeiling||0).toLocaleString('en-US')}</div>
+    <div class="kpi-sub"><b class="kpi-up">+€${(D.salaryHeadroom||0).toLocaleString('en-US')}</b> above ask ceiling</div></div>`));
+  const bmSingle = !D.benchmarkTotal || D.benchmarkTotal < 2;
+  const bmKpiNum = bmSingle
+    ? `<span style="font-size:15px;color:#9ca3af">Only<br>candidate</span>`
+    : `${D.benchmarkRank}<small> of ${D.benchmarkTotal}</small>`;
+  const bmKpiSub = bmSingle
+    ? 'No peers to compare yet'
+    : (D.benchmarkRank===1 ? 'Strongest in pipeline' : `Rank ${D.benchmarkRank} of ${D.benchmarkTotal} candidates`);
+  strip.appendChild(_miEl(`<div class="kpi"><div class="kpi-lbl">Pipeline rank</div>
+    <div class="kpi-num">${bmKpiNum}</div>
+    <div class="kpi-sub" style="margin-top:8px">${bmKpiSub}</div></div>`));
+}
+
+function _miCard(idx,title,sub,why,span,isNew,ai){
+  return _miEl(`<div class="card ${span?'span2':''}">
+    <div class="card-head"><span class="card-idx ${isNew?'new':''}">${idx}</span><span class="card-title">${title}</span></div>
+    <div class="card-sub">${sub}</div>
+    <div class="card-body"></div>
+    ${ai?`<div class="ai-read"><span class="spark">${_MI_SPARK}</span><span><b>Read.</b> ${ai}</span></div>`:''}
+    <div class="card-why"><b>${isNew?'Stat:':'Why it helps:'}</b> ${why}</div>
+  </div>`);
+}
+
+function _miFitRadar(){
+  const D=_miD;
+  const c=_miCard('01','Candidate fit radar','Where the candidate is strong vs. where the match is thin.','A single shape shows the trade-offs at a glance.',false,false,D.radarAI);
+  const body=c.querySelector('.card-body');
+  const W=300,H=215,cx=W/2,cy=H/2+2,R=76,ax=D.radar,N=ax.length;
+  const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/N;return [cx+Math.cos(a)*r,cy+Math.sin(a)*r];};
+  let rings='';[0.25,0.5,0.75,1].forEach(f=>{rings+=`<polygon points="${ax.map((_,i)=>pt(i,R*f).join(',')).join(' ')}" fill="none" stroke="#ece9e0"/>`;});
+  let spokes='',labels='';
+  ax.forEach((a,i)=>{const[x,y]=pt(i,R);spokes+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#ece9e0"/>`;
+    const[lx,ly]=pt(i,R+18);const an=Math.abs(lx-cx)<8?'middle':(lx>cx?'start':'end');
+    labels+=`<text x="${lx}" y="${ly}" font-size="9.5" fill="#888" text-anchor="${an}" dominant-baseline="middle">${esc(a.axis)}</text>`;});
+  const poly=ax.map((a,i)=>pt(i,R*a.v/100).join(',')).join(' ');
+  const dots=ax.map((a,i)=>{const[x,y]=pt(i,R*a.v/100);return `<circle cx="${x}" cy="${y}" r="3" fill="#1a3864"/>`;}).join('');
+  body.appendChild(_miEl(`<svg viewBox="0 0 ${W} ${H}" width="100%">${rings}${spokes}<polygon points="${poly}" fill="rgba(26,86,196,.16)" stroke="#1a56c4" stroke-width="2"/>${dots}${labels}</svg>`));
+  return c;
+}
+function _miSkillsCoverage(){
+  const D=_miD;
+  const c=_miCard('02','Skills in demand & gaps','Which skills carry the matches — and what is missing.','Surfaces the most marketable skills and in-demand skills worth coaching toward.',false,false,D.skillsAI);
+  const body=c.querySelector('.card-body');
+  body.appendChild(_miEl(`<div class="mini-label">Candidate skills · demanded by N of ${D.matches} roles</div>`));
+  const bars=_miEl(`<div class="bars"></div>`);
+  const mx=Math.max(1,...D.skills2.map(s=>s.n));
+  D.skills2.forEach(s=>bars.appendChild(_miEl(`<div class="bar-row"><span class="bar-label">${esc(s.name)}</span><span class="bar-track"><span class="bar-fill" style="width:${s.n/mx*100}%"></span></span><span class="bar-val">${s.n}</span></div>`)));
+  body.appendChild(bars);
+  if (D.gaps && D.gaps.length){
+    body.appendChild(_miEl(`<div class="mini-label" style="margin-top:13px">In-demand skills the candidate is missing</div>`));
+    const chips=_miEl(`<div class="gap-chips"></div>`);
+    D.gaps.forEach(g=>chips.appendChild(_miEl(`<span class="gap-chip">${esc(g.name)} <b>${g.n}×</b></span>`)));
+    body.appendChild(chips);
+  }
+  return c;
+}
+function _miSalaryPositioning(){
+  const D=_miD;
+  const c=_miCard('03','Salary positioning','Is the candidate expectation realistic for these roles?','A “you are here” pay ruler — market range, typical-pay zone, and where the ask falls.',true,false,D.salaryAI);
+  const body=c.querySelector('.card-body');
+  const m=D.market, b=D.candBand;
+  if (!m.median){ body.appendChild(_miEl(`<div class="mini-label">No market salary data for this group.</div>`)); return c; }
+  const W=760,H=118,padL=16,padR=16;
+  const loV=Math.min(m.p25, b[0])-300, hiV=Math.max(m.p75, b[1])+300;
+  const xV=v=>padL+((v-loV)/((hiV-loV)||1))*(W-padL-padR);
+  const trackY=58, trackH=22, p25=xV(m.p25), p75=xV(m.p75), med=xV(m.median), bx0=xV(b[0]), bx1=xV(b[1]);
+  const candZone=`<rect x="${bx0}" y="34" width="${bx1-bx0}" height="${trackH+30}" rx="6" fill="rgba(26,122,46,.10)"/>
+    <line x1="${bx0}" y1="34" x2="${bx0}" y2="${34+trackH+30}" stroke="#1a7a2e" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <line x1="${bx1}" y1="34" x2="${bx1}" y2="${34+trackH+30}" stroke="#1a7a2e" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <text x="${(bx0+bx1)/2}" y="26" font-size="10.5" font-weight="700" fill="#1a7a2e" text-anchor="middle">${esc(D.name.split(' ')[0])} asks ${esc(D.asks)}</text>`;
+  const track=`<rect x="${padL}" y="${trackY}" width="${W-padL-padR}" height="${trackH}" rx="11" fill="#eef1f4" stroke="#e2e6ec"/>
+    <rect x="${p25}" y="${trackY}" width="${p75-p25}" height="${trackH}" rx="6" fill="#bcd2ee"/>
+    <text x="${(p25+p75)/2}" y="${trackY+15}" font-size="9.5" fill="#3a5a86" text-anchor="middle" font-weight="600">typical pay</text>
+    <line x1="${med}" y1="${trackY-7}" x2="${med}" y2="${trackY+trackH+7}" stroke="#1a3864" stroke-width="2.5"/>
+    <text x="${med}" y="${trackY+trackH+20}" font-size="9.5" fill="#1a3864" text-anchor="middle" font-weight="600">median €${m.median.toLocaleString('en-US')}</text>`;
+  const ticks=`<text x="${xV(loV)}" y="${trackY+trackH+20}" font-size="9" fill="#bbb" text-anchor="start">€${loV.toLocaleString('en-US')}</text>
+    <text x="${xV(hiV)}" y="${trackY+trackH+20}" font-size="9" fill="#bbb" text-anchor="end">€${hiV.toLocaleString('en-US')}</text>`;
+  body.appendChild(_miEl(`<svg viewBox="0 0 ${W} ${H}" width="100%">${candZone}${track}${ticks}</svg>`));
+  body.appendChild(_miEl(`<div class="legend-inline"><span><span class="d" style="background:#bcd2ee"></span>typical market pay (P25–P75)</span><span><span class="d" style="background:rgba(26,122,46,.45)"></span>candidate ask</span><span><span class="d" style="background:#1a3864"></span>market median</span></div>`));
+  body.appendChild(_miEl(`<div class="stat-strip"><span><span class="k">Sample</span><span class="v">${D.matches} roles</span></span><span><span class="k">Ask vs market</span><span class="v above">${esc(D.salaryStat.overlap)}</span></span><span><span class="k">Verdict</span><span class="v">${esc(D.salaryStat.verdict)}</span></span></div>`));
+  return c;
+}
+function _miPriorityList(){
+  const D=_miD;
+  const c=_miCard('04','Priority shortlist','Who to call about first — no chart-reading required.','Sorts matches into plain action tiers; a recruiter just works down the list.',true,false,D.priorityAI);
+  const body=c.querySelector('.card-body');
+  const deltaTag=(d)=>{ if(d==='in') return `<div class="pri-delta in">in range</div>`; if(d>0) return `<div class="pri-delta up">+€${d} over ask</div>`; return `<div class="pri-delta down">€${Math.abs(d)} under ask</div>`; };
+  (D.priority||[]).forEach(t=>{
+    const tier=_miEl(`<div class="pri-tier"><div class="pri-tier-head"><span class="pri-dot" style="background:${t.color}"></span>${esc(t.tier)} <span class="cnt">· ${esc(t.note)} · ${t.count} role${t.count>1?'s':''}</span></div></div>`);
+    t.roles.forEach(r=>{
+      tier.appendChild(_miEl(`<div class="pri-row"><span class="grade grade-${r.g.toLowerCase()}">${esc(r.g)}</span>
+        <div class="pri-main"><div class="pri-title">${esc(r.title)} — ${esc(r.co)}</div><div class="pri-sub">${esc(r.loc)} · ${r.match}% match</div></div>
+        <div class="pri-pay"><div class="pri-sal">${r.sal?('€'+r.sal.toLocaleString('en-US')):'—'}</div>${deltaTag(r.delta)}</div></div>`));
+    });
+    if(t.roles.length < t.count) tier.appendChild(_miEl(`<div class="pri-sub" style="text-align:center;padding:5px 0 1px;color:#bbb">+ ${t.count-t.roles.length} more in this tier</div>`));
+    body.appendChild(tier);
+  });
+  return c;
+}
+function _miDemandTrend(){
+  const D=_miD;
+  const c=_miCard('05','Demand trend for this profile','Is the market for this candidate heating up or cooling?','Weekly new roles in the candidate occupational group.',true,true,D.demandAI);
+  const body=c.querySelector('.card-body');
+  const vals=D.demandSpark, avg=D.profileAvg, n=vals.length;
+  if (!vals.some(v=>v)){ body.appendChild(_miEl(`<div class="mini-label">No recent posting-date data for this group.</div>`)); return c; }
+  const W=720,H=200,padL=34,padR=20,padT=30,padB=30;
+  const yMax=Math.max(10,Math.ceil(Math.max(...vals,avg)*1.2/10)*10);
+  const slot=(W-padL-padR)/n, cx=i=>padL+slot*i+slot/2, y0=H-padB, yV=v=>padT+(H-padT-padB)*(1-v/yMax);
+  let grid='';[Math.round(yMax/3),Math.round(2*yMax/3),yMax].forEach(v=>{const yy=yV(v);grid+=`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#f4f2ec"/><text x="${padL-7}" y="${yy+3}" font-size="9" fill="#cbcabf" text-anchor="end">${v}</text>`;});
+  const ay=yV(avg);
+  const ref=`<line x1="${padL}" y1="${ay}" x2="${W-padR}" y2="${ay}" stroke="#b9a26a" stroke-width="1.4" stroke-dasharray="5 3"/><text x="${padL+2}" y="${ay-6}" font-size="9.5" fill="#9a8245" font-weight="600">8-wk avg · ~${avg}/wk</text>`;
+  let stems='',dots='',labels='';
+  vals.forEach((v,i)=>{const recent=i>=n-3,last=i===n-1;
+    stems+=`<line x1="${cx(i)}" y1="${y0}" x2="${cx(i)}" y2="${yV(v)}" stroke="${recent?'#bcd0ef':'#e7e5dc'}" stroke-width="7" stroke-linecap="round"/>`;
+    dots+=`<circle cx="${cx(i)}" cy="${yV(v)}" r="${last?6.5:5}" fill="${last?'#15407a':(recent?'#1a56c4':'#aeb9c9')}" stroke="#fff" stroke-width="1.5"/>`;
+    labels+=`<text x="${cx(i)}" y="${yV(v)-11}" font-size="${last?11:9.5}" font-weight="${recent?700:600}" fill="${recent?'#1a56c4':'#aab'}" text-anchor="middle">${v}</text>`;});
+  const wk=vals.slice(0,-1).map((v,i)=>`<text x="${cx(i)}" y="${y0+15}" font-size="8.5" fill="#bbb" text-anchor="middle">w${i+1}</text>`).join('')+`<text x="${cx(n-1)}" y="${y0+15}" font-size="8.5" font-weight="700" fill="#15407a" text-anchor="middle">now</text>`;
+  body.appendChild(_miEl(`<svg viewBox="0 0 ${W} ${H}" width="100%"><line x1="${padL}" y1="${y0}" x2="${W-padR}" y2="${y0}" stroke="#e0dfd8"/>${grid}${stems}${ref}${dots}${labels}${wk}</svg>`));
+  const vsCls=D.demandVsAvg>=0?'above':'below', vsTxt=(D.demandVsAvg>=0?'+':'')+D.demandVsAvg+'% '+(D.demandVsAvg>=0?'above':'below');
+  body.appendChild(_miEl(`<div class="stat-strip"><span><span class="k">8-wk change</span><span class="v ${D.demandPct>=0?'above':'below'}">${D.demandPct>=0?'+':''}${D.demandPct}%</span></span><span><span class="k">Now</span><span class="v">${D.demandNow} roles/wk</span></span><span><span class="k">vs 8-wk avg</span><span class="v ${vsCls}">${vsTxt}</span></span></div>`));
+  return c;
+}
+function _miUpskilling(){
+  const D=_miD;
+  const c=_miCard('06','Upskilling ROI','What one course unlocks — more matches and higher pay.','Extra group roles and median salary uplift per skill the candidate lacks.',false,true,D.upskillAI);
+  const body=c.querySelector('.card-body');
+  if (!D.upskill || !D.upskill.length){ body.appendChild(_miEl(`<div class="mini-label">No high-impact skill gaps detected.</div>`)); return c; }
+  const maxAdd=Math.max(1,...D.upskill.map(u=>u.add));
+  D.upskill.forEach(u=>body.appendChild(_miEl(`<div class="up-row"><div class="up-skill">${esc(u.name)}<small>${esc(u.sub)}</small></div><div class="up-bar-track"><span class="up-bar" style="width:${u.add/maxAdd*100}%"></span></div><div><div class="up-add">+${u.add} roles</div>${u.sal?`<div class="up-sal">+€${u.sal}/mo med.</div>`:''}</div></div>`)));
+  return c;
+}
+function _miTopEmployers(){
+  const D=_miD;
+  const c=_miCard('07','Top employers to approach','Where the matching roles cluster.','Companies with multiple matching roles — one pitch, several openings.',false,true,D.employersAI);
+  const body=c.querySelector('.card-body');
+  (D.employers||[]).forEach(e=>body.appendChild(_miEl(`<div class="emp-row"><span class="emp-logo">${esc(e.init)}</span><span class="emp-name">${esc(e.name)}</span><span class="emp-roles">${e.roles} role${e.roles>1?'s':''}</span><span class="emp-sal">${e.sal?('avg €'+e.sal.toLocaleString('en-US')):''}</span></div>`)));
+  return c;
+}
+function _miExpansion(){
+  const D=_miD;
+  const c=_miCard('08','Pipeline expansion simulator','How to grow a thin shortlist.','Each lever shows how many extra group roles a relaxed filter unlocks.',false,true,D.expansionAI);
+  const body=c.querySelector('.card-body');
+  if (!D.levers || !D.levers.length){ body.appendChild(_miEl(`<div class="mini-label">No obvious expansion levers from current data.</div>`)); }
+  (D.levers||[]).forEach(l=>body.appendChild(_miEl(`<div class="lev-row"><span class="lev-toggle"><i></i></span><span class="lev-name">${esc(l.name)}</span><span class="lev-add">+${l.add}</span></div>`)));
+  body.appendChild(_miEl(`<div class="lev-total"><span class="lev-total-num">${esc(D.leverTotal)}</span><span class="lev-total-lbl">potential roles if all levers applied</span></div>`));
+  return c;
+}
+function _miPlaceability(){
+  const D=_miD;
+  const c=_miCard('09','Placeability & time-on-market','How quickly these roles move.','Derived from how long the saved roles have been live — an outreach deadline.',false,true,D.placeabilityAI);
+  const body=c.querySelector('.card-body');
+  const fast=D.placeabilityDays && D.placeabilityDays<=20;
+  body.appendChild(_miEl(`<div class="pl-head"><span class="pl-big">~${D.placeabilityDays} days</span><span class="pl-pill ${fast?'fast':'norm'}">${fast?'moves fast':'normal pace'}</span></div>`));
+  const mx=Math.max(1,...D.placeDist.map(x=>x.n));
+  const bars=_miEl(`<div class="bars"></div>`);
+  D.placeDist.forEach(x=>bars.appendChild(_miEl(`<div class="bar-row"><span class="bar-label" style="width:54px">${esc(x.d)}</span><span class="bar-track"><span class="bar-fill" style="width:${x.n/mx*100}%;background:#6b7a99"></span></span><span class="bar-val">${x.n}</span></div>`)));
+  body.appendChild(bars);
+  if (D.placeAroles) body.appendChild(_miEl(`<div class="pl-note"><b>${D.placeAroles} A-role(s)</b> are already 15+ days old — likely to close soon. Prioritise these.</div>`));
+  return c;
+}
+function _miBenchmark(){
+  const D=_miD;
+  const single = !D.benchmarkTotal || D.benchmarkTotal < 2;
+  const sub = single ? 'Add more candidates to enable comparison.' : `How this candidate compares to the rest.`;
+  const why = single ? 'Will rank candidates once you have 2 or more in the pipeline.' : 'Ranks match strength against the other saved candidates.';
+  const c=_miCard('10','Pipeline benchmark', sub, why, false, true, D.benchmarkAI);
+  const body=c.querySelector('.card-body');
+  if (single) {
+    body.appendChild(_miEl(`<div class="mini-label" style="color:#9ca3af;font-style:italic">Only candidate in the pipeline — no peers to rank against yet.</div>`));
+  } else {
+    // marker position: rank 1 = rightmost, rank N = leftmost
+    const pos = Math.round((1 - (D.benchmarkRank - 1) / (D.benchmarkTotal - 1)) * 100);
+    const first = esc(D.name.split(' ')[0]);
+    const label = `${first} · ${D.benchmarkRank} of ${D.benchmarkTotal}`;
+    body.appendChild(_miEl(`<div class="bm-wrap">
+      <div class="bm-track">
+        <div class="bm-marker" style="left:${pos}%"></div>
+        <div class="bm-flag"   style="left:${pos}%">${label}</div>
+      </div>
+      <div class="bm-scale"><span>weakest</span><span>median</span><span>strongest</span></div>
+      <div class="bm-note">${first} is <b>ranked ${D.benchmarkRank} of ${D.benchmarkTotal}</b> saved candidates by match strength.</div>
+    </div>`));
+  }
+  return c;
+}
+function _miFreshness(){
+  const D=_miD, f=D.fresh;
+  const c=_miCard('11','Outreach urgency','Which matches need action now.','Turns posting age &amp; deadlines into a to-do list.',false,true,D.freshAI);
+  const body=c.querySelector('.card-body');
+  body.appendChild(_miEl(`<div class="fresh-row">
+    <div class="fresh-tile alert"><div class="fresh-num">${f.closing}</div><div class="fresh-lbl">closing<br>≤ 7 days</div></div>
+    <div class="fresh-tile good"><div class="fresh-num">${f.fresh}</div><div class="fresh-lbl">fresh<br>posted &lt; 7d</div></div>
+    <div class="fresh-tile"><div class="fresh-num">${f.stale}</div><div class="fresh-lbl">aging<br>30–60 days</div></div>
+    <div class="fresh-tile"><div class="fresh-num">${f.expired}</div><div class="fresh-lbl">deadline<br>passed</div></div>
+  </div>`));
+  return c;
+}
+function _miRenderCards(){
+  if (!_miD) return;
+  const g1=document.getElementById('grid1'); g1.innerHTML='';
+  [_miFitRadar(),_miSkillsCoverage(),_miSalaryPositioning(),_miPriorityList()].forEach(c=>g1.appendChild(c));
+  const g2=document.getElementById('grid2'); g2.innerHTML='';
+  [_miDemandTrend(),_miUpskilling(),_miTopEmployers(),_miExpansion(),_miPlaceability(),_miBenchmark(),_miFreshness()].forEach(c=>g2.appendChild(c));
+}
+
+// Switcher arrows + keyboard
+document.addEventListener('DOMContentLoaded',()=>{
+  const p=document.getElementById('csPrev'), n=document.getElementById('csNext');
+  if (p) p.addEventListener('click',()=>_miGo(_miIdx-1));
+  if (n) n.addEventListener('click',()=>_miGo(_miIdx+1));
+});
+document.addEventListener('keydown',e=>{
+  if (!document.getElementById('tab-saved').classList.contains('active')) return;
+  if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (e.key==='ArrowLeft') _miGo(_miIdx-1);
+  if (e.key==='ArrowRight') _miGo(_miIdx+1);
+});
 
 function toggleExtraTab(jobId, key) {
   const pane = document.getElementById(`extras-pane-${key}-${jobId}`);
@@ -2941,7 +5036,7 @@ async function saveWithExtras() {
   try {
     const res  = await fetch('/api/saved', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() }, status, extras }),
+      body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() }, status, extras, candidate_profile: _currentCandidateProfile || null }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -2954,7 +5049,7 @@ async function saveWithExtras() {
       document.getElementById('saveExtrasPanel').style.display = 'none';
       const tableBtn = document.getElementById(`save-${_modalJob.job_id}`);
       if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
-      renderSaved(savedJobs);
+      _miRefreshCurrent();
     }
   } catch(e) { alert('Save failed: ' + e.message); }
 }
@@ -2977,8 +5072,7 @@ async function removeJob(jobId) {
   document.getElementById(`srow-${jobId}`)?.remove();
   savedJobs = savedJobs.filter(j => j.job_id !== jobId);
   updateSavedBadge();
-  if (!savedJobs.length)
-    document.getElementById('savedContent').innerHTML = '<div class="saved-empty">No saved jobs yet.</div>';
+  loadSaved();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -3066,19 +5160,18 @@ function exportSaved() {
 }
 
 async function generateSavedReport() {
-  if (!savedJobs.length) { alert('No saved jobs.'); return; }
-  const btn = document.getElementById('savedReportBtn');
-  const orig = btn.innerHTML;
-  btn.innerHTML = '<span style="opacity:.6">Generating…</span>';
-  btn.disabled = true;
+  const cand = _miCandidates[_miIdx];
+  if (!cand) { alert('No candidate selected.'); return; }
+  const btn   = document.getElementById('csPdf');
+  const label = document.getElementById('csPdfLabel');
+  const orig  = label ? label.textContent : '';
+  if (label) label.textContent = 'Generating…';
+  if (btn) btn.disabled = true;
   try {
     const res = await fetch('/api/saved/report', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        jobs: savedJobs,
-        candidate_profile: _currentCandidateProfile || null,
-      }),
+      body: JSON.stringify({ candidate: cand.name }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -3086,18 +5179,15 @@ async function generateSavedReport() {
     }
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
-    // Derive filename from candidate name: "Max Weber" → "Max_Weber_JobsAI.pdf"
-    const candName = (_currentCandidateProfile?.name || savedJobs[0]?.candidate_name || 'Candidate')
-      .trim().replace(/\s+/g, '_');
-    const filename = `${candName}_JobsAI.pdf`;
+    const filename = `${cand.name.trim().replace(/\s+/g, '_')}_MatchInsights.pdf`;
     const a = Object.assign(document.createElement('a'), { href: url, download: filename });
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 800);
   } catch(e) {
     alert('Report generation failed: ' + e.message);
   } finally {
-    btn.innerHTML = orig;
-    btn.disabled = false;
+    if (label) label.textContent = orig;
+    if (btn) btn.disabled = false;
   }
 }
 function csvDownload(rows, cols, filename) {
@@ -3798,7 +5888,7 @@ async function saveFromModal() {
   try {
     const res  = await fetch('/api/saved', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() }, status }),
+      body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() }, status, candidate_profile: _currentCandidateProfile || null }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -5774,9 +7864,79 @@ async function descToggleOutreach() {
 }
 
 // ════════════════════════════════════════════════════════════
+//  Feedback widget
+// ════════════════════════════════════════════════════════════
+function _feedbackContext(){
+  const p = document.querySelector('.tab-panel.active');
+  return p && p.id ? p.id.replace('tab-','') : '';
+}
+function openFeedback(){
+  document.getElementById('fbMsg').textContent = '';
+  document.getElementById('fbText').value = '';
+  document.getElementById('fbOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('fbText').focus(), 50);
+}
+function closeFeedback(){ document.getElementById('fbOverlay').classList.remove('show'); }
+async function sendFeedback(){
+  const ta  = document.getElementById('fbText');
+  const msg = document.getElementById('fbMsg');
+  const btn = document.getElementById('fbSend');
+  const text = ta.value.trim();
+  if (!text){ msg.style.color='#b91c1c'; msg.textContent='Please type something first.'; ta.focus(); return; }
+  btn.disabled = true; msg.style.color='#6b7280'; msg.textContent='Sending…';
+  try {
+    const res  = await fetch('/api/feedback', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text, context: _feedbackContext() })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'failed');
+    msg.style.color='#1a7a2e'; msg.textContent='Thanks — feedback saved!';
+    setTimeout(closeFeedback, 900);
+  } catch(e){
+    msg.style.color='#b91c1c'; msg.textContent='Could not send: ' + (e.message || e);
+  } finally { btn.disabled = false; }
+}
+
+// ════════════════════════════════════════════════════════════
 //  Init
 // ════════════════════════════════════════════════════════════
 loadFilters();
 </script>
+
+<!-- ═══ FEEDBACK WIDGET ═══ -->
+<style>
+  #fbBtn{position:fixed;right:18px;bottom:18px;z-index:9000;display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;border:none;border-radius:22px;background:#1a3864;color:#fff;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.18);transition:background .12s,transform .12s}
+  #fbBtn:hover{background:#22488a;transform:translateY(-1px)}
+  #fbBtn svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2}
+  #fbOverlay{position:fixed;inset:0;z-index:9001;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center}
+  #fbOverlay.show{display:flex}
+  #fbCard{background:#fff;width:min(460px,92vw);border-radius:14px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+  #fbCard h3{margin:0 0 4px;font-size:16px;color:#1a3864}
+  #fbCard p{margin:0 0 12px;font-size:12.5px;color:#6b7280}
+  #fbText{width:100%;box-sizing:border-box;min-height:120px;resize:vertical;padding:10px 12px;border:1px solid #d8d7d0;border-radius:9px;font-family:inherit;font-size:13px;line-height:1.5}
+  #fbText:focus{outline:none;border-color:#1a3864}
+  .fb-row{display:flex;justify-content:flex-end;gap:9px;margin-top:14px;align-items:center}
+  .fb-msg{margin-right:auto;font-size:12px}
+  .fb-btn{height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid transparent}
+  .fb-cancel{background:#f1f0ea;border-color:#e0dfd8;color:#444}
+  .fb-send{background:#1a3864;color:#fff}
+  .fb-send:disabled{opacity:.55;cursor:default}
+</style>
+<button id="fbBtn" onclick="openFeedback()" title="Send feedback — things to improve or fix">
+  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Feedback
+</button>
+<div id="fbOverlay" onclick="if(event.target===this)closeFeedback()">
+  <div id="fbCard">
+    <h3>Send feedback</h3>
+    <p>Anything to improve or fix? Your note is saved for the team.</p>
+    <textarea id="fbText" placeholder="What should we improve or fix?"></textarea>
+    <div class="fb-row">
+      <span class="fb-msg" id="fbMsg"></span>
+      <button class="fb-btn fb-cancel" onclick="closeFeedback()">Cancel</button>
+      <button class="fb-btn fb-send" id="fbSend" onclick="sendFeedback()">Send</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
