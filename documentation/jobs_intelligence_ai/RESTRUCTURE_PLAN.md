@@ -1,9 +1,9 @@
 # Restructure Plan — Modular Rework + Demo/Production Branches
 
-> **Status:** Planning. Architecture, `shared/` (§4), and config (§5) all agreed.
-> **Still open:** execution detail (§6), production feature set, `search/` placement,
-> `geo`/`auth` grouping. Nothing in §6 has run yet except Stage 1 (the `develop`
-> branch). This doc is the running record of the rework.
+> **Status:** Planning. Architecture, `shared/` (§4), config (§5), execution plan (§6)
+> and testing (§10) all agreed. **Confirm before executing:** `search/`→`services/`,
+> `core/` dissolution, `geo`/`auth` grouping (the 🟡 items in §9). Production feature set
+> (Stage 3) still deferred. Nothing in §6 has run yet except Stage 1. Running record.
 
 ---
 
@@ -159,22 +159,84 @@ runtime-swappable / injectable config (none do today).
 
 ## 6. Execution stages
 
-- [x] **Stage 1 — Safe save.** Commit full current codebase to `develop`, push to
-      GitHub. (Done — commit `c7e52b8`, `origin/develop`.)
-- [ ] **Stage 2 — Repackage into modules** (on `develop`):
-      1. Create `shared/` (§4); update imports in `search` + affected services.
-      2. Convert each flat service into a module (§7), one at a time, verifying as we go.
-      3. Rename `web/` → `frontend/`; thin out blueprints to call services.
-      4. Remove empty `core/`; relocate `taxonomy.py` / `chat.py`.
-      5. **Resolve §5 config approach first** for non-search services.
-- [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto
-      `master` (search + whatever basics we bless — deferred, not chosen yet),
-      replacing the old `demo_real/` content. Push.
+**Core principle:** every sub-step is its own commit and **leaves the app working**.
+Moves use **re-export shims** at the old import paths so existing callers keep working
+until migrated; shims are deleted only in the final cleanup (2.6). No "broken in the
+middle" state.
 
-> **§6 is intentionally coarse — to be expanded.** Stage 2 will be broken into an
-> ordered, verifiable sub-sequence (one helper/module at a time, run tests, update
-> importers, repeat) so each step is independently checkable and reversible.
-> Pending review before execution.
+**Verification legend** — run after each step:
+- `pytest` = `pytest -m "not smoke"` (fast, no live API/DB)
+- `smoke`  = `pytest -m smoke` (live OpenAI + MySQL; run when search-critical code moves)
+- `boot`   = app imports + `create_app()` succeeds
+- `tab`    = manually exercise the affected UI tab (the gate for service logic, since
+  only `search` has automated coverage until 2.0 fills the rest)
+
+- [x] **Stage 1 — Safe save.** Full codebase committed to `develop`, pushed. (`c7e52b8`)
+
+### Stage 2 — Repackage into modules (on `develop`)
+
+**2.0 — Test scaffold + foundation safety net** *(before moving any code; see §10)*
+- 2.0a Lay down the mirrored test tree (folders + `__init__`/`__main__` per module) and
+  shared infra: `_fake_db.py`, `conftest.py` fixtures, `_fixtures/` sample data (a job DB
+  row, a CV, sample LLM responses), `README.md`.
+- 2.0b Write unit tests **pinning the CURRENT behavior** of the to-be-merged helpers:
+  both job mappings (`serialize_job` / `_apply_row`), the 3 JSON parsers, `grade()`.
+  These are the equivalence check for 2.1.
+- Gate: `pytest` green against today's code.
+
+**2.1 — Foundation `shared/`** (consolidate dup'd code; keep shims). One commit each:
+- 2.1a `shared/llm.py` ← `get_client`; `chat.py` + `core` re-export it; point
+  `search/orchestrator.py:59` at it (kills the 2nd client). Gate: `pytest` + `boot`.
+- 2.1b `shared/json.py` ← `parse_json` (array, from `search/utils`) + `parse_object`
+  (fenced, from `chat._parse`/`_parse_candidate`) + citation stripping; old sites delegate.
+  Gate: `pytest`.
+- 2.1c `shared/job.py` ← `JOB_FIELDS` + `serialize_job(row)` [fresh] + `overlay_job(job,row)`
+  [overlay]; `search/utils.serialize_job` + `chat._apply_row` delegate. Gate: `pytest`
+  (equivalence tests) + `smoke`.
+- 2.1d `shared/grading.py` ← `grade()`; `rescorer` + `search` delegate. Gate: `pytest`.
+- 2.1e `shared/taxonomy.py` ← top-level `taxonomy.py`; importers (`core`, guided, stats)
+  updated; old path shim. Gate: `pytest` + `boot`.
+
+**2.2 — Relocate `search` + config cleanup**  *(decision: search moves under `services/`)*
+- 2.2a Move top-level `search/` → `services/search/`; update importers (`core`, cluster bp,
+  shims) and the test path `tests/.../search/` → `tests/.../services/search/`. Gate: `pytest` + `smoke` + `boot`.
+- 2.2b Move matching tunables from `config/settings.py` → `services/search/config.py` as
+  flat constants (search owns them; drop the global re-read). search keeps its existing
+  dataclasses for now (works; flattening = low-payoff, deferred). New services use flat
+  constants. Gate: `pytest`.
+
+**2.3 — Services, one module per commit** (least → most entangled). Each: create package
+(`__init__` = public API, `config.py` if needed, `orchestrator.py`, helpers, `__main__`
+where meaningful), move code, repoint importing blueprint(s) + service↔service imports,
+add `unit_tests/`. Gate per module: `pytest` + `boot` + `tab`.
+
+| # | Module ← current files | Importers to repoint |
+|---|---|---|
+| 1 | `stats/` ← opportunity, quality_score, salary_stats | (already grouped; add API + `__main__`) |
+| 2 | `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | search bp, saved bp, `core`, chat.enrich |
+| 3 | `interview/` ← interview_helper | interview bp |
+| 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp |
+| 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` |
+| 6 | `clustering/` ← clustering, persona, + send_segment_message | cluster bp |
+| 7 | `candidate/` ← candidate_store, example_cv, profile_enricher | candidate bp, guided bp, saved bp, cluster bp |
+| 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers |
+| 9 | `auth/` ← auth  *(grouping: confirm)* | `frontend/app.py` factory |
+
+**2.4 — Frontend** (`web/` → `frontend/`)
+- Rename `web/` → `frontend/`. Update `web/__init__` registry, `app.py`, top-level
+  `__main__.py`, and **`pyproject.toml`**: `[project.scripts]` `…web.app:main` →
+  `…frontend.app:main`, package-data `web/templates/*.html` → `frontend/templates/*.html`;
+  then `pip install -e .` to refresh the entry point. Thin blueprints to call service public
+  APIs. Add `frontend/integration_tests/` (Flask `test_client`). Gate: `boot` + console
+  script + `tab` + integration tests.
+
+**2.5 — Dissolve `core/` + remove shims**  *(decision: dissolve the facade)*
+- Repoint remaining `from …core import` users to the service packages' own `__init__` APIs;
+  delete `core/`. Remove all re-export shims (chat remnants, `search/utils` delegations,
+  old `taxonomy.py`). Gate: full `pytest` + `smoke` + `boot` + `tab`.
+
+- [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto `master`
+      (search + whatever basics we bless — deferred), replacing the old `demo_real/` content. Push.
 
 ---
 
@@ -209,13 +271,15 @@ Conventions:
 
 | Today | Target |
 |---|---|
-| `chat.py` | `shared/llm.py` |
+| `chat.py` → `get_client` | `shared/llm.py` |
+| `chat.py` → send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | `services/chat/` |
+| `chat.py` → send_segment_message | `services/clustering/` |
 | `taxonomy.py` | `shared/taxonomy.py` |
-| `search/utils.py` (parse_json, grade) | `shared/json.py`, `shared/grading.py` |
-| `core/` (empty) | removed |
-| `config/` | `config/` (unchanged structurally; approach §5 OPEN) |
+| `search/utils.py` (parse_json, serialize_job, grade) | `shared/json.py`, `shared/job.py`, `shared/grading.py` |
+| `core/` (facade re-exporting chat/search/services) | **dissolved** — each service `__init__` is its own public API |
+| `config/` | `config/` = environment layer; matching tunables move OUT to `services/search/config.py` (§5) |
 | `infra/`, `integrations/linkedin.py` | `infra/` (+ `infra/integrations/`) |
-| `search/` | `services/search/` (move under umbrella — decision: see note) |
+| `search/` | `services/search/` (move under umbrella — §6 step 2.2a) |
 | `services/clustering.py` + `persona.py` | `services/clustering/` |
 | `services/interview_helper.py` | `services/interview/` |
 | `services/report_generator.py` + `report_pipeline.py` + `opportunity_briefing.py` | `services/reporting/` |
@@ -226,9 +290,7 @@ Conventions:
 | `services/auth.py` | `services/auth/` |
 | `web/` (app, blueprints, templates) | `frontend/` |
 
-**Open decision:** does `search/` move under `services/` for consistency (changes
-`python -m jobs_intelligence_ai.search` → `...services.search`), or stay top-level
-as the one privileged core? → to confirm.
+Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after 2.2a.
 
 ---
 
@@ -240,7 +302,52 @@ as the one privileged core? → to confirm.
 - ✅ `tests/` + `documentation/` stay at **repo root** as siblings of `src/`, mirroring the package (matches Work convention; already true today). Not nested in `src/`.
 - ✅ `shared/` (§4): `llm` + `json` + `job` + `grading` + `taxonomy`; unifies 2 client paths, 3 JSON parsers, and the duplicated ~30-field job mapping.
 - ✅ Config (§5): flat module constants per service; global = environment/identity layer (not aggregator); move matching tunables into `services/search/config.py`. Dataclasses dropped.
-- ⚠ Execution detail (§6) — to be expanded into ordered, verifiable sub-steps.
+- ✅ Execution plan (§6): ordered, commit-per-step, shim-based, verify after each. Test scaffold (2.0) goes first.
+- ✅ Testing (§10): full coverage scope — mirrored test tree, **a test package per service** (mirrors the API principle), unit tests with `_fake_db` + mocked `shared/llm` client; fake-DB now, docker integration later.
+- 🟡 `search/` moves under `services/` (2.2a) — **proposed in the plan; confirm.**
+- 🟡 `core/` facade dissolved into per-service `__init__` APIs (2.5) — **proposed; confirm.**
+- 🟡 `geo` + `auth` as their own `services/` modules — **proposed; confirm.**
 - ⚠ Production feature set (Stage 3) — deferred, not chosen.
-- ⚠ `search/` placement (top-level vs under `services/`) — to confirm.
-- ⚠ `geo` / `auth` grouping — to confirm.
+
+---
+
+## 10. Testing strategy — AGREED (scope A: full net)
+
+Mirrors the `Work/tests` convention: the **test tree mirrors the source tree**, each
+module is its own **test package** (`__init__` + `__main__`, runnable in isolation —
+this mirrors the public-API principle), split into `unit_tests/` · `integration_tests/`
+· `smoke_tests/` as needed, with numbered files (`test_1_*.py`).
+
+```
+tests/
+├── __init__.py  __main__.py  README.md
+├── conftest.py                 # shared fixtures
+├── _fake_db.py                 # fake SQLAlchemy conn — unit tests, no live DB (Work pattern)
+├── _fixtures/                  # sample job row, sample CV, sample LLM responses
+├── (_dbtest/  docker MySQL — LATER, only if an integration test needs a real DB)
+└── jobs_intelligence_ai/
+    ├── shared/unit_tests/      # test_1_json · test_2_job · test_3_grading · test_4_taxonomy
+    ├── services/
+    │   ├── search/{unit_tests,smoke_tests}   # exists — keep (moves under services/ at 2.2a)
+    │   ├── stats/ enrichment/ interview/ reporting/ chat/ clustering/ candidate/ geo/ auth/
+    │   │        └── unit_tests/              # one test package per service
+    └── frontend/integration_tests/          # Flask test_client route tests
+```
+
+**The two seams that make services unit-testable** (and a bonus reason for `shared/`):
+- **`shared/llm.get_client()`** — the single OpenAI client entry point → mock it once,
+  every service's LLM path is testable without network.
+- **`_fake_db`** — fake SQLAlchemy connection (records SQL, returns canned rows) → DB
+  logic testable without MySQL.
+
+**Tier guide:**
+- `unit_tests/` — pure logic; `shared/` (no mocks needed), services (mock `get_client`
+  + use `_fake_db`). The bulk of coverage.
+- `integration_tests/` — wired components, e.g. `frontend` routes via Flask `test_client`
+  with services mocked.
+- `smoke_tests/` — live OpenAI + MySQL (marked `@pytest.mark.smoke`, excluded by default).
+  `search` already has one.
+
+**Equivalence-first rule (2.0b):** before merging duplicated code into `shared/`, write
+tests that pin the *current* output of the old functions, so the merge is provably
+behavior-preserving (esp. the `serialize_job` / `_apply_row` → `shared/job.py` unification).
