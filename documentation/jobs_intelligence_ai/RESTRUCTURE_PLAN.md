@@ -1,8 +1,9 @@
 # Restructure Plan — Modular Rework + Demo/Production Branches
 
-> **Status:** Planning. Direction agreed; **config approach still open** (see §5).
-> Nothing in §6 (execution) has run yet except Stage 1 (the `develop` branch).
-> This doc is the running record of the rework so we can execute it in steps.
+> **Status:** Planning. Architecture, `shared/` (§4), and config (§5) all agreed.
+> **Still open:** execution detail (§6), production feature set, `search/` placement,
+> `geo`/`auth` grouping. Nothing in §6 has run yet except Stage 1 (the `develop`
+> branch). This doc is the running record of the rework.
 
 ---
 
@@ -22,20 +23,22 @@ stable**; most current features are experimental and not demo-ready. Two needs:
 
 ---
 
-## 2. Branch strategy (trunk-based / GitFlow-lite)
+## 2. Branch strategy (classic two-branch GitFlow)
+
+**Two branches, not three.** `master` *is* the production/stable branch — no
+separate `production` branch (that was redundant; dropped).
 
 | Branch | Role | State |
 |---|---|---|
 | `develop` | Everything, incl. experimental. Day-to-day work. | **Created + pushed** (commit `c7e52b8`). Holds the full src/ codebase. |
-| `production` | Lean, shippable. Only matured features. What we demo. | **Not created yet** — built in Stage 3, after repackaging. |
-| `master` | Old `demo_real/` layout. Stale fallback. | Untouched. Fate decided at the end (likely retired/repointed). |
+| `master` | Stable / production / demo. What we ship. | Currently still the stale old `demo_real/` layout. Gets **replaced with the lean app at Stage 3**. GitHub default branch. |
 
 **Workflow:** build on `develop`; when a feature matures, promote *just that
-feature* onto `production`.
+feature* onto `master`.
 
-**The gotcha we're avoiding:** if `production` were just `develop` with files
+**The gotcha we're avoiding:** if `master` were just `develop` with files
 *deleted*, merging a matured feature later would drag the deleted files back in.
-So `production` is the **base** and `develop` adds features *on top*; promotion is
+So `master` is the **base** and `develop` adds features *on top*; promotion is
 done by cherry-pick / per-feature merge, not by subtracting. Once features are
 clean packages (this rework), promoting one = adding/removing a folder. That's
 the payoff that makes the branch split trivial.
@@ -78,55 +81,79 @@ src/jobs_intelligence_ai/
 
 ---
 
-## 4. `shared/` — AGREED
+## 4. `shared/` — ✅ AGREED (expanded after reading the code)
 
-Contents derived from the **actual import graph** (only things used by multiple
-unrelated callers qualify). Two items are currently in the wrong place and get
-promoted:
+Contents derived from the **actual import graph + duplication found in the code**.
+Several things are either trapped in the wrong place or copy-pasted across modules:
 
 ```
 shared/
 ├── __init__.py
-├── llm.py        ◄ get_client() OpenAI client factory   (FROM: chat.py, top-level)
-├── json.py       ◄ parse_json() — strip fences, parse    (FROM: search/utils.py)
-├── grading.py    ◄ grade() + score→A/B/C banding          (FROM: search/utils.py)
-└── taxonomy.py   ◄ sector/role taxonomy for the funnel     (FROM: taxonomy.py, top-level)
+├── llm.py        ◄ get_client() OpenAI client singleton — replaces BOTH client paths
+│                    (FROM: chat.py top-level; AND search/orchestrator.py:59 makes its own)
+├── json.py       ◄ LLM-response JSON extraction: parse_json (array) + parse_object
+│                    (fenced) + citation-marker stripping
+│                    (FROM: search/utils.parse_json + chat._parse/_parse_candidate)
+├── job.py        ◄ ★ canonical job dict: JOB_FIELDS map + serialize_job(row) [fresh]
+│                    + overlay_job(job, row) [overlay] — kills the duplicated ~30-field
+│                    mapping (FROM: search/utils.serialize_job + chat._apply_row)
+├── grading.py    ◄ grade() + score→A/B/C banding  (FROM: search/utils.py; may fold into job.py)
+└── taxonomy.py   ◄ sector/role taxonomy for the funnel  (FROM: taxonomy.py, top-level)
 ```
 
-| Promoted file | Independent callers today |
-|---|---|
-| `llm.py`  (was `chat.py`)            | clustering, persona, chat/guided |
-| `json.py` (was `search/utils.py`)    | search, highlighter, rescorer |
-| `grading.py` (was `search/utils.py`) | search, rescorer |
-| `taxonomy.py` (top-level)            | guided funnel, search/stats |
+**Why each is shared (evidence from the code):**
 
-**Sign-off needed before this touches code:** pulling `parse_json`/`grade` out of
-`search/` and `chat.py`→`shared/llm.py` means updating imports in `search` and a
-couple of services. User has seen this; flagged as the one change to working code.
-→ **APPROVED in principle** (direction agreed); apply during Stage 2.
+| Item | Problem today |
+|---|---|
+| `llm.py`  | TWO OpenAI client paths: `chat.get_client()` singleton vs `search/orchestrator.py:59` `OpenAI(...)`. |
+| `json.py` | 3 near-identical fenced-JSON extractors: `search/utils.parse_json`, `chat._parse`, `chat._parse_candidate`. |
+| `job.py`  | **~30-field DB-row→job-dict mapping copy-pasted** in `search/utils.serialize_job` AND `chat._apply_row`. Drift hazard. |
+| `grading.py` | `grade()` imported by `search` + `rescorer`. |
+| `taxonomy.py` | role/sector taxonomy used by guided funnel + search/stats. |
+
+`serialize_job` builds a fresh dict (defaults `"Untitled"`/`"Unknown"`); `_apply_row`
+overlays onto an existing dict (`… or e.get(field)`). So `job.py` exposes one field
+map with two entry points: `serialize_job(row)` [fresh] and `overlay_job(job, row)` [overlay].
+
+**Deliberately NOT shared yet** (single caller — revisit when a 2nd appears): the
+`loc = "city, state"` join, `score_pct` formatting, the UTF-8 console fix,
+`_LANG_INSTRUCTIONS`.
 
 `config/` and `infra/` stay as **sibling foundation packages** next to `shared/`
 (distinct concerns: settings vs I/O vs reusable code).
 
 ---
 
-## 5. Config — ⚠ OPEN / NOT YET AGREED
+## 5. Config — ✅ AGREED (flat constants; global = environment layer)
 
-> User agrees with the overall direction and with the services-module pattern (§7),
-> but **does not yet fully agree with the config approach below.** Treat this
-> section as a proposal to revisit, not a decision.
+Decided after checking real usage: the search dataclasses (`SearchConfig` etc.) are
+only ever instantiated as `SearchConfig()` defaults (`orchestrator.py:48` is the sole
+caller, never overrides) — so the dataclass overridability is unused complexity. And
+the `Work/pipelines` convention for per-module config is **flat module constants**
+(`company_match/config.py`: `LLM_MODEL = "gpt-5.4"`, …), not dataclasses.
 
-**Proposal on the table (two levels):**
+**Two levels, dependency points ONE way (module → global; global never imports modules):**
 
-- **Level 1 — global** (`config/settings.py`, exists): country profile, API keys,
-  DB URL, model names, Flask. App-wide.
-- **Level 2 — per-service** (`search/config.py`, exists — the `company_match/config.py`
-  analog): the service's own tunables as dataclasses, defaulting from global config
-  but overridable per call. Rule: *global = "what app/country am I?"; per-service =
-  "how does this feature behave?"*
+- **Global** (`config/`) = **environment & identity** — *what/where am I running*:
+  country profile + `COL` mapping + feature flags, secrets/connections
+  (`OPENAI_API_KEY`, `DATABASE_URL`, `VECTOR_STORE_ID`, Apify), shared model defaults
+  (`CHAT_MODEL`), Flask runtime. **Not an aggregator** of module configs (that would
+  reverse the dependency, re-bloat global, and load everything to run one thing).
+- **Per-service** (`<service>/config.py`) = **behaviour** — *how this feature acts*:
+  thresholds, cycle counts, prompts, granularity. **Flat module constants**, reading
+  the shared bits from global (e.g. `model = config.CHAT_MODEL`).
 
-**Status:** revisit and resolve before Stage 2 packaging of non-search services.
-_Open questions to settle: <to be filled from next discussion>._
+**Test for "is it global?":** would every country/deployment change it the same way?
+If no, it's module-level.
+
+**Concrete cleanup (proves the split):** the matching tunables currently mis-filed in
+global `config/settings.py` move **into `services/search/config.py`** as flat constants:
+`SCORE_A_MIN, SCORE_B_MIN, DEFAULT_TOP_N, MAX_TOP_N, MATCH_CYCLES, MAX_MATCH_CYCLES,
+MIN_MATCH_CYCLES, MATCH_WAVE_SIZE, MATCH_CONVERGE_NEW, MAX_NUM_RESULTS`. (`search/config.py`
+already re-reads `SCORE_A_MIN` from global — that indirection disappears once search owns it.)
+
+**Dataclasses:** dropped by default. Re-introduce only for a service that genuinely needs
+runtime-swappable / injectable config (none do today).
 
 ---
 
@@ -140,9 +167,14 @@ _Open questions to settle: <to be filled from next discussion>._
       3. Rename `web/` → `frontend/`; thin out blueprints to call services.
       4. Remove empty `core/`; relocate `taxonomy.py` / `chat.py`.
       5. **Resolve §5 config approach first** for non-search services.
-- [ ] **Stage 3 — Create `production`.** Branch from `develop`; include only matured
-      modules (search + whatever basics we bless — deferred, not chosen yet). Push.
-- [ ] **Stage 4 — Retire/repoint `master`** once `production` is the trunk.
+- [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto
+      `master` (search + whatever basics we bless — deferred, not chosen yet),
+      replacing the old `demo_real/` content. Push.
+
+> **§6 is intentionally coarse — to be expanded.** Stage 2 will be broken into an
+> ordered, verifiable sub-sequence (one helper/module at a time, run tests, update
+> importers, repeat) so each step is independently checkable and reversible.
+> Pending review before execution.
 
 ---
 
@@ -202,11 +234,13 @@ as the one privileged core? → to confirm.
 
 ## 9. Decisions log
 
-- ✅ Branch model: trunk-based, `production` is base, `develop` adds on top.
+- ✅ Branch model: TWO branches — `master` (stable, the base) + `develop` (everything, on top). No separate `production`.
 - ✅ Three-layer architecture (foundation / services / frontend).
-- ✅ `shared/` contents and the two promotions (§4).
 - ✅ Services-module pattern (§7).
-- ⚠ **Config approach (§5) — OPEN.**
+- ✅ `tests/` + `documentation/` stay at **repo root** as siblings of `src/`, mirroring the package (matches Work convention; already true today). Not nested in `src/`.
+- ✅ `shared/` (§4): `llm` + `json` + `job` + `grading` + `taxonomy`; unifies 2 client paths, 3 JSON parsers, and the duplicated ~30-field job mapping.
+- ✅ Config (§5): flat module constants per service; global = environment/identity layer (not aggregator); move matching tunables into `services/search/config.py`. Dataclasses dropped.
+- ⚠ Execution detail (§6) — to be expanded into ordered, verifiable sub-steps.
 - ⚠ Production feature set (Stage 3) — deferred, not chosen.
 - ⚠ `search/` placement (top-level vs under `services/`) — to confirm.
 - ⚠ `geo` / `auth` grouping — to confirm.
