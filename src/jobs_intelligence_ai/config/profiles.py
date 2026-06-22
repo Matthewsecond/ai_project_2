@@ -1,0 +1,289 @@
+"""
+profiles.py — Per-country configuration for the demo app.
+
+The app is country-agnostic; everything market-specific lives in a Profile:
+  - which DB schema / DATABASE_URL env / vector store env to use,
+  - the COL mapping (View_Jobs_Full column → internal key),
+  - the SQL behind the filter dropdowns (states / occ_groups / portals),
+  - which text columns feed keyword fallback matching,
+  - feature flags for the two Austria-only features (guided funnel, geo map),
+  - display label + language for prompts.
+
+Select the active profile with the COUNTRY env var (default "at"). config.py
+reads everything below and re-exports it, so the rest of the app keeps using
+config.COL / config.DATABASE_URL / config.VECTOR_STORE_ID unchanged.
+
+Austria vs Slovakia differ in more than column names:
+  - Slovakia has no `description` (only `summary` + `skills`), no
+    `occupational_group`, no `original_salary`/`zipcode`/`order_number`.
+  - Locations are region / city / municipality (vs AT location / zipcode), and
+    salary carries an explicit `salary_currency`.
+  - The guided funnel (German occupational_group taxonomy) and the Austrian
+    Bundesland map have no SK equivalent yet, so both are flagged off for SK.
+"""
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class Profile:
+    key:               str            # "at" / "sk"
+    label:             str            # "Austria" / "Slovakia"
+    demonym:           str            # adjective for prose: "Austrian" / "Slovak"
+    language:          str            # prompt language hint: "de" / "sk"
+    db_schema:         str            # MySQL schema holding the job data (View_Jobs_Full)
+    app_schema:        str            # MySQL schema holding the app pipeline (candidates,
+                                      # saved jobs, companies, targets, audit, feedback).
+                                      # Same DB for both countries; tables are kept apart
+                                      # by table_prefix below so AT and SK never mix.
+    table_prefix:      str            # per-country table-name prefix in app_schema:
+                                      # "" for Austria, "sk_" for Slovakia.
+    db_url_env:        str            # env var holding the SQLAlchemy URL
+    vector_store_env:  str            # env var holding the OpenAI vector store id
+    currency:          str            # display currency symbol
+    portal_pin:        str | None     # portal pinned to top of the dropdown
+    has_guided:        bool           # guided funnel tab available?
+    has_map:           bool           # report geo map available?
+    has_analytics:     bool           # Opportunities Radar / Analytics mode available?
+    has_occ_filter:    bool           # show the occupational-group filter dropdown?
+    col:               dict           # internal key → DB column name
+    filter_queries:    dict           # dropdown key → SQL ({db} = schema)
+    match_text_cols:   tuple          # COL keys whose text feeds keyword fallback
+    absent_cols:       frozenset = field(default_factory=frozenset)
+                                      # COL keys whose mapped column does NOT exist in
+                                      # this country's read_view. `SELECT *` reads
+                                      # resolve them to None via row.get(...), but any
+                                      # query that names the column explicitly (SELECT
+                                      # list or WHERE) must skip it — see col_present().
+    read_view:         str = "View_Jobs_Full"
+                                      # The view the app reads full job records from.
+                                      # SK overrides this to View_Jobs_Test — the deduped,
+                                      # description-bearing set the vector store was built
+                                      # from (~2.7k rows vs 145k). View_Jobs_Full fans out
+                                      # by location (more rows than jobs) and its per-row
+                                      # correlated subqueries make a leading-wildcard LIKE
+                                      # time out; an id-IN lookup against it stays fast.
+    jobs_table:        str = "jobs"
+                                      # Base table (same id-space as read_view) used to
+                                      # resolve a job title → id with a fast indexed scan,
+                                      # instead of a leading-wildcard LIKE against the
+                                      # heavy view. SK overrides to jobs_test.
+
+    def col_present(self, key: str) -> bool:
+        """True if COL[key] is a real column in this profile's View_Jobs_Full.
+
+        SQL builders that put a column in the SELECT list or WHERE clause must
+        gate on this; otherwise the query 500s on countries where the column is
+        absent (e.g. Slovakia has no `occupational_group`)."""
+        return key not in self.absent_cols
+
+
+# ── Austria ──────────────────────────────────────────────────────────────────
+
+_AT_COL = {
+    # Identity
+    "job_id":        "id",
+    "title":         "position",
+    "company":       "company_crawler_name",
+    "description":   "description",
+    "summary":       "summary",
+    # Location
+    "state":         "location",
+    "city":          "city",
+    "municipality":  "municipality",
+    "zipcode":       "zipcode",
+    "detailed_location": "detailed_location",
+    # Salary
+    "salary":        "salary",
+    "salary_type":   "salary_type",
+    "original_salary": "original_salary",
+    # Employment
+    "work_time":     "work_time",
+    "employment_relationship": "employment_relationship",
+    "education":     "education",
+    # Dates
+    "date_posted":   "publication_date",
+    "application_deadline": "application_deadline",
+    "start_timeline": "start_timeline",
+    # Links & meta
+    "url":           "cleaned_link",
+    "portal":        "portal",
+    "order_number":  "order_number",
+    "occ_group":     "occupational_group",
+    "status":        "status",
+    # Skills & contacts
+    "skills":        "skills",
+    "skills_en":     "skills_english",
+    "contacts":      "contacts",
+    # Not in view (keep for fallback)
+    "esco_skills":   "esco_skills",
+    "lat":           "latitude",
+    "lon":           "longitude",
+}
+
+_AT_FILTER_QUERIES = {
+    "states": """
+        SELECT DISTINCT l.location
+        FROM {db}.locations l
+        INNER JOIN {db}.jobs j ON j.location_id = l.id
+        WHERE j.status IN ('new','updated')
+          AND l.location IS NOT NULL
+        ORDER BY l.location
+    """,
+    # Only groups with >= 10 active jobs, sorted by frequency, max 300.
+    "occ_groups": """
+        SELECT j.occupational_group
+        FROM {db}.jobs j
+        WHERE j.status IN ('new','updated')
+          AND j.occupational_group IS NOT NULL
+          AND j.occupational_group != 'keine Zuordnung'
+        GROUP BY j.occupational_group
+        HAVING COUNT(*) >= 10
+        ORDER BY COUNT(*) DESC
+        LIMIT 300
+    """,
+    "portals": """
+        SELECT DISTINCT j.portal
+        FROM {db}.jobs j
+        WHERE j.status IN ('new','updated')
+          AND j.portal IS NOT NULL
+        ORDER BY j.portal
+    """,
+}
+
+AUSTRIA = Profile(
+    key              = "at",
+    label            = "Austria",
+    demonym          = "Austrian",
+    language         = "de",
+    db_schema        = "Jobs_Intelligence_Austria",
+    app_schema       = "Jobs_Intelligence_AI",      # shared pipeline DB
+    table_prefix     = "",                          # Austria uses the unprefixed tables
+    db_url_env       = "DATABASE_URL",
+    vector_store_env = "VECTOR_STORE_ID",
+    currency         = "€",
+    portal_pin       = "ams",
+    has_guided       = True,
+    has_map          = True,
+    has_analytics    = True,
+    has_occ_filter   = True,
+    col              = _AT_COL,
+    filter_queries   = _AT_FILTER_QUERIES,
+    match_text_cols  = ("title", "occ_group", "description", "esco_skills"),
+)
+
+
+# ── Slovakia ─────────────────────────────────────────────────────────────────
+# The Slovak DB (cluster endpoint) has a different schema from Austria:
+#   - View_Jobs_Full has `region` + `summary`, but NO `description` / `location`.
+#   - `jobs` has no `location_id` (locations link via a junction), so the states
+#     dropdown reads the kraje straight from `locations.region`.
+#   - no `occupational_group` (so the occ-group filter is hidden), and salary
+#     carries an explicit `salary_currency`.
+# Columns absent from the SK view keep their conventional name and resolve to None
+# via row.get(...). `description` maps to `summary` so description-driven UI still
+# shows text.
+
+_SK_COL = {
+    # Identity
+    "job_id":        "id",
+    "title":         "position",
+    "company":       "company_crawler_name",
+    "description":   "description",    # View_Jobs_Test carries a real description
+    "summary":       "description",    # …and has no separate summary column
+    # Location
+    "state":         "region",         # the kraje
+    "city":          "city",
+    "municipality":  "municipality",
+    "zipcode":       "zipcode",         # absent → None
+    "detailed_location": "detailed_location",
+    # Salary
+    "salary":        "salary",
+    "salary_type":   "salary_type",
+    "original_salary": "original_salary",   # absent → None
+    "salary_currency": "salary_currency",   # SK-specific
+    # Employment
+    "work_time":     "work_time",
+    "employment_relationship": "contract_type",
+    "education":     "education",
+    # Dates
+    "date_posted":   "publication_date",
+    "application_deadline": "application_deadline",
+    "start_timeline": "start_timeline",
+    # Links & meta
+    "url":           "url",                 # View_Jobs_Test exposes `url` (no cleaned_link)
+    "portal":        "portal",
+    "order_number":  "order_number",        # absent → None
+    "occ_group":     "occupational_group",  # absent → None
+    "status":        "status",
+    # Skills & contacts
+    "skills":        "skills",
+    "skills_en":     "skills_english",
+    "contacts":      "contacts",            # absent in View_Jobs_Test → composed in
+                                            # _serialize_job from contact_name/mail/phone
+    "languages":     "languages",           # SK-specific
+    # Not in view (keep for fallback)
+    "esco_skills":   "esco_skills",
+    "lat":           "latitude",
+    "lon":           "longitude",
+}
+
+_SK_FILTER_QUERIES = {
+    # The kraje come straight from the base `locations` table — fast, and the SK
+    # `jobs` table has no location_id to join on. occ_groups has no SK equivalent.
+    "states": """
+        SELECT DISTINCT region
+        FROM {db}.locations
+        WHERE region IS NOT NULL AND region <> ''
+        ORDER BY region
+    """,
+    "portals": """
+        SELECT DISTINCT portal
+        FROM {db}.jobs
+        WHERE status IN ('new','updated')
+          AND portal IS NOT NULL
+        ORDER BY portal
+    """,
+}
+
+SLOVAKIA = Profile(
+    key              = "sk",
+    label            = "Slovakia",
+    demonym          = "Slovak",
+    language         = "sk",
+    db_schema        = "Jobs_Intelligence_Slovakia",
+    app_schema       = "Jobs_Intelligence_AI",      # same pipeline DB as Austria
+    table_prefix     = "sk_",                        # SK uses sk_-prefixed tables
+    db_url_env       = "DATABASE_URL_SK",
+    vector_store_env = "VECTOR_STORE_ID_SK",
+    currency         = "€",
+    portal_pin       = None,    # "ams" is Austria-only
+    has_guided       = False,   # German occupational_group taxonomy — no SK equivalent
+    has_map          = False,   # Austrian Bundesland polygons — no SK kraj geometry yet
+    has_analytics    = False,   # Radar/Analytics is built on occupational_group + AT joins
+    has_occ_filter   = False,   # SK has no occupational_group → hide that dropdown
+    col              = _SK_COL,
+    filter_queries   = _SK_FILTER_QUERIES,
+    match_text_cols  = ("title", "summary", "skills", "skills_en"),
+    # The Slovak app reads from View_Jobs_Test — the deduped, description-bearing
+    # set the vector store was actually built from — and resolves titles → ids on
+    # its base table jobs_test. Both avoid View_Jobs_Full's location fan-out and the
+    # 30s leading-wildcard-LIKE timeout.
+    read_view        = "View_Jobs_Test",
+    jobs_table       = "jobs_test",
+    # Columns View_Jobs_Test does not have. They keep their conventional names in
+    # _SK_COL so `SELECT *` reads still resolve to None, but explicit SELECT/WHERE
+    # references must be skipped (see col_present()). `contacts` is split into
+    # contact_name/mail/phone there and recomposed in _serialize_job.
+    absent_cols      = frozenset({"occ_group", "original_salary", "zipcode",
+                                  "order_number", "contacts"}),
+)
+
+
+# ── Registry ─────────────────────────────────────────────────────────────────
+
+PROFILES: dict[str, Profile] = {AUSTRIA.key: AUSTRIA, SLOVAKIA.key: SLOVAKIA}
+DEFAULT_COUNTRY = AUSTRIA.key
+
+
+def get_profile(country: str) -> Profile:
+    return PROFILES.get((country or DEFAULT_COUNTRY).lower(), AUSTRIA)

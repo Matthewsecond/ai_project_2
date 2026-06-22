@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobs-intelligence-ai"
+version = "0.1.0"
+description = "AI-powered job matching demo (Austria / Slovakia) over an OpenAI vector store + MySQL."
+requires-python = ">=3.11"
+dependencies = [
+    "flask",
+    "pymysql",
+    "sqlalchemy",
+    "python-dotenv",
+    "cryptography",
+    "openai",
+    "reportlab",
+    "pypdf",
+    "requests",
+    "numpy",
+    "scipy",
+    "scikit-learn",
+]
+
+[project.scripts]
+jobs-intelligence-ai = "jobs_intelligence_ai.web.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jobs_intelligence_ai = ["web/templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# importlib mode imports test files by path (no sys.path injection), so the test
+# tree under tests/jobs_intelligence_ai never shadows the real installed package.
+addopts = "--import-mode=importlib"
+markers = [
+    "smoke: live integration tests that hit the real OpenAI API + MySQL (slow)",
+]

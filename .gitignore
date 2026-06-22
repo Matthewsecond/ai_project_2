@@ -15,6 +15,11 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
+# Packaging / build artifacts
+*.egg-info/
+build/
+dist/
+
 # Virtual environments
 venv/
 .venv/
@@ -27,9 +32,6 @@ env/
 
 # Claude Code local settings
 .claude/
-
-# Export/generated output
-demo_real/_exp_out/
 
 # OS
 .DS_Store
