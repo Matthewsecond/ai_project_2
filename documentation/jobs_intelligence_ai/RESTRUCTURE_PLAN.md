@@ -1,9 +1,9 @@
 # Restructure Plan — Modular Rework + Demo/Production Branches
 
-> **Status:** Planning. Architecture, `shared/` (§4), config (§5), execution plan (§6)
-> and testing (§10) all agreed. **Confirm before executing:** `search/`→`services/`,
-> `core/` dissolution, `geo`/`auth` grouping (the 🟡 items in §9). Production feature set
-> (Stage 3) still deferred. Nothing in §6 has run yet except Stage 1. Running record.
+> **Status:** Plan COMPLETE and execution-ready. Architecture, `shared/` (§4),
+> config (§5), execution plan (§6), testing (§10), and all structural decisions (§9)
+> agreed. Only the Stage 3 production feature set remains deferred. Nothing in §6 has
+> run yet except Stage 1 (the `develop` branch). Running record.
 
 ---
 
@@ -304,9 +304,9 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ Config (§5): flat module constants per service; global = environment/identity layer (not aggregator); move matching tunables into `services/search/config.py`. Dataclasses dropped.
 - ✅ Execution plan (§6): ordered, commit-per-step, shim-based, verify after each. Test scaffold (2.0) goes first.
 - ✅ Testing (§10): full coverage scope — mirrored test tree, **a test package per service** (mirrors the API principle), unit tests with `_fake_db` + mocked `shared/llm` client; fake-DB now, docker integration later.
-- 🟡 `search/` moves under `services/` (2.2a) — **proposed in the plan; confirm.**
-- 🟡 `core/` facade dissolved into per-service `__init__` APIs (2.5) — **proposed; confirm.**
-- 🟡 `geo` + `auth` as their own `services/` modules — **proposed; confirm.**
+- ✅ `search/` moves under `services/search/` (2.2a).
+- ✅ `core/` facade dissolved into per-service `__init__` APIs (2.5).
+- ✅ `geo` + `auth` as their own `services/` modules.
 - ⚠ Production feature set (Stage 3) — deferred, not chosen.
 
 ---
