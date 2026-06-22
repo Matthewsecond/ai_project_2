@@ -176,6 +176,17 @@ middle" state.
 module's doc folder under §11, `TESTING.md` if tests changed, and this plan's checkbox).
 Docs are part of the step, not a follow-up — see the STANDING RULE at the top.
 
+**Structured Outputs is folded into repackaging, not a separate sweep.** When a module
+(2.3) or blueprint (2.4) with LLM calls is repackaged, its model calls are converted to
+`responses.parse(text_format=Pydantic)`, its hand-rolled JSON parser is deleted, and its
+prompt drops the "respond with ONLY JSON" boilerplate — **plus offline unit tests that
+mock the `responses.parse` boundary** (happy path + refusal/failure fallback; see §10).
+One touch per file. By the end of Stage 2 the ~6 duplicate parsers and ~18 beg-for-JSON
+call sites are all gone. (Audit: `parse_json`, `chat._parse/_parse_candidate`,
+`interview_helper._parse_json`, `persona._parse_json_obj`, `profile_enricher._parse_json`,
++ inline `json.loads` in opportunity_briefing/candidate/analytics/company/radar/
+report_generator/quality_classifier/seniority_classifier/saved/job_detail/search.)
+
 **Verification legend** — run after each step:
 - `pytest` = `pytest -m "not smoke"` (fast, no live API/DB)
 - `smoke`  = `pytest -m smoke` (live OpenAI + MySQL; run when search-critical code moves)

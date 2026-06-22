@@ -58,13 +58,38 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 - `test_4_taxonomy` — sector/role taxonomy lookups
 - `test_5_llm` — `shared/llm.get_client` singleton contract + mock seam (added 2.1a)
 
-**Search — `services/search/` (pre-existing, live)**:
-- `unit_tests/test_search_stability` (2) — retrieval-set determinism (Stage 1) and A+B
-  result overlap end-to-end (Stage 2), via mean pairwise Jaccard. Splits a retrieval
-  regression from grader jitter.
-- `smoke_tests/test_search_smoke` (1) — runs the real Orchestrator and prints matches; no asserts.
+**Search — `services/search/`**:
+- `unit_tests/test_grader` (5, **offline**) — the Structured-Outputs grader: mocks
+  `client.responses.parse`, asserts scores are applied/clamped/banded and that a model
+  failure or short reply falls back to neutral. The template for service conversions.
+- `unit_tests/test_search_stability` (2, **live**) — retrieval-set determinism (Stage 1)
+  and A+B result overlap end-to-end (Stage 2), via mean pairwise Jaccard.
+- `smoke_tests/test_search_smoke` (1, **live**) — runs the real Orchestrator and prints matches; no asserts.
 
 **Default gate:** `pytest -m "not smoke"` → **28 passed, 1 deselected**.
+
+## Testing Structured-Outputs calls (the conversion pattern)
+
+Model calls now use `client.responses.parse(text_format=PydanticModel)` → `output_parsed`.
+That's a single, clean boundary to mock — so each converted call site gets **offline**
+unit tests with no network:
+
+```python
+class _FakeResponses:
+    def __init__(self, parsed=None, exc=None): self._parsed, self._exc = parsed, exc
+    def parse(self, **kw):
+        if self._exc: raise self._exc
+        return type("Resp", (), {"output_parsed": self._parsed})()
+class _FakeClient:
+    def __init__(self, parsed=None, exc=None): self.responses = _FakeResponses(parsed, exc)
+```
+
+Assert two things every time: (1) the **happy path** applies `output_parsed` correctly,
+and (2) the **failure path** (exception or `output_parsed is None`, i.e. a refusal) falls
+back gracefully. See `services/search/unit_tests/test_grader.py` for the template.
+
+**Rule:** converting a module's model calls to Structured Outputs ships *with* these
+unit tests, in the same step — part of the definition of done.
 
 ## Gaps (filled as the rework proceeds)
 
