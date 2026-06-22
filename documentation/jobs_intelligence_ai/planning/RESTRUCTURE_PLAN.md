@@ -179,9 +179,10 @@ Docs are part of the step, not a follow-up — see the STANDING RULE at the top.
 **Structured Outputs is folded into repackaging, not a separate sweep.** When a module
 (2.3) or blueprint (2.4) with LLM calls is repackaged, its model calls are converted to
 `responses.parse(text_format=Pydantic)`, its hand-rolled JSON parser is deleted, and its
-prompt drops the "respond with ONLY JSON" boilerplate — **plus offline unit tests that
-mock the `responses.parse` boundary** (happy path + refusal/failure fallback; see §10).
-One touch per file. By the end of Stage 2 the ~6 duplicate parsers and ~18 beg-for-JSON
+prompt drops the "respond with ONLY JSON" boilerplate — **plus TWO test layers (see §10):
+offline unit tests** that mock the `responses.parse` boundary (happy path + refusal/failure
+fallback) **and a live smoke test that ASSERTS** the real structured call works (valid,
+sane `output_parsed`). Mocks prove the logic; the live smoke proves the call. One touch per file. By the end of Stage 2 the ~6 duplicate parsers and ~18 beg-for-JSON
 call sites are all gone. (Audit: `parse_json`, `chat._parse/_parse_candidate`,
 `interview_helper._parse_json`, `persona._parse_json_obj`, `profile_enricher._parse_json`,
 + inline `json.loads` in opportunity_briefing/candidate/analytics/company/radar/
@@ -217,7 +218,9 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   → validated `output_parsed`; delete the prompt-begging + the parsers. Verified vs official
   docs + live SDK 2.30.0. Per call site (each a commit, safest first):
     1. ✅ **search grader** (no tools) — Pydantic `_Scores`; `responses.parse`/`output_parsed`;
-       trimmed JSON-plumbing from `GRADER_PROMPT`. Gate: ✅ `pytest -q` (incl. smoke) = **29 passed**.
+       trimmed JSON-plumbing from `GRADER_PROMPT`. Tests: `test_grader` (5 offline) +
+       `test_grader_smoke` (live, asserts). Gate: ✅ `pytest -q` (incl. smoke) = **29 passed** +
+       grader unit/smoke green.
     2. search **rescorer** — drop `parse_json`. Gate: `smoke`.
     3. **highlighter** — drop `parse_json`. Gate: `smoke`.
     4. chat **search** `send_message` (file_search) — **probe tools+structured first**; schema `{reply, jobs}`. Gate: `tab`.

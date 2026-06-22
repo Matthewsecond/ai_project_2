@@ -64,7 +64,10 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
   failure or short reply falls back to neutral. The template for service conversions.
 - `unit_tests/test_search_stability` (2, **live**) — retrieval-set determinism (Stage 1)
   and A+B result overlap end-to-end (Stage 2), via mean pairwise Jaccard.
-- `smoke_tests/test_search_smoke` (1, **live**) — runs the real Orchestrator and prints matches; no asserts.
+- `smoke_tests/test_grader_smoke` (1, **live, asserts**) — hits the real API; asserts the
+  structured grader returns one valid in-range score per job and that a clear-cut candidate
+  outscores an obvious mismatch. Catches "structured call is misconfigured/rejected".
+- `smoke_tests/test_search_smoke` (1, **live**) — runs the real Orchestrator and prints matches; no asserts (eyeball).
 
 **Default gate:** `pytest -m "not smoke"` → **28 passed, 1 deselected**.
 
@@ -88,8 +91,15 @@ Assert two things every time: (1) the **happy path** applies `output_parsed` cor
 and (2) the **failure path** (exception or `output_parsed is None`, i.e. a refusal) falls
 back gracefully. See `services/search/unit_tests/test_grader.py` for the template.
 
-**Rule:** converting a module's model calls to Structured Outputs ships *with* these
-unit tests, in the same step — part of the definition of done.
+**But mocks can't prove the call itself works** — that the API accepts the schema, that
+`file_search` + structured outputs coexist, that results are sensible. So every conversion
+*also* gets a **live smoke test that ASSERTS** (marked `@pytest.mark.smoke`): call the real
+API and check `output_parsed` is non-None with the expected shape and in-range/sane values.
+See `services/search/smoke_tests/test_grader_smoke.py` for the template.
+
+**Rule — two layers per conversion, both in the same step (definition of done):**
+1. **offline unit** (mock the boundary) — logic + fallback, always runs.
+2. **live smoke that asserts** (`@pytest.mark.smoke`) — proves the real structured call works.
 
 ## Gaps (filled as the rework proceeds)
 
