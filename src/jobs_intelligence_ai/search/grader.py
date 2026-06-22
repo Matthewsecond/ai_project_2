@@ -12,9 +12,22 @@ score rather than crashing the search.
 """
 import logging
 
+from pydantic import BaseModel
+
 from . import utils
 
 logger = logging.getLogger(__name__)
+
+
+class _Score(BaseModel):
+    """One job's grade — the model is constrained to this shape via Structured Outputs."""
+    score: float
+    match_reason: str
+
+
+class _Scores(BaseModel):
+    """The grader's reply: one _Score per job, in the same order as the input list."""
+    scores: list[_Score]
 
 
 class Grader:
@@ -39,13 +52,17 @@ class Grader:
         prompt = ("CANDIDATE PROFILE:\n" + (candidate_text or "")[:2500] +
                   "\n\nJOBS:\n" + "\n".join(lines))
 
+        # Structured Outputs: the reply is constrained to _Scores and parsed + validated
+        # by the SDK, so there is no JSON text to clean up. output_parsed is a _Scores
+        # (or None if the model refused / parse failed) → fall back to neutral scores.
         try:
-            response = self._client.responses.create(
+            response = self._client.responses.parse(
                 model=cfg.model,
                 instructions=cfg.prompt_template.format(label=cfg.country_label),
                 input=prompt,
+                text_format=_Scores,
             )
-            scores = utils.parse_json(response.output_text or "")
+            scores = response.output_parsed.scores if response.output_parsed else []
         except Exception as e:
             logger.warning("grading failed (%s) — assigning neutral scores", e)
             scores = []
@@ -55,13 +72,13 @@ class Grader:
     def _apply(self, jobs: list[dict], scores: list) -> list[dict]:
         cfg = self._cfg
         for i, job in enumerate(jobs):
-            item = scores[i] if i < len(scores) and isinstance(scores[i], dict) else {}
+            item = scores[i] if i < len(scores) else None
             try:
-                score = round(max(0.0, min(1.0, float(item.get("score", 0.5)))), 3)
+                score = round(max(0.0, min(1.0, float(item.score))), 3) if item else 0.5
             except Exception:
                 score = 0.5
             job["score"]        = score
             job["score_pct"]    = f"{int(score * 100)}%"
             job["grade"]        = utils.grade(score, cfg.score_a_min, cfg.score_b_min)
-            job["match_reason"] = (item.get("match_reason") or "").strip()
+            job["match_reason"] = (item.match_reason if item else "").strip()
         return jobs

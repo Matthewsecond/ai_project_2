@@ -14,6 +14,7 @@ dependencies = [
     "python-dotenv",
     "cryptography",
     "openai",
+    "pydantic",
     "reportlab",
     "pypdf",
     "requests",

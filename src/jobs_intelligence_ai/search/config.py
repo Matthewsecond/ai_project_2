@@ -31,12 +31,11 @@ Return up to {max_results} ids, most relevant first.
 # grades are reproducible. The bands line up with the A/B/C score thresholds.
 GRADER_PROMPT = """You are a job-matching grader for Jobs Intelligence {label}.
 You are given ONE candidate profile and a FIXED list of jobs. Score how well THIS \
-candidate fits EACH job. Do not add or drop jobs.
+candidate fits EACH job, one entry per job IN THE SAME ORDER. Do not add or drop jobs.
 
-Respond with ONLY a valid JSON array, one object per job IN THE SAME ORDER, no prose, \
-no markdown fences. Each object:
-  "score"       : float 0.0–1.0  (fit confidence)
-  "match_reason": string         (one sentence, max 22 words)
+For each job provide:
+  score        — 0.0–1.0 fit confidence
+  match_reason — one sentence, max 22 words
 
 Scoring rubric — use the FULL range and be decisive:
   0.80–1.00  strong fit  — core role, skills and seniority clearly align

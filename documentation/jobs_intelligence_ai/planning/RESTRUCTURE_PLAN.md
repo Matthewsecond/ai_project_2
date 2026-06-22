@@ -95,10 +95,7 @@ Several things are either trapped in the wrong place or copy-pasted across modul
 shared/
 ├── __init__.py
 ├── llm.py        ◄ get_client() OpenAI client singleton — replaces BOTH client paths
-│                    (FROM: chat.py top-level; AND search/orchestrator.py:59 makes its own)
-├── json.py       ◄ LLM-response JSON extraction: parse_json (array) + parse_object
-│                    (fenced) + citation-marker stripping
-│                    (FROM: search/utils.parse_json + chat._parse/_parse_candidate)
+│                    (FROM: chat.py top-level; AND search/orchestrator.py:59 made its own)
 ├── job.py        ◄ ★ canonical job dict: JOB_FIELDS map + serialize_job(row) [fresh]
 │                    + overlay_job(job, row) [overlay] — kills the duplicated ~30-field
 │                    mapping (FROM: search/utils.serialize_job + chat._apply_row)
@@ -106,12 +103,18 @@ shared/
 └── taxonomy.py   ◄ sector/role taxonomy for the funnel  (FROM: taxonomy.py, top-level)
 ```
 
+> **`json.py` dropped (superseded by Structured Outputs — see §6 2.1b).** The 3 JSON
+> parsers existed only because the model was *asked in prose* for JSON, then its messy
+> text was cleaned up. Switching the model calls to the SDK's `responses.parse(text_format=…)`
+> (Pydantic, validated `output_parsed`) means replies are guaranteed-valid JSON — so the
+> parsers are **deleted**, not merged. A residual `strip_citations` is added only if
+> file_search-grounded structured text turns out to carry citation markers.
+
 **Why each is shared (evidence from the code):**
 
 | Item | Problem today |
 |---|---|
 | `llm.py`  | TWO OpenAI client paths: `chat.get_client()` singleton vs `search/orchestrator.py:59` `OpenAI(...)`. |
-| `json.py` | 3 near-identical fenced-JSON extractors: `search/utils.parse_json`, `chat._parse`, `chat._parse_candidate`. |
 | `job.py`  | **~30-field DB-row→job-dict mapping copy-pasted** in `search/utils.serialize_job` AND `chat._apply_row`. Drift hazard. |
 | `grading.py` | `grade()` imported by `search` + `rescorer`. |
 | `taxonomy.py` | role/sector taxonomy used by guided funnel + search/stats. |
@@ -198,9 +201,19 @@ Docs are part of the step, not a follow-up — see the STANDING RULE at the top.
 - 2.1a ✅ `shared/llm.py` ← `get_client`; `chat.py` re-exports it (`_get_client` alias kept);
   `search/orchestrator` now calls it (2nd client path gone). Test `test_5_llm` added.
   Gate: ✅ import-smoke + `pytest -m "not smoke"` = **28 passed, 1 deselected**.
-- 2.1b `shared/json.py` ← `parse_json` (array, from `search/utils`) + `parse_object`
-  (fenced, from `chat._parse`/`_parse_candidate`) + citation stripping; old sites delegate.
-  Gate: `pytest`.
+- 2.1b **Adopt Structured Outputs** (replaces the planned `shared/json.py` merge). Switch
+  the JSON-returning model calls to the SDK's `client.responses.parse(text_format=PydanticModel)`
+  → validated `output_parsed`; delete the prompt-begging + the parsers. Verified vs official
+  docs + live SDK 2.30.0. Per call site (each a commit, safest first):
+    1. ✅ **search grader** (no tools) — Pydantic `_Scores`; `responses.parse`/`output_parsed`;
+       trimmed JSON-plumbing from `GRADER_PROMPT`. Gate: ✅ `pytest -q` (incl. smoke) = **29 passed**.
+    2. search **rescorer** — drop `parse_json`. Gate: `smoke`.
+    3. **highlighter** — drop `parse_json`. Gate: `smoke`.
+    4. chat **search** `send_message` (file_search) — **probe tools+structured first**; schema `{reply, jobs}`. Gate: `tab`.
+    5. chat **candidate** `send_candidate_message` — schema `{reply, profile_updates, cv_note}`. Gate: `tab`.
+  As each parser dies, retire its `test_1_json` case. `parse_json`/`_parse`/`_parse_candidate`
+  deleted by the end; `shared/json.py` is NOT created (residual `strip_citations` only if needed).
+  Legacy `EMBEDDING_PROMPT` path is dead under `direct_retrieval=True` — leave/delete.
 - 2.1c `shared/job.py` ← `JOB_FIELDS` + `serialize_job(row)` [fresh] + `overlay_job(job,row)`
   [overlay]; `search/utils.serialize_job` + `chat._apply_row` delegate. Gate: `pytest`
   (equivalence tests) + `smoke`.
@@ -311,7 +324,8 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ Three-layer architecture (foundation / services / frontend).
 - ✅ Services-module pattern (§7).
 - ✅ `tests/` + `documentation/` stay at **repo root** as siblings of `src/`, mirroring the package (matches Work convention; already true today). Not nested in `src/`.
-- ✅ `shared/` (§4): `llm` + `json` + `job` + `grading` + `taxonomy`; unifies 2 client paths, 3 JSON parsers, and the duplicated ~30-field job mapping.
+- ✅ `shared/` (§4): `llm` + `job` + `grading` + `taxonomy`; unifies 2 client paths and the duplicated ~30-field job mapping.
+- ✅ **Structured Outputs (2.1b)**: JSON-returning model calls use `responses.parse(text_format=Pydantic)` → `output_parsed`. Deletes the 3 JSON parsers (no `shared/json.py`). Verified vs official docs + live SDK 2.30.0. `pydantic` added to deps. Open: file_search + structured together (probe before chat #4).
 - ✅ Config (§5): flat module constants per service; global = environment/identity layer (not aggregator); move matching tunables into `services/search/config.py`. Dataclasses dropped.
 - ✅ Execution plan (§6): ordered, commit-per-step, shim-based, verify after each. Test scaffold (2.0) goes first.
 - ✅ Testing (§10): full coverage scope — mirrored test tree, **a test package per service** (mirrors the API principle), unit tests with `_fake_db` + mocked `shared/llm` client; fake-DB now, docker integration later.
