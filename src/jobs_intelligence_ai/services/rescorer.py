@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from openai import OpenAI
 
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.search.utils import parse_json, grade
+from jobs_intelligence_ai.services.search.utils import parse_json, grade
 
 logger = logging.getLogger(__name__)
 

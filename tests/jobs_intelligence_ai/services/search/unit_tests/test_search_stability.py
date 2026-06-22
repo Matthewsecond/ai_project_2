@@ -32,7 +32,7 @@ os.environ.setdefault("COUNTRY", "sk")
 import pytest
 
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.search.orchestrator import Orchestrator
+from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
 
 
 pytestmark = pytest.mark.skipif(

@@ -2,10 +2,10 @@
 search — Convergence search: find the jobs that fit a candidate profile.
 
 Run it as a module:
-    python -m jobs_intelligence_ai.search "Senior Python engineer, Bratislava" --sk --stream
+    python -m jobs_intelligence_ai.services.search "Senior Python engineer, Bratislava" --sk --stream
 
 Or drive it from code via the one public class, the Orchestrator:
-    from jobs_intelligence_ai.search.orchestrator import Orchestrator
+    from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
     jobs = Orchestrator().run("Senior Python engineer, Bratislava")  # all matches
     jobs = Orchestrator().run("...", filters={"limit": 20})          # capped
 

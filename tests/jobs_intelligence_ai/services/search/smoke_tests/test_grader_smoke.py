@@ -17,8 +17,8 @@ os.environ.setdefault("COUNTRY", "sk")
 import pytest
 
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.search.config import GraderConfig
-from jobs_intelligence_ai.search.grader import Grader
+from jobs_intelligence_ai.services.search.config import GraderConfig
+from jobs_intelligence_ai.services.search.grader import Grader
 from jobs_intelligence_ai.shared.llm import get_client
 
 pytestmark = [

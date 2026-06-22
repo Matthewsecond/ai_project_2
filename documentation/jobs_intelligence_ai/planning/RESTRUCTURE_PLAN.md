@@ -232,8 +232,9 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   updated; old path shim. Gate: `pytest` + `boot`.
 
 **2.2 — Relocate `search` + config cleanup**  *(decision: search moves under `services/`)*
-- 2.2a Move top-level `search/` → `services/search/`; update importers (`core`, cluster bp,
-  shims) and the test path `tests/.../search/` → `tests/.../services/search/`. Gate: `pytest` + `smoke` + `boot`.
+- 2.2a ✅ Moved `search/` → `services/search/` (git rename); updated 7 src importers
+  (`core`, rescorer, highlighter, cluster bp, search `__main__`/`__init__`) + 6 test imports;
+  added package files to the moved test tree. Gate: ✅ `pytest -q` (incl. smoke) = **35 passed**.
 - 2.2b Move matching tunables from `config/settings.py` → `services/search/config.py` as
   flat constants (search owns them; drop the global re-read). search keeps its existing
   dataclasses for now (works; flattening = low-payoff, deferred). New services use flat

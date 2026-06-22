@@ -1,8 +1,8 @@
 """
 __main__.py — Run the search module standalone.
 
-    python -m jobs_intelligence_ai.search "Senior Python engineer, Bratislava"
-    python -m jobs_intelligence_ai.search "data analyst" --country sk
+    python -m jobs_intelligence_ai.services.search "Senior Python engineer, Bratislava"
+    python -m jobs_intelligence_ai.services.search "data analyst" --country sk
 
 It searches for the candidate text and prints the matching jobs. The country
 profile is taken from --country (or the COUNTRY env var) and applied before the
@@ -15,7 +15,7 @@ import sys
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        prog="python -m jobs_intelligence_ai.search",
+        prog="python -m jobs_intelligence_ai.services.search",
         description="Find the jobs that match a candidate profile.",
     )
     p.add_argument("text", help="Candidate profile: CV text, free description, or key skills.")
@@ -54,8 +54,8 @@ def main() -> None:
     if args.country:
         os.environ["COUNTRY"] = args.country.lower()
 
-    from jobs_intelligence_ai.search.orchestrator import Orchestrator
-    from jobs_intelligence_ai.search.exceptions import SearchError
+    from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
+    from jobs_intelligence_ai.services.search.exceptions import SearchError
 
     try:
         jobs = Orchestrator().run(args.text)

@@ -6,7 +6,7 @@ Imports use the present canonical locations; in 2.1b these become shims that
 delegate to shared/json.py, so these same assertions then prove the merge is
 behavior-preserving. The asserts must NOT change across the move.
 """
-from jobs_intelligence_ai.search.utils import parse_json
+from jobs_intelligence_ai.services.search.utils import parse_json
 from jobs_intelligence_ai.chat import _parse, _parse_candidate
 
 from tests._fixtures import samples

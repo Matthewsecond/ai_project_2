@@ -8,8 +8,8 @@ every service conversion will use to get offline coverage.
 """
 import pytest
 
-from jobs_intelligence_ai.search.grader import Grader, _Score, _Scores
-from jobs_intelligence_ai.search.config import GraderConfig
+from jobs_intelligence_ai.services.search.grader import Grader, _Score, _Scores
+from jobs_intelligence_ai.services.search.config import GraderConfig
 
 
 class _FakeResponses:

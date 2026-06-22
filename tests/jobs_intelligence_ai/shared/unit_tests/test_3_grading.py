@@ -4,7 +4,7 @@ shared/grading.py (Stage 2.1d). Imports flip to shared in 2.1d; asserts stay ide
 """
 import pytest
 
-from jobs_intelligence_ai.search.utils import grade
+from jobs_intelligence_ai.services.search.utils import grade
 
 A_MIN, B_MIN = 0.80, 0.60
 

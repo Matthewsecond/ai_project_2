@@ -7,7 +7,7 @@ They share the same field map — when shared/job.py is built, BOTH serialize_jo
 and the new overlay_job must reproduce these results. Imports flip to shared in 2.1c;
 asserts stay identical (equivalence guard).
 """
-from jobs_intelligence_ai.search.utils import serialize_job
+from jobs_intelligence_ai.services.search.utils import serialize_job
 
 
 def test_serialize_maps_core_fields(sample_job_row):

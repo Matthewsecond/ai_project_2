@@ -1,7 +1,7 @@
 """Pytest configuration + shared fixtures.
 
 The package is installed editable (`pip install -e .`), so tests import it directly:
-`from jobs_intelligence_ai.search.orchestrator import Orchestrator`.
+`from jobs_intelligence_ai.services.search.orchestrator import Orchestrator`.
 
 Fixtures here are shared across the whole tree. Tier-specific helpers live in
 tests/_fake_db.py (fake SQLAlchemy connection) and tests/_fixtures/ (sample data).
