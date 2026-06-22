@@ -1,7 +1,7 @@
 # Testing
 
 How the test suite is organized, how to run it, and what currently exists.
-The strategy was set as part of the modular rework — see [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md) §10.
+The strategy was set as part of the modular rework — see [planning/RESTRUCTURE_PLAN.md](planning/RESTRUCTURE_PLAN.md) §10.
 
 ## Principle: the test tree mirrors the package
 

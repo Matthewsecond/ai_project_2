@@ -11,8 +11,7 @@ docs live at the top level.
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System overview, stack, data flow, key design decisions |
 | [TESTING.md](TESTING.md) | Test layout, tiers, how to run, current inventory |
-| [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md) | The modular rework + demo/production branch plan (living) |
-| [CLEANUP_PLAN.md](CLEANUP_PLAN.md) | Phased UX clunk-fix plan |
+| [planning/](planning/) | **All plans live here** — see [planning/README.md](planning/README.md) for what's active vs deferred vs archived |
 
 ## Per-module (mirrors `src/jobs_intelligence_ai/`)
 
