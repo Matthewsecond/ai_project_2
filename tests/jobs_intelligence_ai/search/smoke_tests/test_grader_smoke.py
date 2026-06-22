@@ -28,6 +28,9 @@ pytestmark = [
 
 
 def test_grader_live_scores_are_valid_and_sensible():
+    """Live: the real structured grader returns one in-range score (+ non-empty reason)
+    per job, and a Python dev clearly outscores a truck-driver role — proving the
+    `responses.parse` call is accepted and produces sensible output, not just valid shape."""
     jobs = [
         {"title": "Senior Python Engineer", "company": "Acme", "skills": "Python, Django, PostgreSQL"},
         {"title": "Long-haul Truck Driver", "company": "Transco", "skills": "C+E licence, logistics"},

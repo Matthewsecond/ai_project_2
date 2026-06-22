@@ -101,6 +101,10 @@ See `services/search/smoke_tests/test_grader_smoke.py` for the template.
 1. **offline unit** (mock the boundary) — logic + fallback, always runs.
 2. **live smoke that asserts** (`@pytest.mark.smoke`) — proves the real structured call works.
 
+**Every test function carries a one-line docstring** stating what it verifies, in plain
+language — the test list should read like a spec without decoding the assertions. Mock
+helpers get a one-line docstring too. See `test_grader.py` for the house style.
+
 ## Gaps (filled as the rework proceeds)
 
 Per-service `unit_tests/` (stats, enrichment, interview, reporting, chat, clustering,
