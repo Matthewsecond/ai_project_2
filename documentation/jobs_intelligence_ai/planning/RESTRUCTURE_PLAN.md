@@ -213,21 +213,17 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
 - 2.1a ✅ `shared/llm.py` ← `get_client`; `chat.py` re-exports it (`_get_client` alias kept);
   `search/orchestrator` now calls it (2nd client path gone). Test `test_5_llm` added.
   Gate: ✅ import-smoke + `pytest -m "not smoke"` = **28 passed, 1 deselected**.
-- 2.1b **Adopt Structured Outputs** (replaces the planned `shared/json.py` merge). Switch
-  the JSON-returning model calls to the SDK's `client.responses.parse(text_format=PydanticModel)`
-  → validated `output_parsed`; delete the prompt-begging + the parsers. Verified vs official
-  docs + live SDK 2.30.0. Per call site (each a commit, safest first):
-    1. ✅ **search grader** (no tools) — Pydantic `_Scores`; `responses.parse`/`output_parsed`;
-       trimmed JSON-plumbing from `GRADER_PROMPT`. Tests: `test_grader` (5 offline) +
-       `test_grader_smoke` (live, asserts). Gate: ✅ `pytest -q` (incl. smoke) = **29 passed** +
-       grader unit/smoke green.
-    2. search **rescorer** — drop `parse_json`. Gate: `smoke`.
-    3. **highlighter** — drop `parse_json`. Gate: `smoke`.
-    4. chat **search** `send_message` (file_search) — **probe tools+structured first**; schema `{reply, jobs}`. Gate: `tab`.
-    5. chat **candidate** `send_candidate_message` — schema `{reply, profile_updates, cv_note}`. Gate: `tab`.
-  As each parser dies, retire its `test_1_json` case. `parse_json`/`_parse`/`_parse_candidate`
-  deleted by the end; `shared/json.py` is NOT created (residual `strip_citations` only if needed).
-  Legacy `EMBEDDING_PROMPT` path is dead under `direct_retrieval=True` — leave/delete.
+- 2.1b **Adopt Structured Outputs** — the standard for EVERY JSON-returning model call
+  (replaces the planned `shared/json.py` merge): `client.responses.parse(text_format=Pydantic)`
+  → validated `output_parsed`; delete the parser + the "respond with ONLY JSON" prompt
+  boilerplate; add the two test layers (§10). Verified vs official docs + live SDK 2.30.0.
+    - ✅ **grader** (the pilot — proves the pattern on the test-covered core). Pydantic
+      `_Scores`; `test_grader` (5 offline) + `test_grader_smoke` (live, asserts). 29 passed.
+    - **All remaining conversions are FOLDED INTO each module's repackaging** (2.2–2.4),
+      one touch per file — see the **`SO →`** tag on each step below. Not a separate sweep.
+  As each parser dies, retire its `test_1_json` case. By the end `parse_json`,
+  `chat._parse/_parse_candidate`, and the per-service parsers are all gone; `shared/json.py`
+  is NOT created (residual `strip_citations` only if a file_search call needs it).
 - 2.1c `shared/job.py` ← `JOB_FIELDS` + `serialize_job(row)` [fresh] + `overlay_job(job,row)`
   [overlay]; `search/utils.serialize_job` + `chat._apply_row` delegate. Gate: `pytest`
   (equivalence tests) + `smoke`.
@@ -242,23 +238,35 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   flat constants (search owns them; drop the global re-read). search keeps its existing
   dataclasses for now (works; flattening = low-payoff, deferred). New services use flat
   constants. Gate: `pytest`.
+- 2.2c `SO →` the only remaining JSON parse inside search is the **legacy `EMBEDDING_PROMPT`**
+  ids path (`embedding_search.py`), dead under `direct_retrieval=True`. **Delete the dead
+  path** (preferred) or convert it to Structured Outputs. Gate: `smoke` + stability.
 
 **2.3 — Services, one module per commit** (least → most entangled). Each: create package
 (`__init__` = public API, `config.py` if needed, `orchestrator.py`, helpers, `__main__`
 where meaningful), move code, repoint importing blueprint(s) + service↔service imports,
 add `unit_tests/`. Gate per module: `pytest` + `boot` + `tab`.
 
-| # | Module ← current files | Importers to repoint |
-|---|---|---|
-| 1 | `stats/` ← opportunity, quality_score, salary_stats | (already grouped; add API + `__main__`) |
-| 2 | `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | search bp, saved bp, `core`, chat.enrich |
-| 3 | `interview/` ← interview_helper | interview bp |
-| 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp |
-| 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` |
-| 6 | `clustering/` ← clustering, persona, + send_segment_message | cluster bp |
-| 7 | `candidate/` ← candidate_store, example_cv, profile_enricher | candidate bp, guided bp, saved bp, cluster bp |
-| 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers |
-| 9 | `auth/` ← auth  *(grouping: confirm)* | `frontend/app.py` factory |
+**`SO →`** column = the LLM calls in that module to convert to Structured Outputs in the
+SAME step (delete its JSON parser + prompt boilerplate, add the two test layers per §10).
+"verify" = has a model call I haven't confirmed parses JSON — check when repackaging.
+
+| # | Module ← current files | Importers to repoint | `SO →` convert |
+|---|---|---|---|
+| 1 | `stats/` ← opportunity, quality_score, salary_stats | (already grouped; add API + `__main__`) | — none (pure stats) |
+| 2 | `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | search bp, saved bp, `core`, chat.enrich | **rescorer**, **highlighter** (drop `parse_json`); verify seniority/quality_classifier/match_insights |
+| 3 | `interview/` ← interview_helper | interview bp | **interview_helper** (`_parse_json`) |
+| 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp | **opportunity_briefing** (`json.loads` ×2); verify report_generator/pipeline |
+| 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` | **send_message** (`_parse`, **file_search — probe tools+SO first**), **send_candidate_message** (`_parse_candidate`); job/segment msgs are text-only |
+| 6 | `clustering/` ← clustering, persona, + send_segment_message | cluster bp | **persona** (`_parse_json_obj`); clustering.py = embeddings, no parse |
+| 7 | `candidate/` ← candidate_store, example_cv, profile_enricher | candidate bp, guided bp, saved bp, cluster bp | **profile_enricher** (`_parse_json`); verify example_cv |
+| 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers | — none (geo lookup) |
+| 9 | `auth/` ← auth  *(grouping: confirm)* | `frontend/app.py` factory | — none (DB only) |
+
+**2.4 frontend** also carries `SO →`: the blueprint-level model calls convert during the
+frontend repackaging — `candidate`, `analytics`, `company`, `radar` (`chat.completions` →
+`beta.chat.completions.parse` or `responses.parse`), `cluster` (`parse_json`), `saved`,
+`job_detail` (×5), `search` bp. Same rule: convert + delete parser + two test layers.
 
 **2.4 — Frontend** (`web/` → `frontend/`)
 - Rename `web/` → `frontend/`. Update `web/__init__` registry, `app.py`, top-level
