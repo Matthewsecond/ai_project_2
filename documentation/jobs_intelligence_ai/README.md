@@ -1,53 +1,37 @@
-# Jobs Intelligence Austria — Documentation
+# Jobs Intelligence AI — Documentation
 
-## Documents
+This folder **mirrors the package** `src/jobs_intelligence_ai/` — one doc folder per
+module (foundation / services / frontend), same convention as the `tests/` tree. Empty
+module folders hold a `.gitkeep` until they're documented. Cross-cutting and planning
+docs live at the top level.
 
-| File                   | Contents                                                      |
-|------------------------|---------------------------------------------------------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System overview, stack, directory layout, data flow, key design decisions |
-| [FRONTEND.md](FRONTEND.md)         | Tab layout, job store pattern, modal sections, state variables, chat UI   |
-| [API.md](API.md)                   | All Flask endpoints — request/response shapes, matching pipeline          |
-| [DATABASE.md](DATABASE.md)         | View_Jobs_Full column mapping, salary data quality, query patterns        |
-| [SALARY_ANALYSIS.md](SALARY_ANALYSIS.md) | Two-layer chart design (Option D), Plotly traces, data flow, edge cases  |
+## Top-level
 
----
+| Doc | Contents |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System overview, stack, data flow, key design decisions |
+| [TESTING.md](TESTING.md) | Test layout, tiers, how to run, current inventory |
+| [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md) | The modular rework + demo/production branch plan (living) |
+| [CLEANUP_PLAN.md](CLEANUP_PLAN.md) | Phased UX clunk-fix plan |
 
-## Feature Status
+## Per-module (mirrors `src/jobs_intelligence_ai/`)
 
-| Feature                          | Status        |
-|----------------------------------|---------------|
-| Search tab + AI matching         | Done          |
-| Keyword fallback (no API key)    | Done          |
-| Filter bar (State/City/Category/Portal) | Done    |
-| Chat tab (multi-turn)            | Done          |
-| Map tab (Leaflet)                | Done          |
-| Saved jobs (grouped by candidate)| Done          |
-| Job detail modal                 | Done          |
-| Skills display in modal          | Done          |
-| Salary analysis — DB histogram   | Done          |
-| Salary analysis — batch overlay  | Planned (see SALARY_ANALYSIS.md) |
-| Export CSV                       | Done          |
-| Candidate name field             | Done          |
+| Module | Docs |
+|---|---|
+| `config/` | _(to document)_ |
+| `infra/` | [DATABASE.md](infra/DATABASE.md) — view column mapping, salary data quality, query patterns |
+| `shared/` | _(to document)_ |
+| `services/search/` | _(to document — see ARCHITECTURE.md for now)_ |
+| `services/stats/` | [SALARY_ANALYSIS.md](services/stats/SALARY_ANALYSIS.md) — two-layer chart design, Plotly traces, edge cases |
+| `services/interview/` | [INTERVIEW_REWORK_CHANGELOG.md](services/interview/INTERVIEW_REWORK_CHANGELOG.md) |
+| `services/` (enrichment, reporting, chat, clustering, candidate, geo, auth) | _(to document)_ |
+| `frontend/` | [API.md](frontend/API.md) — Flask endpoints, request/response shapes · [FRONTEND.md](frontend/FRONTEND.md) — tab layout, job store, modals, chat UI |
 
----
+> Note: folder names track the **target** structure from RESTRUCTURE_PLAN.md. Some code
+> still lives at its pre-rework path until the corresponding Stage 2 step lands; the docs
+> lead the move so the end state is documented up front.
 
-## Next Implementation: Salary Chart Batch Overlay
-
-The salary analysis chart currently shows only the DB market distribution.
-The next step adds a second layer: the jobs from the current search/chat result
-as individual dots coloured by grade (A/B/C), so the recruiter can see where
-tonight's specific results sit within the broader market.
-
-See [SALARY_ANALYSIS.md](SALARY_ANALYSIS.md) for the full design.
-
-Required code changes (all in `index.html`):
-1. Tag jobs with `_batch: 'search'` or `_batch: 'chat'` when calling `storeJob()`
-2. Pass `batchJobs` to `loadSalaryAnalysis(job, batchJobs)` from `openJobModal()`
-3. Add trace 1 (batch rug) and trace 2 (this job diamond) to `Plotly.react()`
-
----
-
-## Running Locally
+## Running locally
 
 ```bash
 pip install -e .
@@ -55,5 +39,4 @@ cp .env.example .env      # fill in OPENAI_API_KEY and DATABASE_URL[_SK]
 python -m jobs_intelligence_ai        # or: python -m jobs_intelligence_ai --sk
 ```
 
-Open: http://localhost:5000
-Schema debug: http://localhost:5000/debug/schema
+Open: http://localhost:5000 · Schema debug: http://localhost:5000/debug/schema

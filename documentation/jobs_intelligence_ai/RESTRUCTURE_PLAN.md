@@ -305,6 +305,7 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ Config (§5): flat module constants per service; global = environment/identity layer (not aggregator); move matching tunables into `services/search/config.py`. Dataclasses dropped.
 - ✅ Execution plan (§6): ordered, commit-per-step, shim-based, verify after each. Test scaffold (2.0) goes first.
 - ✅ Testing (§10): full coverage scope — mirrored test tree, **a test package per service** (mirrors the API principle), unit tests with `_fake_db` + mocked `shared/llm` client; fake-DB now, docker integration later.
+- ✅ Documentation (§11): `documentation/` mirrors the package, one folder per module (`Work` convention); docs realigned to the target structure; `TESTING.md` added.
 - ✅ `search/` moves under `services/search/` (2.2a).
 - ✅ `core/` facade dissolved into per-service `__init__` APIs (2.5).
 - ✅ `geo` + `auth` as their own `services/` modules.
@@ -352,3 +353,26 @@ tests/
 **Equivalence-first rule (2.0b):** before merging duplicated code into `shared/`, write
 tests that pin the *current* output of the old functions, so the merge is provably
 behavior-preserving (esp. the `serialize_job` / `_apply_row` → `shared/job.py` unification).
+
+---
+
+## 11. Documentation layout — AGREED (docs mirror the package)
+
+Same principle as `tests/`: **`documentation/jobs_intelligence_ai/` mirrors
+`src/jobs_intelligence_ai/`** — one doc folder per module (foundation / services /
+frontend), empty ones holding a `.gitkeep` until documented (the `Work` convention).
+Cross-cutting + planning docs (`README`, `ARCHITECTURE`, `TESTING`, `RESTRUCTURE_PLAN`,
+`CLEANUP_PLAN`) stay at the top level.
+
+Realigned to the target structure (docs lead the code so the end state is documented up front):
+
+| Doc | Was | Now |
+|---|---|---|
+| `DATABASE.md` | `core/` | `infra/` |
+| `SALARY_ANALYSIS.md` | `stats/` | `services/stats/` |
+| `API.md`, `FRONTEND.md` | `web/` | `frontend/` |
+| `INTERVIEW_REWORK_CHANGELOG.md` | top level | `services/interview/` |
+| `TESTING.md` | — | top level (new — documents §10) |
+
+Each module gets its own doc folder; new module docs land beside the code as it's
+repackaged in Stage 2.3 / 2.4. `README.md` is the mirror index.
