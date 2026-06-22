@@ -195,8 +195,9 @@ Docs are part of the step, not a follow-up — see the STANDING RULE at the top.
 - Gate: ✅ `pytest -m "not smoke"` = **26 passed, 1 deselected**. Baseline + foundation green.
 
 **2.1 — Foundation `shared/`** (consolidate dup'd code; keep shims). One commit each:
-- 2.1a `shared/llm.py` ← `get_client`; `chat.py` + `core` re-export it; point
-  `search/orchestrator.py:59` at it (kills the 2nd client). Gate: `pytest` + `boot`.
+- 2.1a ✅ `shared/llm.py` ← `get_client`; `chat.py` re-exports it (`_get_client` alias kept);
+  `search/orchestrator` now calls it (2nd client path gone). Test `test_5_llm` added.
+  Gate: ✅ import-smoke + `pytest -m "not smoke"` = **28 passed, 1 deselected**.
 - 2.1b `shared/json.py` ← `parse_json` (array, from `search/utils`) + `parse_object`
   (fenced, from `chat._parse`/`_parse_candidate`) + citation stripping; old sites delegate.
   Gate: `pytest`.

@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from openai import OpenAI
 
+from jobs_intelligence_ai.shared.llm import get_client
 from jobs_intelligence_ai.services.seniority_classifier import classify_seniority
 
 from .config import SearchConfig
@@ -56,7 +57,7 @@ class Orchestrator:
         if self._client is None:
             if not self.config.api_key or self.config.api_key == "your_key_here":
                 raise ConfigError("OpenAI API key not configured — search unavailable")
-            self._client = OpenAI(api_key=self.config.api_key)
+            self._client = get_client(self.config.api_key)
             self._embedding = EmbeddingSearch(self._client, self.config.embedding)
             self._job_search = JobSearch()
             self._grader = Grader(self._client, self.config.grader)

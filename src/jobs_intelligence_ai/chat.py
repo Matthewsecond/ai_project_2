@@ -5,24 +5,16 @@ Multi-turn memory via previous_response_id; same vector store as matching.py.
 import json
 import re
 import logging
-from openai import OpenAI
 from jobs_intelligence_ai import config
+from jobs_intelligence_ai.shared.llm import get_client
 
 logger = logging.getLogger(__name__)
 
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=config.OPENAI_API_KEY)
-    return _client
-
-
-# Public alias — the job-detail blueprint and the core facade use this to reach the
-# shared OpenAI client without importing a private name.
-get_client = _get_client
+# The OpenAI client now lives in shared/llm.py (single app-wide singleton).
+# `_get_client` is kept as a local alias so this module's internals are unchanged;
+# `get_client` is re-exported for the job-detail blueprint and the core facade.
+# Stage 2.1a shim — direct callers should migrate to `shared.llm.get_client`.
+_get_client = get_client
 
 
 _SYSTEM_TEMPLATE = """You are an AI recruitment assistant for Jobs Intelligence {label}.

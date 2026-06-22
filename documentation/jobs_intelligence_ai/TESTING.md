@@ -50,12 +50,13 @@ always run anywhere.
 
 ## Current inventory
 
-**Foundation — `shared/unit_tests/` (24 tests, offline)** — pin the current behavior of the
+**Foundation — `shared/unit_tests/` (26 tests, offline)** — pin the current behavior of the
 helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard for that merge:
 - `test_1_json` — `parse_json`, `chat._parse`, `chat._parse_candidate` (fenced/bare/embedded JSON, citation-marker stripping)
 - `test_2_job` — `serialize_job` (field mapping, defaults, blank handling, stable shape)
 - `test_3_grading` — `grade()` A/B/C bands incl. boundaries
 - `test_4_taxonomy` — sector/role taxonomy lookups
+- `test_5_llm` — `shared/llm.get_client` singleton contract + mock seam (added 2.1a)
 
 **Search — `services/search/` (pre-existing, live)**:
 - `unit_tests/test_search_stability` (2) — retrieval-set determinism (Stage 1) and A+B
@@ -63,7 +64,7 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
   regression from grader jitter.
 - `smoke_tests/test_search_smoke` (1) — runs the real Orchestrator and prints matches; no asserts.
 
-**Default gate:** `pytest -m "not smoke"` → **26 passed, 1 deselected**.
+**Default gate:** `pytest -m "not smoke"` → **28 passed, 1 deselected**.
 
 ## Gaps (filled as the rework proceeds)
 

@@ -20,7 +20,7 @@ docs live at the top level.
 |---|---|
 | `config/` | _(to document)_ |
 | `infra/` | [DATABASE.md](infra/DATABASE.md) — view column mapping, salary data quality, query patterns |
-| `shared/` | _(to document)_ |
+| `shared/` | [README.md](shared/README.md) — foundation layer; `llm` (single OpenAI client), and json/job/grading/taxonomy as 2.1 lands them |
 | `services/search/` | _(to document — see ARCHITECTURE.md for now)_ |
 | `services/stats/` | [SALARY_ANALYSIS.md](services/stats/SALARY_ANALYSIS.md) — two-layer chart design, Plotly traces, edge cases |
 | `services/interview/` | [INTERVIEW_REWORK_CHANGELOG.md](services/interview/INTERVIEW_REWORK_CHANGELOG.md) |
