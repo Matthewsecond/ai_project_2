@@ -4,6 +4,11 @@
 > config (§5), execution plan (§6), testing (§10), and all structural decisions (§9)
 > agreed. Only the Stage 3 production feature set remains deferred. Nothing in §6 has
 > run yet except Stage 1 (the `develop` branch). Running record.
+>
+> **STANDING RULE — docs track the code.** After each phase/step is done, update the
+> documentation to reflect it *as part of that step* (before moving on): the mirrored
+> `documentation/jobs_intelligence_ai/` module docs (§11), `TESTING.md`, and this plan's
+> checkboxes/decisions log. A step isn't "done" until its docs are current.
 
 ---
 
@@ -163,6 +168,10 @@ runtime-swappable / injectable config (none do today).
 Moves use **re-export shims** at the old import paths so existing callers keep working
 until migrated; shims are deleted only in the final cleanup (2.6). No "broken in the
 middle" state.
+
+**Definition of done (per step):** code moved + tests green + **docs updated** (the
+module's doc folder under §11, `TESTING.md` if tests changed, and this plan's checkbox).
+Docs are part of the step, not a follow-up — see the STANDING RULE at the top.
 
 **Verification legend** — run after each step:
 - `pytest` = `pytest -m "not smoke"` (fast, no live API/DB)
