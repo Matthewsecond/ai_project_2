@@ -175,14 +175,15 @@ middle" state.
 
 ### Stage 2 — Repackage into modules (on `develop`)
 
-**2.0 — Test scaffold + foundation safety net** *(before moving any code; see §10)*
-- 2.0a Lay down the mirrored test tree (folders + `__init__`/`__main__` per module) and
-  shared infra: `_fake_db.py`, `conftest.py` fixtures, `_fixtures/` sample data (a job DB
-  row, a CV, sample LLM responses), `README.md`.
-- 2.0b Write unit tests **pinning the CURRENT behavior** of the to-be-merged helpers:
-  both job mappings (`serialize_job` / `_apply_row`), the 3 JSON parsers, `grade()`.
-  These are the equivalence check for 2.1.
-- Gate: `pytest` green against today's code.
+**2.0 — Test scaffold + foundation safety net** ✅ DONE *(before moving any code; see §10)*
+- 2.0a ✅ Mirrored test tree (51 boilerplate `__init__`/`__main__` files) + shared infra:
+  `_runner.py`, `_fake_db.py` (sync FakeEngine/Conn/Result/Row), `conftest.py` fixtures
+  (`col`, `sample_job_row`, `fake_engine`), `_fixtures/samples.py`, `README.md`.
+- 2.0b ✅ Pinning unit tests for the to-be-merged helpers — `shared/unit_tests/`:
+  `test_1_json` (parse_json + _parse + _parse_candidate), `test_2_job` (serialize_job),
+  `test_3_grading` (grade), `test_4_taxonomy`. Import the CURRENT paths; flip to `shared/`
+  in 2.1 with identical asserts = equivalence guard.
+- Gate: ✅ `pytest -m "not smoke"` = **26 passed, 1 deselected**. Baseline + foundation green.
 
 **2.1 — Foundation `shared/`** (consolidate dup'd code; keep shims). One commit each:
 - 2.1a `shared/llm.py` ← `get_client`; `chat.py` + `core` re-export it; point
