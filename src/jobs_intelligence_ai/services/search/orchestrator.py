@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 
 from jobs_intelligence_ai.shared.llm import get_client
-from jobs_intelligence_ai.services.seniority_classifier import classify_seniority
+from jobs_intelligence_ai.services.enrichment import classify_seniority
 
 from .config import SearchConfig
 from .embedding_search import EmbeddingSearch

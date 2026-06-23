@@ -166,7 +166,7 @@ def api_candidate_create():
 @bp.route("/insights", methods=["GET"])
 def api_saved_insights():
     """Query: ?candidate=<name>  →  the Match Insights payload for that candidate."""
-    from jobs_intelligence_ai.services.match_insights import build_insights
+    from jobs_intelligence_ai.services.enrichment import build_insights
     candidate = (request.args.get("candidate") or "").strip()
     by_cand   = _candidates_index()
 
@@ -303,7 +303,7 @@ def api_saved_observation():
     /observation name. /interview stays as a temporary alias for older clients.
     """
     import json as _json
-    from jobs_intelligence_ai.services.match_insights import build_insights
+    from jobs_intelligence_ai.services.enrichment import build_insights
 
     body      = request.get_json(silent=True) or {}
     candidate = (body.get("candidate") or "").strip()
@@ -370,7 +370,7 @@ def api_saved_report():
 
     Mirrors the on-screen Match Insights dashboard for the selected candidate.
     """
-    from jobs_intelligence_ai.services.match_insights import build_insights
+    from jobs_intelligence_ai.services.enrichment import build_insights
     from jobs_intelligence_ai.services.report_pipeline import generate_insights_pdf
 
     body      = request.get_json(silent=True) or {}

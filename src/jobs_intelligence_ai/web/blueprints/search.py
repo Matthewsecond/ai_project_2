@@ -272,7 +272,7 @@ def api_quality():
 
     try:
         from jobs_intelligence_ai.services.stats import get_group_stats
-        from jobs_intelligence_ai.services.quality_classifier import classify_quality
+        from jobs_intelligence_ai.services.enrichment import classify_quality
         group_stats = get_group_stats(occ_group, state) if occ_group else {}
         result_jobs = classify_quality(list(jobs), group_stats)
         return jsonify({"ok": True, "jobs": result_jobs, "group_stats": group_stats})

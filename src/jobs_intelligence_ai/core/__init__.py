@@ -8,8 +8,7 @@ domain modules themselves (search/, chat, taxonomy, services); infra
 (infra/database) is a leaf imported directly by services/stats.
 """
 from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
-from jobs_intelligence_ai.services.rescorer import Rescorer
-from jobs_intelligence_ai.services.highlighter import Highlighter
+from jobs_intelligence_ai.services.enrichment import Rescorer, Highlighter
 from jobs_intelligence_ai.chat import (
     send_message,
     clear_session,

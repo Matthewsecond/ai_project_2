@@ -420,7 +420,7 @@ def enrich_jobs_from_db(jobs: list[dict]) -> list[dict]:
 
     from jobs_intelligence_ai import config
     from jobs_intelligence_ai.infra.database import fetch_jobs_by_ids, fetch_jobs_by_title_company
-    from jobs_intelligence_ai.services.seniority_classifier import classify_seniority
+    from jobs_intelligence_ai.services.enrichment import classify_seniority
 
     c = config.COL
 
