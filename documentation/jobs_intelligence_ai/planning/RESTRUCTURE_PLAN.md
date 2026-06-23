@@ -260,9 +260,11 @@ job-search-chat JS cleanup), then **2.5** (dissolve `core/`, remove shims).
 **2.4 — IN PROGRESS.** Done: ① `web/`→`frontend/` rename (package, entry point, docs).
 ② candidate bp `parse-profile` → `services/candidate/profile_parser.py` (SO `CandidateProfile`).
 ③ analytics + radar chats → `services/reporting/session_chat.py` (SO `AdvisorReply`, single
-prose field; killed the last `chat.completions` + raw `OpenAI()` in those bps). Offline gate:
-**139 passed, 20 deselected.** Remaining: company summary, cluster, saved, job_detail (×5),
-search; then dead-JS cleanup + integration tests.
+prose field; killed the last `chat.completions` + raw `OpenAI()` in those bps).
+④ company summary → `services/reporting/company_summary.py` (SO `CompanySummary`, single prose
+field; returns "" on error since the summary is optional). Offline gate: **143 passed, 21
+deselected.** Remaining: cluster, saved, job_detail (×5), search; then dead-JS cleanup +
+integration tests.
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature

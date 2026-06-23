@@ -118,7 +118,8 @@ def api_company():
             for row in rows[:10]
         ]
 
-        summary = _company_summary(
+        from jobs_intelligence_ai.services.reporting import summarize_company
+        summary = summarize_company(
             company_name=company_name,
             total=len(rows),
             top_titles=top_titles,
@@ -189,47 +190,3 @@ def api_salary_stats():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
-# ── AI helper ────────────────────────────────────────────────────────────────
-
-def _company_summary(company_name, total, top_titles, top_occ, sal_stats, states, portals, work_types):
-    if not config.OPENAI_API_KEY:
-        return ""
-    try:
-        from openai import OpenAI
-        client     = OpenAI(api_key=config.OPENAI_API_KEY)
-        titles_str = ", ".join(f"{t['title']} ×{t['count']}" for t in top_titles[:5])
-        occ_str    = ", ".join(f"{o['group']} ({o['count']})" for o in top_occ[:4])
-        sal_str    = (
-            f"€{sal_stats['min']:,}–€{sal_stats['max']:,}, average €{sal_stats['mean']:,}"
-            if sal_stats else "not disclosed"
-        )
-        prompt = (
-            f"Company: {company_name}\n"
-            f"Active job postings: {total}\n"
-            f"Top roles: {titles_str or '—'}\n"
-            f"Occupational groups: {occ_str or '—'}\n"
-            f"Salary range: {sal_str}\n"
-            f"Active states: {', '.join(states[:5]) if states else '—'}\n"
-            f"Job portals: {', '.join(portals) if portals else '—'}\n"
-            f"Work types: {', '.join(f'{k} ({v})' for k, v in work_types.items()) or '—'}\n"
-        )
-        resp = client.chat.completions.create(
-            model=config.CLASSIFIER_MODEL,
-            messages=[
-                {"role": "system", "content": (
-                    "You are a recruitment intelligence assistant. "
-                    "Write 2-3 concise sentences summarising this company's current hiring profile "
-                    "for an HR professional. Cover: what type of company it appears to be based on "
-                    "the roles, where they operate, and what salaries they offer. "
-                    "Be factual and direct. Output only the summary, nothing else."
-                )},
-                {"role": "user", "content": prompt},
-            ],
-            max_completion_tokens=160,
-            temperature=0.25,
-        )
-        return (resp.choices[0].message.content or "").strip()
-    except Exception:
-        return ""

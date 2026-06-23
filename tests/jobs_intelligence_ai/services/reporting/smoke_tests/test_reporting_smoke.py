@@ -16,7 +16,7 @@ import pytest
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.services.reporting import (
     generate_briefing, suggest_filters, elaborate_items,
-    analytics_chat, radar_chat,
+    analytics_chat, radar_chat, summarize_company,
 )
 
 pytestmark = [
@@ -73,4 +73,16 @@ def test_radar_chat_live():
     ctx = {"totals": _TOTALS, "headline": "Hot IT market",
            "top_sectors": [{"occ_group": "IT & Software", "total_jobs": 420, "avg_salary": 3800}]}
     out = radar_chat("Where should I focus my sourcing?", [], ctx)
+    assert isinstance(out, str) and out.strip()
+
+
+def test_summarize_company_live():
+    """Live: a company stats bundle yields a non-empty 2-3 sentence prose summary."""
+    out = summarize_company(
+        company_name="TechSolutions GmbH", total=42,
+        top_titles=[{"title": "Backend Engineer", "count": 10}, {"title": "DevOps", "count": 6}],
+        top_occ=[{"group": "IT & Software", "count": 30}],
+        sal_stats={"min": 3000, "max": 5500, "mean": 4200},
+        states=["Wien", "Niederösterreich"], portals=["karriere.at"],
+        work_types={"Vollzeit": 38})
     assert isinstance(out, str) and out.strip()

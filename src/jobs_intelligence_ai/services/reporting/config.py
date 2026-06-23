@@ -173,3 +173,21 @@ Tone and format rules (follow strictly):
 class AdvisorReply(BaseModel):
     """A single prose advisor reply (markdown) for the Analytics + Radar session chats."""
     answer: str
+
+
+# ── company_summary.summarize_company ───────────────────────────────────────────
+# A short prose summary of a company's current hiring profile (Company tab). Converted to
+# Structured Outputs in rework 2.4 — single prose `summary` field, replacing the legacy
+# chat.completions + raw OpenAI() call relocated from the company blueprint.
+COMPANY_SUMMARY_MODEL = config.CLASSIFIER_MODEL
+
+COMPANY_SUMMARY_PROMPT = """\
+You are a recruitment intelligence assistant. Write 2-3 concise sentences summarising this
+company's current hiring profile for an HR professional. Cover: what type of company it
+appears to be based on the roles, where they operate, and what salaries they offer. Be
+factual and direct."""
+
+
+class CompanySummary(BaseModel):
+    """A short prose summary of a company's current hiring profile."""
+    summary: str
