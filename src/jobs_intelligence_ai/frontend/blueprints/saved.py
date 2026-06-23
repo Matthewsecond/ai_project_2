@@ -190,51 +190,7 @@ def api_saved_insights():
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
 
-# ── Interview chat — GPT prompts ─────────────────────────────────────────────
-
-_EXTRACT_SYSTEM = """Extract profile parameter updates implied by the HR manager's interview observation.
-Current candidate profile: {profile}
-Return ONLY valid JSON with no extra text:
-{{"overrides": {{
-  "salary_expectation": "string e.g. 4500-5500 or >4000 — only if salary was mentioned",
-  "location": "string — only if location/relocation was mentioned",
-  "skills": ["list — full updated skill list, add confirmed skills to existing ones"],
-  "availability": "string e.g. 2026-09-01 or immediate — only if mentioned",
-  "title": "string — only if role preference was mentioned",
-  "languages": "string — only if mentioned",
-  "experience_years": "number — only if mentioned"
-}}}}
-Only include keys where the note gives new information. Empty overrides are fine."""
-
-_REPLY_SYSTEM = """You are a concise recruitment intelligence assistant.
-The HR manager shared this observation about a candidate: "{message}"
-You extracted these profile updates: {overrides}
-Pipeline impact after applying the updates: {impact}
-Write 1-2 natural sentences acknowledging what you understood.
-If there is a concrete pipeline impact, weave in the exact numbers (e.g. "roles drop from X to Y").
-If there is no pipeline impact, just acknowledge the observation — do NOT mention pipeline metrics.
-Return ONLY valid JSON: {{"reply": "<your reply>"}}"""
-
-
-def _gpt_json(system: str, user: str) -> dict:
-    """Single GPT call → parsed JSON dict. Strips markdown fences if needed."""
-    import json as _json
-    from jobs_intelligence_ai import config as cfg
-    from openai import OpenAI
-    if not cfg.OPENAI_API_KEY:
-        return {}
-    try:
-        resp = OpenAI(api_key=cfg.OPENAI_API_KEY).responses.create(
-            model=cfg.CHAT_MODEL, instructions=system, input=user)
-        text = (resp.output_text or "").strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        return _json.loads(text)
-    except Exception as e:
-        return {"_error": str(e)}
-
+# ── Interview chat — profile-override conversation ───────────────────────────
 
 def _compute_impact(overrides: dict, old_ins: dict, new_ins: dict) -> dict:
     """Diff the key 'positions available' metrics between old and new insights."""
@@ -302,8 +258,9 @@ def api_saved_observation():
     NB: unrelated to the interview *scorecard* under /api/interview/* — hence the
     /observation name. /interview stays as a temporary alias for older clients.
     """
-    import json as _json
-    from jobs_intelligence_ai.services.enrichment import build_insights
+    from jobs_intelligence_ai.services.enrichment import (
+        build_insights, extract_profile_overrides, phrase_observation_reply,
+    )
 
     body      = request.get_json(silent=True) or {}
     candidate = (body.get("candidate") or "").strip()
@@ -316,14 +273,12 @@ def api_saved_observation():
     jobs        = by_cand.get(candidate) or []
     all_strengths = [_strength(js) for js in by_cand.values()]
 
-    # ── Pass 1: extract overrides ────────────────────────────────────────────
-    extract_system = _EXTRACT_SYSTEM.format(
-        profile=_json.dumps(old_profile, ensure_ascii=False))
-    extracted = _gpt_json(extract_system, message)
-    if "_error" in extracted:
-        return jsonify({"ok": False, "error": extracted["_error"]}), 500
-
-    overrides = extracted.get("overrides") or {}
+    # ── Pass 1: extract overrides (Structured Outputs) ───────────────────────
+    try:
+        overrides = extract_profile_overrides(old_profile, message)
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
     # Merge skills (extend, not replace)
     if "skills" in overrides and isinstance(overrides["skills"], list):
@@ -341,13 +296,8 @@ def api_saved_observation():
 
     impact = _compute_impact(overrides, old_insights, new_insights)
 
-    # ── Pass 2: phrase reply naturally with impact numbers ───────────────────
-    reply_system = _REPLY_SYSTEM.format(
-        message=message,
-        overrides=_json.dumps(overrides, ensure_ascii=False),
-        impact=_impact_text(impact))
-    reply_result = _gpt_json(reply_system, message)
-    reply = reply_result.get("reply") or "Profile updated."
+    # ── Pass 2: phrase reply naturally with impact numbers (Structured Outputs) ──
+    reply = phrase_observation_reply(message, overrides, _impact_text(impact))
 
     # ── Persist new profile ──────────────────────────────────────────────────
     if overrides:

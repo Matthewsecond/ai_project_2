@@ -265,8 +265,17 @@ prose field; killed the last `chat.completions` + raw `OpenAI()` in those bps).
 field; returns "" on error since the summary is optional).
 ⑤ cluster overview + grade-job → `services/clustering/segment_analysis.py` (SO: prose
 `SegmentOverview` + JSON `CandidateGrades` list; the latter kills the last `parse_json` caller
-in a blueprint). Offline gate: **148 passed, 23 deselected.** Remaining: saved, job_detail (×5),
-search; then dead-JS cleanup + integration tests.
+in a blueprint).
+⑥ guided builder two-pass chat → `services/candidate/guided_builder.py` (SO `GuidedFieldUpdates`
+extract + `GuidedReply` reply/chips). Moves the **guided** bp off the `_gpt_json` helper it
+borrowed from the saved bp (no blueprint imports another blueprint anymore) — committed first so
+boot stays green when ⑦ removes that helper. Blueprint keeps all grounding (DB faceting, taxonomy
+catalog, salary benchmark, chip-routing).
+⑦ saved bp HR profile-override chat → `services/enrichment/observation.py` (SO
+`ObservationOverrides` extract + single-prose `ObservationReply`; replaced two `responses.create`
++ `json.loads` calls behind two "ONLY JSON" prompts). Deletes the now-unused shared `_gpt_json`
+helper. Offline gate: **158 passed, 27 deselected.** Remaining: job_detail (×5), search; then
+dead-JS cleanup + integration tests.
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature

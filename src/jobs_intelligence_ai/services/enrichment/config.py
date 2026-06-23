@@ -5,7 +5,7 @@ The home for this module's knobs. Each sub-feature's prompt + Structured-Outputs
 schema migrates here as it's converted (rescorer, highlighter in 2.3 #2b/#2c). Today the
 per-feature dataclasses (RescorerConfig, HighlighterConfig) still live in their own files.
 """
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -113,3 +113,44 @@ class _Quality(BaseModel):
 class QualityResults(BaseModel):
     """The quality classifier's reply: one assessment per job, in input order."""
     items: list[_Quality]
+
+
+# ── observation (2.4) ──────────────────────────────────────────────────────────────
+# The HR profile-override conversation on the Saved tab: pass 1 extracts the profile overrides
+# implied by an observation, pass 2 phrases a natural acknowledgement. Both converted to
+# Structured Outputs in rework 2.4, replacing two responses.create + json.loads calls (and the
+# two "Return ONLY valid JSON" prompts) in the saved blueprint.
+OBSERVATION_MODEL = config.CHAT_MODEL
+
+OVERRIDE_EXTRACT_PROMPT = """\
+Extract the profile parameter updates implied by the HR manager's interview observation.
+Current candidate profile: {profile}
+Only set a field when the note gives new information about it; leave the rest null. For skills,
+give the FULL updated skill list (add the confirmed skills to the existing ones). An observation
+that implies no profile updates is fine — return all-null."""
+
+
+class ObservationOverrides(BaseModel):
+    """Profile overrides implied by an HR observation — only the mentioned fields are non-null."""
+    salary_expectation: Optional[str] = None
+    location: Optional[str] = None
+    skills: Optional[list[str]] = None
+    availability: Optional[str] = None
+    title: Optional[str] = None
+    languages: Optional[str] = None
+    experience_years: Optional[int] = None
+
+
+OBSERVATION_REPLY_PROMPT = """\
+You are a concise recruitment intelligence assistant.
+The HR manager shared this observation about a candidate: "{message}"
+You extracted these profile updates: {overrides}
+Pipeline impact after applying the updates: {impact}
+Write 1-2 natural sentences acknowledging what you understood.
+If there is a concrete pipeline impact, weave in the exact numbers (e.g. "roles drop from X to Y").
+If there is no pipeline impact, just acknowledge the observation — do NOT mention pipeline metrics."""
+
+
+class ObservationReply(BaseModel):
+    """The natural-language acknowledgement of an HR observation (single prose `reply`)."""
+    reply: str
