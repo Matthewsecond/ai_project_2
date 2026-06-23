@@ -72,7 +72,7 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 **Services — `services/stats/unit_tests/` (14, offline)** — the first repackaged service (2.3 #1):
 `test_1_quality_score` (pure quality signals) + `test_2_opportunity` (SQL filter-clause builder + type converter). DB query functions covered by boot + the radar tab.
 
-**Services — `services/enrichment/` (2.3 #2)** — `unit_tests/test_1_rescorer` (6, offline: mock `responses.parse`, assert apply/clamp/short-reply/failure fallback) + `smoke_tests/test_rescorer_smoke` (1, live-asserts). Highlighter tests land with 2.3 #2c.
+**Services — `services/enrichment/` (2.3 #2)** — offline `unit_tests/` (12): `test_1_rescorer` (6) + `test_2_highlighter` (6), both mocking `responses.parse` (apply/map + clamp/skip + failure fallback). Live `smoke_tests/` (2, asserts): `test_rescorer_smoke` (Python > truck), `test_highlighter_smoke` (selects the Python job).
 
 **Default gate:** `pytest -m "not smoke"` → **47 passed, 2 deselected** — offline foundation + stats + grader unit tests, plus the live search stability tests (the 2 live-asserting smoke tests deselected).
 

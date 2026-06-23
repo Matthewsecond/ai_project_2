@@ -37,3 +37,18 @@ class _ScoredJob(BaseModel):
 class RescoreResults(BaseModel):
     """The rescorer's reply: one _ScoredJob per job, in the same order as the input."""
     scores: list[_ScoredJob]
+
+
+# ── highlighter (2.3 #2c) ─────────────────────────────────────────────────────────
+HIGHLIGHT_PROMPT = """You screen job postings for a recruiter. You are given a CRITERION \
+and a numbered list of jobs. Decide which jobs satisfy the criterion, judging from each \
+job's title, company, salary, skills and description.
+
+Be inclusive when the text clearly states or strongly implies the criterion, but do not \
+invent facts that aren't supported by the job text. Return the 0-based indices of the jobs \
+that match (empty if none)."""
+
+
+class HighlightResult(BaseModel):
+    """The highlighter's reply: the 0-based indices of the jobs that match the criterion."""
+    indices: list[int]

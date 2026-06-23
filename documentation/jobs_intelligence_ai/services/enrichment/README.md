@@ -26,7 +26,7 @@ saved bp (match_insights), chat (seniority).
 
 ## Structured-Outputs status (2.3 #2)
 - ✅ **rescorer** (2.3 #2b): `responses.parse(text_format=RescoreResults)` + `shared.get_client`; `parse_json` gone. Prompt + schema live in `config.py`. Tests: 6 offline + 1 live smoke.
-- ⏳ **highlighter** → Structured Outputs (2.3 #2c): same pattern (indices schema).
+- ✅ **highlighter** (2.3 #2c): `responses.parse(text_format=HighlightResult)` + `shared.get_client`; `parse_json` gone. Prompt + schema in `config.py`. Tests: 6 offline + 1 live smoke.
 - `seniority_classifier`, `quality_classifier` — model calls to review/convert when reached.
 - `match_insights` — verify (may be pure assembly over stats, no LLM).
 

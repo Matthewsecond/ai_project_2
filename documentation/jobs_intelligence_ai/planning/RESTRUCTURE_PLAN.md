@@ -267,7 +267,7 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 | # | Module ← current files | Importers to repoint | `SO →` convert |
 |---|---|---|---|
 | 1 | ✅ `stats/` ← opportunity, quality_score, salary_stats | radar bp, search bp, quality_classifier → package API | — none (pure stats); +`config.py`, `__init__` API, `__main__`, 14 offline tests; found 2 quality_score bugs (flagged) |
-| 2 | 🔶 `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | ✅ repointed (core, search orch, chat, search bp, saved bp) | 2a ✅ moved; 2b ✅ rescorer → SO (prompt+schema in `config.py`, `shared.get_client`, 6 offline + smoke); **2c highlighter** next; verify seniority/quality/match_insights |
+| 2 | 🔶 `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | ✅ repointed (core, search orch, chat, search bp, saved bp) | 2a ✅ moved; 2b ✅ rescorer → SO; 2c ✅ highlighter → SO (both: prompt+schema in `config.py`, `shared.get_client`, 6 offline + live smoke each); **next: review seniority/quality/match_insights** for SO |
 | 3 | `interview/` ← interview_helper | interview bp | **interview_helper** (`_parse_json`) |
 | 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp | **opportunity_briefing** (`json.loads` ×2); verify report_generator/pipeline |
 | 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` | **send_message** (`_parse`, file_search+SO confirmed in 2.2c — tune prompt), **send_candidate_message** (`_parse_candidate`); job/segment msgs are text-only |

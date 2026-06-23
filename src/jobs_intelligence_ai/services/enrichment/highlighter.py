@@ -9,30 +9,17 @@ operates on a result set you already have — it is not search.
 import logging
 from dataclasses import dataclass
 
-from openai import OpenAI
-
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.services.search.utils import parse_json
+from jobs_intelligence_ai.shared.llm import get_client
+from .config import HIGHLIGHT_PROMPT, HighlightResult
 
 logger = logging.getLogger(__name__)
-
-
-HIGHLIGHT_PROMPT = """You screen job postings for a recruiter. You are given a CRITERION \
-and a numbered list of jobs. Decide which jobs satisfy the criterion, judging from each job's \
-title, company, salary, skills and description.
-
-Be inclusive when the text clearly states or strongly implies the criterion, but do not invent \
-facts that aren't supported by the job text.
-
-Respond with ONLY a JSON array of the 0-based indices of the matching jobs, e.g. [0,3,4]. \
-If none match, return []."""
 
 
 @dataclass
 class HighlighterConfig:
     model:           str = config.CHAT_MODEL
     prompt_template: str = HIGHLIGHT_PROMPT
-    api_key:         str = config.OPENAI_API_KEY
 
 
 class Highlighter:
@@ -40,20 +27,15 @@ class Highlighter:
 
     def __init__(self, config: HighlighterConfig | None = None):
         self._cfg = config or HighlighterConfig()
-        self._client: OpenAI | None = None
-
-    def _ensure_ready(self) -> None:
-        if self._client is None:
-            if not self._cfg.api_key or self._cfg.api_key == "your_key_here":
-                raise RuntimeError("OpenAI API key not configured — highlight unavailable")
-            self._client = OpenAI(api_key=self._cfg.api_key)
 
     def highlight(self, criterion: str, jobs: list[dict]) -> list:
-        """Return the job_ids of jobs that match the criterion."""
+        """Return the job_ids of jobs that match the criterion.
+
+        Uses Structured Outputs (responses.parse → validated HighlightResult). On any
+        failure / empty reply, nothing is highlighted (best-effort, never fatal)."""
         criterion = (criterion or "").strip()
         if not jobs or not criterion:
             return []
-        self._ensure_ready()
 
         lines = []
         for i, j in enumerate(jobs):
@@ -65,18 +47,19 @@ class Highlighter:
         prompt = f"CRITERION: {criterion}\n\nJOBS:\n" + "\n".join(lines)
 
         try:
-            response = self._client.responses.create(
+            response = get_client().responses.parse(
                 model=self._cfg.model,
                 instructions=self._cfg.prompt_template,
                 input=prompt,
+                text_format=HighlightResult,
             )
-            idxs = parse_json(response.output_text or "")
+            idxs = response.output_parsed.indices if response.output_parsed else []
         except Exception as e:
             logger.warning("highlight failed (%s) — nothing highlighted", e)
             return []
 
         out = []
-        for idx in (idxs if isinstance(idxs, list) else []):
+        for idx in idxs:
             try:
                 j = jobs[int(idx)]
             except (ValueError, TypeError, IndexError):
