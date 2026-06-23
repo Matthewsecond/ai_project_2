@@ -250,9 +250,15 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   de-risks chat #4.
 
 **2.3 — Services, one module per commit** (least → most entangled). Each: create package
-(`__init__` = public API, `config.py` if needed, `orchestrator.py`, helpers, `__main__`
+(`__init__` = public API, **`config.py` always**, `orchestrator.py`, helpers, `__main__`
 where meaningful), move code, repoint importing blueprint(s) + service↔service imports,
 add `unit_tests/`. Gate per module: `pytest` + `boot` + `tab`.
+
+**Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
+the single home for that module's settings: model choice, prompts, thresholds, feature
+flags, and (for Structured-Outputs services) its Pydantic schemas, as flat constants (§5).
+Even small/pure services get one (e.g. `stats/config.py` for bin sizes / score weights),
+so there's always one obvious place to look for a module's knobs.
 
 **`SO →`** column = the LLM calls in that module to convert to Structured Outputs in the
 SAME step (delete its JSON parser + prompt boilerplate, add the two test layers per §10).
@@ -312,7 +318,9 @@ services/clustering/
 
 Conventions:
 - `orchestrator.py` = the one public class the frontend calls.
-- `config.py` = the service's tunables (Level 2, §5).
+- `config.py` = **always present** — the module's settings as flat constants (Level 2, §5):
+  model, prompts, thresholds, flags, and its Structured-Outputs Pydantic schemas. Even a
+  pure/small service gets one, so each module has a single, predictable home for its knobs.
 - `__main__.py` = standalone runner **where running alone is meaningful**
   (search, clustering: yes; auth: optional smoke test). Not dogmatic.
 - Helpers split by job; the blueprint shrinks to: parse request → call
