@@ -14,6 +14,10 @@ from dataclasses import dataclass, field
 
 from jobs_intelligence_ai import config
 
+# Search-owned retrieval setting (moved out of global config in rework 2.2b — it's
+# search-only). How many documents file_search retrieves from the vector store per query.
+MAX_NUM_RESULTS = 30
+
 
 # Stage 1 — retrieval only. We just want the ids of relevant jobs; the grading
 # happens later, so this prompt does not ask the model to score anything.
@@ -50,7 +54,7 @@ class EmbeddingConfig:
     model:           str = config.CHAT_MODEL
     vector_store_id: str = config.VECTOR_STORE_ID
     country_label:   str = config.COUNTRY_LABEL
-    max_num_results: int = config.MAX_NUM_RESULTS   # chunks retrieved per search (cap 50)
+    max_num_results: int = MAX_NUM_RESULTS          # chunks retrieved per search (cap 50)
     score_threshold: float | None = None            # drop chunks below this retrieval score (direct mode)
     rewrite_query:   bool = False                    # let a model rephrase the query first; off = deterministic
     prompt_template: str = EMBEDDING_PROMPT          # legacy file_search-tool path only

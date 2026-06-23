@@ -43,36 +43,19 @@ CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "gpt-5.4-nano")
 # Embedding model (used if you re-index the vector store)
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-# How many documents file_search retrieves from the vector store per query
-MAX_NUM_RESULTS = 30
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  MATCHING THRESHOLDS
+#  GRADE BANDS  (A/B/C thresholds)
+#  Cross-cutting: used by the grader (search), rescorer, and the cluster view.
+#  TODO(rework 2.1d): move to shared/grading.py alongside grade().
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SCORE_A_MIN = 0.80   # A grade — strong match (>= 80%)
-SCORE_B_MIN = 0.60   # B grade — good match (60–80%)
-                     # below SCORE_B_MIN → C grade (< 60%)
+SCORE_B_MIN = 0.60   # B grade — good match (60–80%); below SCORE_B_MIN → C (< 60%)
 
-DEFAULT_TOP_N = 20   # default results returned per search
-MAX_TOP_N     = 50   # hard cap
-
-# Matching cycles: a single vector+LLM pass under-covers (stochastic retrieval +
-# the model lists only a subset), so we run the same query several times and
-# merge/dedupe the results to raise recall. MATCH_CYCLES drives the legacy
-# fixed-count parallel path (/api/match); the streaming path (/api/match/stream)
-# ignores it and instead CONVERGES — running waves until the pool stops growing.
-MATCH_CYCLES     = int(os.getenv("MATCH_CYCLES", "5"))   # passes (legacy fixed path)
-
-# Convergence knobs for the streaming search. It runs cycles in parallel WAVES,
-# accumulating a deduped job pool, and stops once a whole wave adds
-# <= MATCH_CONVERGE_NEW new jobs (after MIN_MATCH_CYCLES) or MAX_MATCH_CYCLES is
-# hit — so results stabilize on the genuinely-compatible jobs instead of churning
-# run-to-run from sampling only a few cycles. All env-tunable.
-MAX_MATCH_CYCLES   = int(os.getenv("MAX_MATCH_CYCLES",   "8"))  # hard cap
-MIN_MATCH_CYCLES   = int(os.getenv("MIN_MATCH_CYCLES",   "3"))  # floor before converging
-MATCH_WAVE_SIZE    = int(os.getenv("MATCH_WAVE_SIZE",    "2"))  # cycles per parallel wave
-MATCH_CONVERGE_NEW = int(os.getenv("MATCH_CONVERGE_NEW", "1"))  # stop when a wave adds <= this
+# (Removed in rework 2.2b — dead config with no readers: DEFAULT_TOP_N, MAX_TOP_N,
+#  MATCH_CYCLES, MAX/MIN_MATCH_CYCLES, MATCH_WAVE_SIZE, MATCH_CONVERGE_NEW. The
+#  streaming search uses search/config.py ConvergenceConfig instead. MAX_NUM_RESULTS
+#  moved into search/config.py — it's search-only.)
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  OPENAI KEYS & VECTOR STORE

@@ -235,10 +235,12 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
 - 2.2a ✅ Moved `search/` → `services/search/` (git rename); updated 7 src importers
   (`core`, rescorer, highlighter, cluster bp, search `__main__`/`__init__`) + 6 test imports;
   added package files to the moved test tree. Gate: ✅ `pytest -q` (incl. smoke) = **35 passed**.
-- 2.2b Move matching tunables from `config/settings.py` → `services/search/config.py` as
-  flat constants (search owns them; drop the global re-read). search keeps its existing
-  dataclasses for now (works; flattening = low-payoff, deferred). New services use flat
-  constants. Gate: `pytest`.
+- 2.2b ✅ Config cleanup (corrected after audit — most "tunables" were dead/cross-cutting):
+  **deleted** 7 dead constants (`DEFAULT_TOP_N`, `MAX_TOP_N`, `MATCH_CYCLES`, `MAX/MIN_MATCH_CYCLES`,
+  `MATCH_WAVE_SIZE`, `MATCH_CONVERGE_NEW` — zero readers); **moved** `MAX_NUM_RESULTS` → search-owned
+  constant in `services/search/config.py`; **kept** `SCORE_A_MIN/B_MIN` in global (cross-cutting:
+  grader + rescorer + cluster bp → they go to `shared/grading` at 2.1d, not search). search keeps
+  its dataclasses for now. Gate: ✅ import-smoke + 31 offline (value-preserving — `MAX_NUM_RESULTS`=30 unchanged).
 - 2.2c `SO →` the only remaining JSON parse inside search is the **legacy `EMBEDDING_PROMPT`**
   ids path (`embedding_search.py`), dead under `direct_retrieval=True`. **Delete the dead
   path** (preferred) or convert it to Structured Outputs. Gate: `smoke` + stability.
