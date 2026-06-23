@@ -270,11 +270,29 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 | 2 | ✅ `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | ✅ repointed (core, search orch, chat, search bp, saved bp) | ✅ DONE: 2a moved; rescorer/highlighter/seniority/quality → SO (prompts+schemas in `config.py`, `shared.get_client`); match_insights verified no-LLM. 26 offline + 4 live smoke. All `parse_json`/`json.loads`/own-clients gone. |
 | 3 | ✅ `interview/` ← interview_helper | ✅ interview bp repointed | ✅ DONE: file → package (`orchestrator.py` + `config.py`, `__init__` API); all 8 model calls → SO (prompts+schemas in `config.py`, `shared.get_client`); `_parse_json` gone; "ONLY JSON" boilerplate gone. 18 offline + 2 live smoke. |
 | 4 | ✅ `reporting/` ← report_generator, report_pipeline, opportunity_briefing | ✅ analytics/saved/radar bps repointed | ✅ DONE: package (`__init__` API + `config.py`); 3 calls → SO (opportunity_briefing `generate_briefing`/`suggest_filters`, report_generator `elaborate_items` — was `chat.completions`+JSON array); own clients/`json.loads`/fence-strip gone, prompts+schemas in `config.py`; report_pipeline verified pure PDF (no LLM). 12 offline + 3 live smoke. |
-| 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` | **send_message** (`_parse`, file_search+SO confirmed in 2.2c — tune prompt), **send_candidate_message** (`_parse_candidate`); job/segment msgs are text-only |
-| 6 | `clustering/` ← clustering, persona, + send_segment_message | cluster bp | **persona** (`_parse_json_obj`); clustering.py = embeddings, no parse |
-| 7 | `candidate/` ← candidate_store, example_cv, profile_enricher | candidate bp, guided bp, saved bp, cluster bp | **profile_enricher** (`_parse_json`); verify example_cv |
+| 5 | `chat/` ← send_message/_parse, send_job_message, enrich_jobs_from_db *(job-domain conversational only — see DECISION below)* | chat bp, job_detail bp, `core` | **send_message** (`_parse`→SO, file_search+SO confirmed in 2.2c — tune prompt); send_job_message text-only |
+| 6 | `clustering/` ← clustering, persona, **+ send_segment_message/_SEGMENT_SYSTEM** | cluster bp | **persona** (`_parse_json_obj`); clustering.py = embeddings, no parse; segment chat is text-only |
+| 7 | `candidate/` ← candidate_store, example_cv, profile_enricher, **+ send_candidate_message/_parse_candidate** | candidate bp, guided bp, saved bp, cluster bp | **profile_enricher** (`_parse_json`); **send_candidate_message** (`_parse_candidate`→SO, `profile_updates` becomes an explicit-field schema); verify example_cv |
 | 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers | — none (geo lookup) |
 | 9 | `auth/` ← auth  *(grouping: confirm)* | `frontend/app.py` factory | — none (DB only) |
+
+> **DECISION (amends the old "one `chat/` module"): chat is distributed by DOMAIN, not
+> kept as a feature.** Today's top-level `chat.py` is a junk-drawer — four independent
+> functions (no shared class/state) colocated only because they all call the Responses API.
+> Three of the four belong with the domain data they operate on, so they move there instead
+> of into a catch-all `chat/`:
+> - **candidate assistant** (`send_candidate_message` + `_parse_candidate`) → `services/candidate/` (#7)
+> - **segment chat** (`send_segment_message`) → `services/clustering/` (#6)
+> - **job-search chat** (`send_message`, conversational `file_search`) **+ single-job chat**
+>   (`send_job_message`) **+ `enrich_jobs_from_db`** → `services/chat/` (#5) — these two are
+>   genuinely the *jobs* domain's conversational layer, so `chat/` now means ONE coherent
+>   thing (talk to / about jobs), not a grab-bag.
+>
+> Each surface's SO conversion + tests ride with ITS step (candidate assistant in #7, etc.),
+> so they're no longer all in #5. The `_LANG_INSTRUCTIONS` map + the `previous_response_id`
+> session pattern are the only shared *mechanism*; factor the session helper into `shared/`
+> only if a second domain genuinely needs it (don't pre-abstract). Top-level `chat.py` stays
+> a re-export shim until the last surface leaves, then is deleted (≤ 2.5).
 
 **2.4 frontend** also carries `SO →`: the blueprint-level model calls convert during the
 frontend repackaging — `candidate`, `analytics`, `company`, `radar` (`chat.completions` →
@@ -333,8 +351,9 @@ Conventions:
 | Today | Target |
 |---|---|
 | `chat.py` → `get_client` | `shared/llm.py` |
-| `chat.py` → send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | `services/chat/` |
-| `chat.py` → send_segment_message | `services/clustering/` |
+| `chat.py` → send_message/_parse, send_job_message, enrich_jobs_from_db | `services/chat/` (jobs-domain conversational; #5) |
+| `chat.py` → send_candidate_message/_parse_candidate | `services/candidate/` (#7) |
+| `chat.py` → send_segment_message | `services/clustering/` (#6) |
 | `taxonomy.py` | `shared/taxonomy.py` |
 | `search/utils.py` (parse_json, serialize_job, grade) | `shared/json.py`, `shared/job.py`, `shared/grading.py` |
 | `core/` (facade re-exporting chat/search/services) | **dissolved** — each service `__init__` is its own public API |
@@ -370,6 +389,7 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ `search/` moves under `services/search/` (2.2a).
 - ✅ `core/` facade dissolved into per-service `__init__` APIs (2.5).
 - ✅ `geo` + `auth` as their own `services/` modules.
+- ✅ **Chat distributed by domain** (amends "one `chat/` module", 2026-06-23): `chat.py` is a junk-drawer of 4 independent Responses-API functions; 3 move to the domain they serve (candidate assistant→`candidate/` #7, segment chat→`clustering/` #6), and `chat/` keeps only the jobs-domain conversational layer (`send_message` + `send_job_message` + `enrich_jobs_from_db`). Each surface's SO conversion rides with its step. See the DECISION block under §6.
 - ⚠ Production feature set (Stage 3) — deferred, not chosen.
 
 ---
