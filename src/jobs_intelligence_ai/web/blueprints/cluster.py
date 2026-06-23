@@ -15,7 +15,8 @@ import numpy as np
 from flask import Blueprint, request, jsonify, session
 
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.services import clustering, candidate_store
+from jobs_intelligence_ai.services import clustering
+from jobs_intelligence_ai.services.candidate import store as candidate_store
 from jobs_intelligence_ai.services.search import utils as search_utils
 
 bp = Blueprint("cluster", __name__, url_prefix="/api")

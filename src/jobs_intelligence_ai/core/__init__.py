@@ -11,7 +11,7 @@ from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
 from jobs_intelligence_ai.services.search.job_chat import send_job_message, clear_job_session
 from jobs_intelligence_ai.services.enrichment import Rescorer, Highlighter
 from jobs_intelligence_ai.shared.llm import get_client
-from jobs_intelligence_ai.chat import (
+from jobs_intelligence_ai.services.candidate import (
     send_candidate_message,
     clear_candidate_session,
 )
@@ -24,7 +24,7 @@ __all__ = [
     "Rescorer", "Highlighter",
     # single-job chat (search domain)
     "send_job_message", "clear_job_session",
-    # candidate assistant (→ services/candidate/ in 2.3 #7)
+    # candidate assistant (services/candidate/)
     "send_candidate_message", "clear_candidate_session",
     # shared OpenAI client
     "get_client",

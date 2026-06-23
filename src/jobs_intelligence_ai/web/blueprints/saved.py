@@ -15,7 +15,7 @@ Routes:
 import re
 from flask import Blueprint, request, jsonify, make_response, session
 
-from jobs_intelligence_ai.services import candidate_store as store
+from jobs_intelligence_ai.services.candidate import store
 
 bp = Blueprint("saved", __name__, url_prefix="/api/saved")
 

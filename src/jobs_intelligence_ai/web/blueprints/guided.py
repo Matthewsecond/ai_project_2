@@ -472,7 +472,7 @@ def api_guided_chat():
 def api_guided_save():
     """Body: { draft, label? } → persist a target-candidate spec. NOT personal data."""
     from flask import session
-    from jobs_intelligence_ai.services import candidate_store as store
+    from jobs_intelligence_ai.services.candidate import store
     body  = request.get_json(silent=True) or {}
     draft = body.get("draft") or {}
     if not draft:
@@ -485,5 +485,5 @@ def api_guided_save():
 @bp.route("/targets", methods=["GET"])
 def api_guided_targets():
     """List saved target-candidate specs."""
-    from jobs_intelligence_ai.services import candidate_store as store
+    from jobs_intelligence_ai.services.candidate import store
     return jsonify({"ok": True, "targets": store.list_targets()})

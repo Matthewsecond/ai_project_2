@@ -37,7 +37,7 @@ Return ONLY valid JSON — no prose, no code fences:
 
 @bp.route("/example-pdf", methods=["GET"])
 def api_example_cv():
-    from jobs_intelligence_ai.services.example_cv import generate_example_cv_pdf
+    from jobs_intelligence_ai.services.candidate import generate_example_cv_pdf
     pdf_bytes = generate_example_cv_pdf()
     return Response(
         pdf_bytes,
@@ -51,7 +51,7 @@ def api_example_cv():
 
 @bp.route("/example-pdf-2", methods=["GET"])
 def api_example_cv_2():
-    from jobs_intelligence_ai.services.example_cv import generate_example_cv_pdf_2
+    from jobs_intelligence_ai.services.candidate import generate_example_cv_pdf_2
     pdf_bytes = generate_example_cv_pdf_2()
     return Response(
         pdf_bytes,
@@ -66,7 +66,7 @@ def api_example_cv_2():
 @bp.route("/example-pdf-sk", methods=["GET"])
 def api_example_cv_sk():
     """Slovak example CV PDF (Marek Novák) — used by the SK build."""
-    from jobs_intelligence_ai.services.example_cv import generate_example_cv_pdf_sk
+    from jobs_intelligence_ai.services.candidate import generate_example_cv_pdf_sk
     pdf_bytes = generate_example_cv_pdf_sk()
     return Response(
         pdf_bytes,
@@ -105,7 +105,7 @@ def api_enrich_linkedin():
         return jsonify({"ok": False, "error": "Apify API key not configured"}), 503
 
     from jobs_intelligence_ai.integrations.linkedin import enrich_linkedin, map_to_profile, to_candidate_text
-    from jobs_intelligence_ai.services.profile_enricher import enrich_linkedin_profile
+    from jobs_intelligence_ai.services.candidate import enrich_linkedin_profile
     try:
         items = enrich_linkedin(urls)
         # The scraper returns one item per URL; failed ones carry an `errorMessage`

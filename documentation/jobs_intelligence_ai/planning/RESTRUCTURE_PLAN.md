@@ -272,7 +272,7 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 | 4 | ✅ `reporting/` ← report_generator, report_pipeline, opportunity_briefing | ✅ analytics/saved/radar bps repointed | ✅ DONE: package (`__init__` API + `config.py`); 3 calls → SO (opportunity_briefing `generate_briefing`/`suggest_filters`, report_generator `elaborate_items` — was `chat.completions`+JSON array); own clients/`json.loads`/fence-strip gone, prompts+schemas in `config.py`; report_pipeline verified pure PDF (no LLM). 12 offline + 3 live smoke. |
 | 5 | ✅ chat distributed (see DECISION) — **job-search chat DELETED** (superseded; UI already gone), **single-job chat → `services/search/job_chat.py`** | ✅ chat bp deleted + unregistered; core repointed (job_chat→search, get_client→shared) | **send_message DELETED** not migrated (incl. `_parse`, `enrich_jobs_from_db`+`_apply_row`, `_build_filter_context`); send_job_message text-only move. 4 offline tests. Backend done. Candidate assistant→#7, segment chat→#6. **Dead job-search-chat JS in index.html → removed in 2.4** (interleaved with live code + the shared `jobChatLang` page-lang var; safe only with in-app verification). |
 | 6 | ✅ `clustering/` ← clustering(→embeddings+segmenting), persona, **+ segment_chat** | ✅ cluster bp repointed (package API + segment chat) | ✅ DONE: package (`__init__` API + `config.py`); **persona** `_parse_json_obj`→SO (`PersonaResult`, member fallback kept); embeddings→`shared.get_client` (no parse); segmenting pure scipy; segment chat text-only moved from chat.py. 10 offline + 3 live smoke. |
-| 7 | `candidate/` ← candidate_store, example_cv, profile_enricher, **+ send_candidate_message/_parse_candidate** | candidate bp, guided bp, saved bp, cluster bp | **profile_enricher** (`_parse_json`); **send_candidate_message** (`_parse_candidate`→SO, `profile_updates` becomes an explicit-field schema); verify example_cv |
+| 7 | ✅ `candidate/` ← candidate_store(→store), example_cv, profile_enricher, **+ assistant** | ✅ candidate bp (example_cv/enricher), saved/guided/cluster bp (store), core (assistant) | ✅ DONE: package (`__init__` API + `config.py`); **profile_enricher** `_parse_json`+own-client→SO (`LinkedInProfile` 18-field, merge-over-base kept); **assistant** `_parse_candidate`→SO (`CandidateReply` + explicit-field `ProfileUpdates`, nullable nested = pure-discussion); store=DB-only, example_cv=pure PDF. **chat.py DELETED** (last surface left). 12 offline + 3 live smoke. |
 | 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers | — none (geo lookup) |
 | 9 | `auth/` ← auth  *(grouping: confirm)* | `frontend/app.py` factory | — none (DB only) |
 
@@ -358,10 +358,12 @@ Conventions:
 
 | Today | Target |
 |---|---|
-| `chat.py` → `get_client` | `shared/llm.py` |
-| `chat.py` → send_message/_parse, send_job_message, enrich_jobs_from_db | `services/chat/` (jobs-domain conversational; #5) |
-| `chat.py` → send_candidate_message/_parse_candidate | `services/candidate/` (#7) |
-| `chat.py` → send_segment_message | `services/clustering/` (#6) |
+| `chat.py` → `get_client` | `shared/llm.py` (done 2.1a) |
+| `chat.py` → send_message/_parse, enrich_jobs_from_db | **DELETED** (superseded; #5) |
+| `chat.py` → send_job_message | `services/search/job_chat.py` (#5) |
+| `chat.py` → send_candidate_message/_parse_candidate | `services/candidate/assistant.py` (#7) |
+| `chat.py` → send_segment_message | `services/clustering/segment_chat.py` (#6) |
+| `chat.py` (file) | **DELETED** at #7 — fully dissolved |
 | `taxonomy.py` | `shared/taxonomy.py` |
 | `search/utils.py` (parse_json, serialize_job, grade) | `shared/json.py`, `shared/job.py`, `shared/grading.py` |
 | `core/` (facade re-exporting chat/search/services) | **dissolved** — each service `__init__` is its own public API |
