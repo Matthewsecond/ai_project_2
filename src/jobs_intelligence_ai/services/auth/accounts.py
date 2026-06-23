@@ -1,11 +1,11 @@
 """
-helpers/auth.py — MySQL-backed authentication for Jobs Intelligence AI.
+accounts.py — MySQL-backed authentication for Jobs Intelligence AI.
 
 Users live in the Jobs_Intelligence_AI.users table (config.APP_SCHEMA, migrated
 from the old SQLite users.db). Login is shared across both markets — the same
 recruiters use the Austrian and Slovak apps — so `users` is intentionally NOT
 split by country (unlike the candidate pipeline tables, which are prefixed per
-country in candidate_store.py). Passwords are hashed with werkzeug's pbkdf2.
+country in candidate/store.py). Passwords are hashed with werkzeug's pbkdf2.
 
 Public API (unchanged):
     init_db()                       — ensure table exists + seed default accounts
@@ -18,20 +18,10 @@ import logging
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.database import get_engine
+from .config import APP_SCHEMA as _DB, SEED_USERS as _SEED_USERS
 
 logger = logging.getLogger(__name__)
-
-_DB = config.APP_SCHEMA
-
-# ── Seed users (created only when the table is empty) ──────────────────────────
-_SEED_USERS = [
-    # (username,    password,   display_name,    role)
-    ("admin",      "admin",    "Administrator", "admin"),
-    ("Monika2",    "m235",     "Monika",        "hr"),
-    ("hr_manager", "jobs2024", "HR Manager",    "hr"),
-]
 
 
 def init_db() -> None:

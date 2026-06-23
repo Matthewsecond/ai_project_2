@@ -84,7 +84,11 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 
 **Services — `services/candidate/` (2.3 #7)** — `unit_tests/` (12, offline): `test_1_profile_enricher` (SO `LinkedInProfile` merge-over-base, empty-field guard, no-key/error → base), `test_2_assistant` (SO `CandidateReply`: reply→text, only the changed `profile_updates` fields, pure-discussion → no edits, session continuity, fallbacks), `test_3_example_cv` (all three sample-CV builders emit `%PDF`). `smoke_tests/test_candidate_smoke` (3, live-asserting): enrichment, assistant discussion (no edits), assistant CV edit. (The `_parse_candidate` cases were removed from `shared/test_1_json` when the assistant moved to Structured Outputs — that file now pins only `parse_json`.)
 
-**Default gate:** `pytest -m "not smoke"` → **124 passed, 17 deselected** — offline foundation + stats + enrichment + interview + reporting + search (grader + job_chat) + clustering + candidate unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
+**Services — `services/geo/` (2.3 #8)** — `unit_tests/test_1_geometry` (3, offline): pure data — all 9 Bundesländer present, positive canvas dimensions, every ring a list of in-bounds (x, y) pairs. No LLM/DB.
+
+**Services — `services/auth/` (2.3 #9)** — `unit_tests/test_1_verify_login` (3, offline): the password check via a tiny inline fake engine — correct password → user dict (no hash), wrong/unknown → None. `init_db`/`create_user`/`list_users` are boot- + login-flow-covered (DB only).
+
+**Default gate:** `pytest -m "not smoke"` → **130 passed, 17 deselected** — offline foundation + all repackaged services (stats, enrichment, interview, reporting, search [grader + job_chat], clustering, candidate, geo, auth), plus the live search stability tests (the live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 
@@ -122,6 +126,6 @@ helpers get a one-line docstring too. See `test_grader.py` for the house style.
 
 ## Gaps (filled as the rework proceeds)
 
-Per-service `unit_tests/` (geo, auth) and `frontend/integration_tests/` are scaffolded but
-empty — each is written when its module is repackaged in rework Stage 2.3 / 2.4. Done so far:
-stats, enrichment, interview, reporting, search (job_chat), clustering, candidate.
+All Stage 2.3 service `unit_tests/` are now written (stats, enrichment, interview, reporting,
+search [grader + job_chat], clustering, candidate, geo, auth). Remaining: `frontend/
+integration_tests/` (Flask `test_client`), filled in rework Stage 2.4.

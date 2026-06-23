@@ -249,10 +249,13 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   ids empty in the quick probe → prompt tuning needed, but the API combo is confirmed) — this
   de-risks chat #4.
 
-**2.3 — Services, one module per commit** (least → most entangled). Each: create package
+**2.3 — Services, one module per commit** ✅ **COMPLETE (all 9 done).** Each: create package
 (`__init__` = public API, **`config.py` always**, `orchestrator.py`, helpers, `__main__`
 where meaningful), move code, repoint importing blueprint(s) + service↔service imports,
-add `unit_tests/`. Gate per module: `pytest` + `boot` + `tab`.
+add `unit_tests/`. Gate per module: `pytest` + `boot` + `tab`. The top-level `chat.py` was
+dissolved across #5–#7 (distribute-by-domain). Offline gate after #9: **130 passed, 17 deselected.**
+Next: **2.4 frontend** (`web/`→`frontend/`, blueprint SO conversions, + the deferred dead
+job-search-chat JS cleanup), then **2.5** (dissolve `core/`, remove shims).
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature
@@ -273,8 +276,8 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 | 5 | ✅ chat distributed (see DECISION) — **job-search chat DELETED** (superseded; UI already gone), **single-job chat → `services/search/job_chat.py`** | ✅ chat bp deleted + unregistered; core repointed (job_chat→search, get_client→shared) | **send_message DELETED** not migrated (incl. `_parse`, `enrich_jobs_from_db`+`_apply_row`, `_build_filter_context`); send_job_message text-only move. 4 offline tests. Backend done. Candidate assistant→#7, segment chat→#6. **Dead job-search-chat JS in index.html → removed in 2.4** (interleaved with live code + the shared `jobChatLang` page-lang var; safe only with in-app verification). |
 | 6 | ✅ `clustering/` ← clustering(→embeddings+segmenting), persona, **+ segment_chat** | ✅ cluster bp repointed (package API + segment chat) | ✅ DONE: package (`__init__` API + `config.py`); **persona** `_parse_json_obj`→SO (`PersonaResult`, member fallback kept); embeddings→`shared.get_client` (no parse); segmenting pure scipy; segment chat text-only moved from chat.py. 10 offline + 3 live smoke. |
 | 7 | ✅ `candidate/` ← candidate_store(→store), example_cv, profile_enricher, **+ assistant** | ✅ candidate bp (example_cv/enricher), saved/guided/cluster bp (store), core (assistant) | ✅ DONE: package (`__init__` API + `config.py`); **profile_enricher** `_parse_json`+own-client→SO (`LinkedInProfile` 18-field, merge-over-base kept); **assistant** `_parse_candidate`→SO (`CandidateReply` + explicit-field `ProfileUpdates`, nullable nested = pure-discussion); store=DB-only, example_cv=pure PDF. **chat.py DELETED** (last surface left). 12 offline + 3 live smoke. |
-| 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers | — none (geo lookup) |
-| 9 | `auth/` ← auth  *(grouping: confirm)* | `frontend/app.py` factory | — none (DB only) |
+| 8 | ✅ `geo/` ← at_geo | ✅ report_pipeline repointed | ✅ DONE: package (`__init__` API + `config.py` re-exporting HAS_MAP); pure polygon data, no LLM/DB. 3 offline tests. |
+| 9 | ✅ `auth/` ← auth(→accounts) | ✅ app.py import path unchanged (package exports same names) | ✅ DONE: package (`__init__` API + `config.py` = APP_SCHEMA + SEED_USERS); DB only, no LLM. 3 offline tests (verify_login). |
 
 > **DECISION (amends the old "one `chat/` module"): chat is distributed by DOMAIN, not
 > kept as a feature.** Today's top-level `chat.py` is a junk-drawer — four independent

@@ -27,7 +27,8 @@ docs live at the top level.
 | `services/reporting/` | [README.md](services/reporting/README.md) — briefings + PDF reports (Structured Outputs; pure-PDF pipeline) |
 | `services/clustering/` | [README.md](services/clustering/README.md) — CV → talent segments + persona (Structured Outputs) + segment chat |
 | `services/candidate/` | [README.md](services/candidate/README.md) — store + sample CVs + LinkedIn enricher + candidate assistant (Structured Outputs) |
-| `services/` (geo, auth) | _(to document)_ |
+| `services/geo/` | [README.md](services/geo/README.md) — Austria Bundesland polygon geometry (pure data) |
+| `services/auth/` | [README.md](services/auth/README.md) — MySQL-backed login (shared across markets; DB only) |
 | `frontend/` | [API.md](frontend/API.md) — Flask endpoints, request/response shapes · [FRONTEND.md](frontend/FRONTEND.md) — tab layout, job store, modals, chat UI |
 
 > Note: folder names track the **target** structure from RESTRUCTURE_PLAN.md. Some code
