@@ -8,16 +8,12 @@ domain modules themselves (search/, chat, taxonomy, services); infra
 (infra/database) is a leaf imported directly by services/stats.
 """
 from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
+from jobs_intelligence_ai.services.search.job_chat import send_job_message, clear_job_session
 from jobs_intelligence_ai.services.enrichment import Rescorer, Highlighter
+from jobs_intelligence_ai.shared.llm import get_client
 from jobs_intelligence_ai.chat import (
-    send_message,
-    clear_session,
-    enrich_jobs_from_db,
-    send_job_message,
-    clear_job_session,
     send_candidate_message,
     clear_candidate_session,
-    get_client,
 )
 from jobs_intelligence_ai import taxonomy
 
@@ -26,10 +22,12 @@ __all__ = [
     "Orchestrator",
     # result-set operations
     "Rescorer", "Highlighter",
-    # chat
-    "send_message", "clear_session", "enrich_jobs_from_db",
+    # single-job chat (search domain)
     "send_job_message", "clear_job_session",
-    "send_candidate_message", "clear_candidate_session", "get_client",
+    # candidate assistant (→ services/candidate/ in 2.3 #7)
+    "send_candidate_message", "clear_candidate_session",
+    # shared OpenAI client
+    "get_client",
     # taxonomy
     "taxonomy",
 ]

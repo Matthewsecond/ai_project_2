@@ -7,7 +7,7 @@ delegate to shared/json.py, so these same assertions then prove the merge is
 behavior-preserving. The asserts must NOT change across the move.
 """
 from jobs_intelligence_ai.services.search.utils import parse_json
-from jobs_intelligence_ai.chat import _parse, _parse_candidate
+from jobs_intelligence_ai.chat import _parse_candidate
 
 from tests._fixtures import samples
 
@@ -35,22 +35,8 @@ def test_parse_json_strips_citation_markers():
     assert out == [{"title": "Engineer"}]
 
 
-# ── _parse: object with "jobs" (chat search) ────────────────────────────────────
-def test_parse_jobs_fenced():
-    out = _parse(samples.LLM_JOBS_FENCED)
-    assert out["text"] == "Found 2 roles."
-    assert [j["job_id"] for j in out["jobs"]] == ["1", "2"]
-
-
-def test_parse_jobs_bare():
-    out = _parse(samples.LLM_JOBS_BARE)
-    assert out["text"] == ""
-    assert out["jobs"] == [{"job_id": "1", "title": "Engineer"}]
-
-
-def test_parse_no_jobs():
-    out = _parse("Sorry, nothing matched.")
-    assert out == {"text": "Sorry, nothing matched.", "jobs": []}
+# Note: the job-search chat `_parse` (object with "jobs") was deleted in rework 2.3 #5
+# (the conversational job-search feature was superseded); its cases were removed here.
 
 
 # ── _parse_candidate: object with "profile_updates" (candidate chat) ────────────

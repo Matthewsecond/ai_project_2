@@ -78,7 +78,9 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 
 **Services — `services/reporting/` (2.3 #4)** — offline `unit_tests/` (12): `test_1_opportunity_briefing` (briefing returned shape-intact; `suggest_filters` drops options not in the provided lists; fallbacks on no-key / failure), `test_2_report_generator` (elaboration merged back by index; fallbacks; the pure PDF builder emits `%PDF`), `test_3_report_pipeline` (both PDF entry points emit `%PDF`, fed a real `build_insights` payload). Live `smoke_tests/test_reporting_smoke` (3, asserts): briefing sections, filter subset, per-insight elaboration. `report_pipeline` is pure reportlab (no LLM).
 
-**Default gate:** `pytest -m "not smoke"` → **103 passed, 11 deselected** — offline foundation + stats + enrichment + interview + reporting + grader unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
+**Services — `services/search/` (2.3 #5, single-job chat)** — `unit_tests/test_job_chat` (4, offline): the single-job chat relocated from the old `chat.py`; inject a fake client to assert the reply, `previous_response_id` session continuity, candidate-text injection, and the no-key / error fallbacks. (The job-search chat `_parse` cases were removed from `shared/test_1_json` when that feature was deleted.)
+
+**Default gate:** `pytest -m "not smoke"` → **104 passed, 11 deselected** — offline foundation + stats + enrichment + interview + reporting + search (grader + job_chat) unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 
