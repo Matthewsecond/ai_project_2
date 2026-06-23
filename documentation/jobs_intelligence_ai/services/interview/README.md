@@ -19,7 +19,7 @@ services/interview/
 ```python
 from jobs_intelligence_ai.services.interview import InterviewHelper
 ```
-Consumer: `web/blueprints/interview.py` (thin wrappers over the helper; the interview
+Consumer: `frontend/blueprints/interview.py` (thin wrappers over the helper; the interview
 RECORD is persisted by the front-end into the saved job's `extras.interview`).
 
 `InterviewHelper` methods: `generate_questions`, `parse_questions`, `analyze_answer`,

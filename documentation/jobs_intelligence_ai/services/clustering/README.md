@@ -22,7 +22,7 @@ from jobs_intelligence_ai.services.clustering import (
     embed_profiles, cluster_labels, synthesize_persona, send_segment_message,
 )
 ```
-Consumer: `web/blueprints/cluster.py` — embeds the candidate pool, cuts it into segments,
+Consumer: `frontend/blueprints/cluster.py` — embeds the candidate pool, cuts it into segments,
 synthesizes a persona per segment (concurrently), and powers `/api/cluster/chat`.
 
 ## Structured-Outputs status (2.3 #6)

@@ -60,7 +60,7 @@ def _jaccard(a: set, b: set) -> float:
     """Fraction of the combined set two runs agree on: |a∩b| / |a∪b|."""
     return len(a & b) / len(a | b) if (a or b) else 1.0
 
-# Peter Varga — from the app's example candidates (web/templates/index.html).
+# Peter Varga — from the app's example candidates (frontend/templates/index.html).
 PETER_VARGA = """B2B Sales Manager with 10 years of experience in enterprise software and SaaS sales, based in Bratislava.
 
 Currently Senior Account Executive at CloudSoft Slovakia s.r.o. (2020–present): managing 35 enterprise accounts (€2.0M ARR), consistently exceeding quota 115–130% per year, running the full sales cycle from outreach to close. Previously Account Manager at BusinessSoft a.s. Bratislava (2016–2020): grew SME revenue by 40% over 3 years, introduced Salesforce CRM, mentored two junior reps. Inside Sales Rep at TeleSolutions Slovakia (2014–2016): 200+ cold calls/week, exceeded quota 18 of 24 months.

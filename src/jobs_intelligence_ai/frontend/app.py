@@ -2,7 +2,7 @@
 app.py — Jobs Intelligence AI: Flask application factory + entry point.
 
 `create_app()` builds the app, registers every blueprint, and wires auth.
-Blueprint logic lives in jobs_intelligence_ai/web/blueprints/<name>.py.
+Blueprint logic lives in jobs_intelligence_ai/frontend/blueprints/<name>.py.
 
 Run:
     python -m jobs_intelligence_ai                 # Austria (default)
@@ -42,10 +42,10 @@ def create_app() -> Flask:
     module load, so everything must be imported after the env is set. See main().
     """
     from jobs_intelligence_ai import config
-    from jobs_intelligence_ai.web import register_blueprints
+    from jobs_intelligence_ai.frontend import register_blueprints
     from jobs_intelligence_ai.services.auth import init_db, verify_login
 
-    app = Flask(__name__)            # templates/ resolves to web/templates/ (package-relative)
+    app = Flask(__name__)            # templates/ resolves to frontend/templates/ (package-relative)
     app.json.sort_keys = False
     app.secret_key = "jia-demo-secret-2024-xK9pLm"   # change in production
 

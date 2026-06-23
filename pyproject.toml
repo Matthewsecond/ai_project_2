@@ -24,13 +24,13 @@ dependencies = [
 ]
 
 [project.scripts]
-jobs-intelligence-ai = "jobs_intelligence_ai.web.app:main"
+jobs-intelligence-ai = "jobs_intelligence_ai.frontend.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-jobs_intelligence_ai = ["web/templates/*.html"]
+jobs_intelligence_ai = ["frontend/templates/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

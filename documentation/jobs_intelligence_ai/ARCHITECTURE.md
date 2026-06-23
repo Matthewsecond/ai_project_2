@@ -27,7 +27,7 @@ A conversational chat mode lets recruiters search the same database using natura
 
 ```
 src/jobs_intelligence_ai/
-├── web/
+├── frontend/               # renamed from web/
 │   ├── app.py              # create_app() factory, auth, login, main page
 │   ├── blueprints/         # one module per tab (route definitions)
 │   └── templates/

@@ -16,7 +16,7 @@ services/auth/
 ```python
 from jobs_intelligence_ai.services.auth import init_db, verify_login, list_users, create_user
 ```
-Consumer: `web/app.py` (`init_db` at startup, `verify_login` on the login route). The import
+Consumer: `frontend/app.py` (`init_db` at startup, `verify_login` on the login route). The import
 path is unchanged from the pre-package module — the package `__init__` exports the same names.
 
 ## Tests
