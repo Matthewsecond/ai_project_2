@@ -257,6 +257,11 @@ dissolved across #5–#7 (distribute-by-domain). Offline gate after #9: **130 pa
 Next: **2.4 frontend** (`web/`→`frontend/`, blueprint SO conversions, + the deferred dead
 job-search-chat JS cleanup), then **2.5** (dissolve `core/`, remove shims).
 
+**2.4 — IN PROGRESS.** Done: ① `web/`→`frontend/` rename (package, entry point, docs).
+② candidate bp `parse-profile` → `services/candidate/profile_parser.py` (SO `CandidateProfile`).
+Offline gate: **134 passed, 18 deselected.** Remaining blueprint SO conversions: analytics,
+company, radar, cluster, saved, job_detail (×5), search; then dead-JS cleanup + integration tests.
+
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature
 flags, and (for Structured-Outputs services) its Pydantic schemas, as flat constants (§5).

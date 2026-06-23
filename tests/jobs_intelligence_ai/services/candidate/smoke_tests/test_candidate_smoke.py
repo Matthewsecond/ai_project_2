@@ -14,7 +14,9 @@ os.environ.setdefault("COUNTRY", "sk")
 import pytest
 
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.services.candidate import enrich_linkedin_profile, send_candidate_message
+from jobs_intelligence_ai.services.candidate import (
+    enrich_linkedin_profile, parse_candidate_profile, send_candidate_message,
+)
 
 pytestmark = [
     pytest.mark.smoke,
@@ -41,6 +43,21 @@ def test_enrich_linkedin_profile_live():
     assert out["phone"] == "123"               # base preserved
     assert out["source"] == "imported"
     assert isinstance(out.get("top_skills"), list) and out["top_skills"]
+
+
+_CV_TEXT = (
+    "Peter Varga — B2B Sales Manager with 10 years of experience in enterprise software "
+    "and SaaS sales, based in Bratislava. Fluent Slovak and English (C1). "
+    "Looking for €2,800–3,400/month, available immediately. peter@example.com"
+)
+
+
+def test_parse_candidate_profile_live():
+    """Live: raw CV text is parsed into a structured profile with skills + a summary."""
+    out = parse_candidate_profile(_CV_TEXT)
+    assert isinstance(out.get("skills"), list) and out["skills"]
+    assert (out.get("summary") or "").strip()
+    assert out.get("title")
 
 
 _PROFILE = {"name": "Anna Bauer", "title": "Warehouse Supervisor",

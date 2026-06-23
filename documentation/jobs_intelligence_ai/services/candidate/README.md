@@ -14,6 +14,7 @@ services/candidate/
 ├── store.py             # MySQL persistence for the saved-candidate pipeline (DB; no LLM)
 ├── example_cv.py        # sample candidate CV PDFs for the demo (pure reportlab)
 ├── profile_enricher.py  # AI-normalize a raw LinkedIn scrape (Structured Outputs)
+├── profile_parser.py    # parse a structured profile from raw CV text (Structured Outputs)
 └── assistant.py         # candidate-assistant chat: discuss + edit one candidate (Structured Outputs)
 ```
 
@@ -21,12 +22,13 @@ services/candidate/
 ```python
 from jobs_intelligence_ai.services.candidate import store           # DB layer (submodule)
 from jobs_intelligence_ai.services.candidate import (
-    enrich_linkedin_profile, send_candidate_message, clear_candidate_session,
+    enrich_linkedin_profile, parse_candidate_profile,
+    send_candidate_message, clear_candidate_session,
     generate_example_cv_pdf, generate_example_cv_pdf_2, generate_example_cv_pdf_sk,
 )
 ```
-Consumers: candidate bp (example CVs, enricher, assistant via `core`), saved/guided/cluster
-bps (`store`).
+Consumers: candidate bp (example CVs, enricher, profile parser, assistant via `core`),
+saved/guided/cluster bps (`store`).
 
 ## Structured-Outputs status (2.3 #7)
 - ✅ **profile_enricher.enrich_linkedin_profile** → `responses.parse(text_format=LinkedInProfile)`
@@ -38,12 +40,17 @@ bps (`store`).
   **explicit-field `ProfileUpdates` schema** (Optional per field; null = unchanged), and a
   nullable nested object marks pure-discussion turns. The shaping (drop null update fields,
   scalars-replace / arrays-append semantics) is preserved for the front-end.
+- ✅ **profile_parser.parse_candidate_profile** → `responses.parse(text_format=CandidateProfile)`
+  (added in 2.4): relocated the candidate blueprint's inline `chat.completions` CV-text parser
+  here. The own-`OpenAI()` client + the "ONLY JSON" prompt + the regex-strip/`json.loads`
+  fallback are gone; the blueprint now just calls the service and `jsonify`s the dict.
 - **store** — DB only (its `json.loads` deserializes a JSON column); switched no model code.
 - **example_cv** — pure reportlab; no model call.
 
 ## Tests
-`tests/jobs_intelligence_ai/services/candidate/unit_tests/` (12, offline): `test_1_profile_enricher`
+`tests/jobs_intelligence_ai/services/candidate/unit_tests/` (16, offline): `test_1_profile_enricher`
 (SO merge-over-base, empty-field guard, no-key/error → base), `test_2_assistant`
 (reply→text, only-changed updates, pure-discussion → no edits, session continuity, fallbacks),
-`test_3_example_cv` (all three PDF builders emit `%PDF`). `smoke_tests/test_candidate_smoke`
-(3, live-asserting): enrichment, assistant discussion (no edits), assistant CV edit.
+`test_3_example_cv` (all three PDF builders emit `%PDF`), `test_4_profile_parser` (SO parse→dict,
+no-key/null/error raise). `smoke_tests/test_candidate_smoke` (4, live-asserting): enrichment,
+CV-text parse, assistant discussion (no edits), assistant CV edit.

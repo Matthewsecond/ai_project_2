@@ -12,6 +12,36 @@ from pydantic import BaseModel
 from jobs_intelligence_ai import config
 
 CHAT_MODEL = config.CHAT_MODEL
+CLASSIFIER_MODEL = config.CLASSIFIER_MODEL
+
+
+# ── profile_parser.parse_candidate_profile ─────────────────────────────────────
+# Extract a structured profile from a raw CV / pasted text (the "Paste CV" path on the
+# search tab). Converted to Structured Outputs in rework 2.4; the model fills CandidateProfile.
+PROFILE_PARSE_PROMPT = """You are a CV parser. Extract structured information from the candidate text.
+- skills: up to 8 key skills.
+- experience_years: a phrase like "8 years".
+- languages: a phrase like "German (native), English B2".
+- salary_expectation: a phrase like "€2,800–3,400/month".
+- availability: a phrase like "Immediately".
+- summary: one concise sentence describing this candidate's profile.
+For any field you cannot determine use null (and an empty list for skills)."""
+
+
+class CandidateProfile(BaseModel):
+    """Structured profile extracted from a candidate's raw CV text."""
+    name: Optional[str]
+    title: Optional[str]
+    experience_years: Optional[str]
+    skills: list[str]
+    location: Optional[str]
+    languages: Optional[str]
+    salary_expectation: Optional[str]
+    availability: Optional[str]
+    email: Optional[str]
+    phone: Optional[str]
+    linkedin: Optional[str]
+    summary: Optional[str]
 
 
 # ── profile_enricher.enrich_linkedin_profile ───────────────────────────────────

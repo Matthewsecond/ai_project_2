@@ -8,31 +8,10 @@ Routes:
   POST /api/candidate/parse-pdf      → extract text from an uploaded PDF
   POST /api/candidate/parse-profile  → parse structured profile from raw text using AI
 """
-import re
-import json as _json
 from flask import Blueprint, request, jsonify, Response
 from jobs_intelligence_ai import config
 
 bp = Blueprint("candidate", __name__, url_prefix="/api/candidate")
-
-_PROFILE_SYSTEM = """\
-You are a CV parser. Extract structured information from the candidate text below.
-Return ONLY valid JSON — no prose, no code fences:
-{
-  "name": "Full name or null",
-  "title": "Current or most recent job title or null",
-  "experience_years": "e.g. '8 years' or null",
-  "skills": ["up to 8 key skills"],
-  "location": "City or region or null",
-  "languages": "e.g. 'German (native), English B2' or null",
-  "salary_expectation": "e.g. '€2,800–3,400/month' or null",
-  "availability": "e.g. 'Immediately' or null",
-  "email": "email address or null",
-  "phone": "phone number or null",
-  "linkedin": "full LinkedIn profile URL or null",
-  "summary": "One concise sentence describing this candidate's profile"
-}
-"""
 
 
 @bp.route("/example-pdf", methods=["GET"])
@@ -205,23 +184,9 @@ def api_parse_profile():
     if not config.OPENAI_API_KEY:
         return jsonify({"ok": False, "error": "OpenAI API key not configured"}), 503
 
+    from jobs_intelligence_ai.services.candidate import parse_candidate_profile
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=config.OPENAI_API_KEY)
-        resp   = client.chat.completions.create(
-            model=config.CLASSIFIER_MODEL,
-            messages=[
-                {"role": "system", "content": _PROFILE_SYSTEM},
-                {"role": "user",   "content": text[:4000]},
-            ],
-            max_completion_tokens=400,
-            temperature=0.1,
-        )
-        raw    = (resp.choices[0].message.content or "").strip()
-        raw    = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
-        result = _json.loads(raw)
-        if not isinstance(result, dict):
-            raise ValueError("Expected JSON object")
+        result = parse_candidate_profile(text)
         return jsonify({"ok": True, **result})
     except Exception as e:
         import traceback
