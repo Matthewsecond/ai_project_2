@@ -1,11 +1,11 @@
 """
-chat.py — Domain chat assistants (candidate + talent-segment).
+chat.py — Candidate assistant chat (awaiting its domain home).
 
-Holding module for two conversational surfaces still awaiting their domain homes in the
-rework: the candidate assistant (→ services/candidate/, step 2.3 #7) and the talent-segment
-chat (→ services/clustering/, step 2.3 #6). The old job-search chat that lived here was
-DELETED (superseded — its UI had already been removed in an earlier refactor), and the
-single-job chat moved to services/search/job_chat.py (step 2.3 #5).
+Holding module for the candidate assistant — a search-tab chat that discusses ONE loaded
+candidate and edits their CV/profile. It moves to services/candidate/ in step 2.3 #7. The
+other surfaces that used to share this file have left: the job-search chat was DELETED
+(superseded; #5), single-job chat → services/search/job_chat.py (#5), and segment chat →
+services/clustering/segment_chat.py (#6).
 
 Multi-turn memory via previous_response_id; the OpenAI client is shared/llm.get_client.
 """
@@ -17,9 +17,8 @@ from jobs_intelligence_ai.shared.llm import get_client
 
 logger = logging.getLogger(__name__)
 
-# The OpenAI client lives in shared/llm.py (single app-wide singleton). `_get_client`
-# is a local alias so this module's internals are unchanged; `get_client` is re-exported
-# for the clustering/persona modules until they move to shared.llm in 2.3 #6.
+# The OpenAI client lives in shared/llm.py; `_get_client` is a local alias so this module's
+# internals read unchanged.
 _get_client = get_client
 
 _LANG_INSTRUCTIONS = {
@@ -28,69 +27,6 @@ _LANG_INSTRUCTIONS = {
     "sk":   "Vždy odpovedaj po slovensky, bez ohľadu na jazyk inzerátu alebo správy používateľa.",
     "auto": "Respond in the same language the user writes in.",
 }
-
-
-# ── Segment chat (multi-CV clustering) — moves to services/clustering/ in 2.3 #6 ──
-
-_SEGMENT_SYSTEM = """You are an assistant explaining a TALENT SEGMENT that was produced by clustering candidate CVs by similarity (embeddings). Answer the recruiter's questions about this segment — why these candidates were grouped together, their shared profile, how individuals differ, and how they fit the matched roles. Refer to candidates by name.
-
-SEGMENT: {title}
-SUMMARY: {summary}
-PERSONA (synthetic profile representing the segment):
-{persona}
-
-CANDIDATES IN THIS SEGMENT:
-{members}
-
-MATCHED ROLES (the A/B grade reflects the segment's fit):
-{jobs}
-
-Rules:
-1. Stay focused on THIS segment, its candidates, and its roles.
-2. Be concise — 2–4 sentences unless asked for more detail.
-3. {{LANG_INSTRUCTION}}
-4. The grouping is by overall CV similarity; if asked why someone is included, explain via their shared skills/role/seniority, and note honestly if they look like a weaker fit for the cluster.
-"""
-
-_segment_sessions: dict[str, str] = {}
-
-
-def send_segment_message(session_id: str, user_message: str, segment: dict, lang: str = "en") -> dict:
-    """Chat about one talent segment: the system prompt carries the segment's
-    persona, member CVs, and matched roles. No file_search."""
-    if not config.OPENAI_API_KEY:
-        return {"text": "Segment chat requires an OpenAI API key — add OPENAI_API_KEY to your .env file."}
-
-    client = _get_client()
-    previous_id = _segment_sessions.get(session_id)
-
-    members = "\n".join(f"- {m.get('name', '')}: {(m.get('text') or '')[:500]}"
-                        for m in (segment.get("members") or [])[:12]) or "(none)"
-    jobs = "\n".join(f"- [{j.get('grade', '?')}] {j.get('title', '')}"
-                     for j in (segment.get("jobs") or [])[:15]) or "(not matched yet)"
-    lang_instruction = _LANG_INSTRUCTIONS.get(lang, _LANG_INSTRUCTIONS["en"])
-    system = _SEGMENT_SYSTEM.replace("{{LANG_INSTRUCTION}}", lang_instruction).format(
-        title=(segment.get("title") or "")[:120],
-        summary=(segment.get("summary") or "")[:400],
-        persona=(segment.get("persona_text") or "")[:1500],
-        members=members,
-        jobs=jobs,
-    )
-
-    kwargs: dict = dict(model=config.CHAT_MODEL, instructions=system, input=user_message)
-    if previous_id:
-        kwargs["previous_response_id"] = previous_id
-    try:
-        response = client.responses.create(**kwargs)
-        _segment_sessions[session_id] = response.id
-        return {"text": response.output_text or ""}
-    except Exception as e:
-        logger.error("Segment chat error (session=%s): %s", session_id, e)
-        return {"text": f"Sorry, something went wrong: {e}"}
-
-
-def clear_segment_session(session_id: str) -> None:
-    _segment_sessions.pop(session_id, None)
 
 
 # ── Candidate assistant (main-page chat) — moves to services/candidate/ in 2.3 #7 ──

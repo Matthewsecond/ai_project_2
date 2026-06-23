@@ -80,7 +80,9 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 
 **Services — `services/search/` (2.3 #5, single-job chat)** — `unit_tests/test_job_chat` (4, offline): the single-job chat relocated from the old `chat.py`; inject a fake client to assert the reply, `previous_response_id` session continuity, candidate-text injection, and the no-key / error fallbacks. (The job-search chat `_parse` cases were removed from `shared/test_1_json` when that feature was deleted.)
 
-**Default gate:** `pytest -m "not smoke"` → **104 passed, 11 deselected** — offline foundation + stats + enrichment + interview + reporting + search (grader + job_chat) unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
+**Services — `services/clustering/` (2.3 #6)** — `unit_tests/` (10, offline): `test_1_persona` (Structured-Outputs persona; mock `responses.parse` + member fallback), `test_2_segmenting` (pure `cluster_labels` — empty/singleton edges + two-group separation), `test_3_embeddings` (mock `embeddings.create`; L2-normalization + zero-vector safety), `test_4_segment_chat` (reply, session continuity, no-key/error fallbacks). `smoke_tests/test_clustering_smoke` (3, live-asserting): embed+cluster splits sellers vs nurses, persona synthesis, segment chat.
+
+**Default gate:** `pytest -m "not smoke"` → **114 passed, 14 deselected** — offline foundation + stats + enrichment + interview + reporting + search (grader + job_chat) + clustering unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 
@@ -118,6 +120,6 @@ helpers get a one-line docstring too. See `test_grader.py` for the house style.
 
 ## Gaps (filled as the rework proceeds)
 
-Per-service `unit_tests/` (chat, clustering, candidate, geo, auth) and
-`frontend/integration_tests/` are scaffolded but empty — each is written when its module is
-repackaged in rework Stage 2.3 / 2.4. Done so far: stats, enrichment, interview, reporting.
+Per-service `unit_tests/` (candidate, geo, auth) and `frontend/integration_tests/` are
+scaffolded but empty — each is written when its module is repackaged in rework Stage 2.3 /
+2.4. Done so far: stats, enrichment, interview, reporting, search (job_chat), clustering.

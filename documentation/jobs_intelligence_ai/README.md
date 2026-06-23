@@ -25,7 +25,8 @@ docs live at the top level.
 | `services/enrichment/` | [README.md](services/enrichment/README.md) — post-retrieval enrich/re-score (Structured Outputs) |
 | `services/interview/` | [README.md](services/interview/README.md) — live interview scoring (Structured Outputs) · [INTERVIEW_REWORK_CHANGELOG.md](services/interview/INTERVIEW_REWORK_CHANGELOG.md) — feature history |
 | `services/reporting/` | [README.md](services/reporting/README.md) — briefings + PDF reports (Structured Outputs; pure-PDF pipeline) |
-| `services/` (chat, clustering, candidate, geo, auth) | _(to document)_ |
+| `services/clustering/` | [README.md](services/clustering/README.md) — CV → talent segments + persona (Structured Outputs) + segment chat |
+| `services/` (candidate, geo, auth) | _(to document)_ |
 | `frontend/` | [API.md](frontend/API.md) — Flask endpoints, request/response shapes · [FRONTEND.md](frontend/FRONTEND.md) — tab layout, job store, modals, chat UI |
 
 > Note: folder names track the **target** structure from RESTRUCTURE_PLAN.md. Some code

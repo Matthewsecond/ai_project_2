@@ -15,7 +15,7 @@ import numpy as np
 from flask import Blueprint, request, jsonify, session
 
 from jobs_intelligence_ai import config
-from jobs_intelligence_ai.services import clustering, persona, candidate_store
+from jobs_intelligence_ai.services import clustering, candidate_store
 from jobs_intelligence_ai.services.search import utils as search_utils
 
 bp = Blueprint("cluster", __name__, url_prefix="/api")
@@ -57,7 +57,7 @@ def api_cluster():
     ordered = sorted(groups.items(), key=lambda kv: -len(kv[1]))   # biggest segments first
     with ThreadPoolExecutor(max_workers=min(8, len(ordered))) as ex:
         personas = list(ex.map(
-            lambda kv: persona.synthesize_persona([texts[i] for i in kv[1]]),
+            lambda kv: clustering.synthesize_persona([texts[i] for i in kv[1]]),
             ordered,
         ))
 
@@ -245,7 +245,7 @@ def api_cluster_chat():
     if not session_id:
         return jsonify({"ok": False, "error": "session_id required"}), 400
     try:
-        from jobs_intelligence_ai.chat import send_segment_message
+        from jobs_intelligence_ai.services.clustering import send_segment_message
         return jsonify({"ok": True, **send_segment_message(session_id, message, segment, lang=lang)})
     except Exception as e:
         import traceback
