@@ -36,7 +36,7 @@ def api_analytics_report():
         return jsonify({"ok": False, "error": "No items provided"}), 400
 
     try:
-        from jobs_intelligence_ai.services.report_generator import elaborate_items, generate_pdf
+        from jobs_intelligence_ai.services.reporting import elaborate_items, generate_pdf
         elaborated = elaborate_items(items, context)
         pdf_bytes  = generate_pdf(elaborated, context, charts=charts)
         return Response(

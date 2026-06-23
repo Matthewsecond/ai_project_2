@@ -56,7 +56,7 @@ def api_opportunity():
 
         briefing = {}
         if include_briefing:
-            from jobs_intelligence_ai.services.opportunity_briefing import generate_briefing
+            from jobs_intelligence_ai.services.reporting import generate_briefing
             briefing = generate_briefing(sectors, states, portals, trend, totals)
 
         return jsonify({
@@ -117,7 +117,7 @@ def api_opportunity_filter_assist():
         return jsonify({"ok": False, "error": "query is required"}), 400
 
     try:
-        from jobs_intelligence_ai.services.opportunity_briefing import suggest_filters
+        from jobs_intelligence_ai.services.reporting import suggest_filters
         result = suggest_filters(query, sectors, states, portals)
         return jsonify({"ok": True, **result})
     except Exception as e:

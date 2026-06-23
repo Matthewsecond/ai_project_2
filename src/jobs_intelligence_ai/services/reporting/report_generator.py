@@ -10,7 +10,6 @@ import base64
 import io
 import json
 import logging
-import re
 from datetime import date
 
 from reportlab.lib import colors
@@ -28,6 +27,8 @@ from reportlab.graphics.shapes import (
 from reportlab.graphics import renderPDF
 
 from jobs_intelligence_ai import config
+from jobs_intelligence_ai.shared.llm import get_client
+from .config import ELABORATION_MODEL, ELABORATION_PROMPT, ElaborationList
 
 logger = logging.getLogger(__name__)
 
@@ -74,35 +75,12 @@ SECTION_NAMES = {
 
 # ── AI elaboration ────────────────────────────────────────────────────────────
 
-_ELAB_SYSTEM = """\
-You are writing an analytics session report for an HR team in Austria.
-You receive a list of insights saved during an analytics session, plus market context.
-
-For EACH item write a clear section in plain business English — no jargon.
-- heading: short title, max 8 words
-- elaboration: 2-3 paragraphs. First: restate the finding simply. Second: what it means for the team. Third (if needed): nuance or caveats.
-- action_steps: 2-3 concrete, immediately actionable steps
-
-Do NOT use markdown. Plain text only.
-
-Respond ONLY with a valid JSON array — no prose, no code fences:
-[
-  {
-    "index": 1,
-    "heading": "...",
-    "elaboration": "paragraph one\\n\\nparagraph two",
-    "action_steps": ["Step 1", "Step 2", "Step 3"]
-  }
-]"""
-
-
 def elaborate_items(items: list[dict], context: dict) -> list[dict]:
-    """Ask the LLM to elaborate each item. Returns merged list with elaboration fields."""
+    """Ask the LLM to elaborate each item (Structured Outputs). Returns the merged list
+    with heading / elaboration / action_steps fields; falls back to a plain copy of each
+    item on missing key, empty input, or any model failure."""
     if not config.OPENAI_API_KEY or not items:
         return [_fallback(item) for item in items]
-
-    from openai import OpenAI
-    client = OpenAI(api_key=config.OPENAI_API_KEY)
 
     ctx_text = _build_context_text(context)
     items_json = json.dumps(
@@ -113,27 +91,23 @@ def elaborate_items(items: list[dict], context: dict) -> list[dict]:
     )
 
     try:
-        resp = client.chat.completions.create(
-            model=config.CHAT_MODEL,
-            messages=[
-                {"role": "system", "content": _ELAB_SYSTEM},
-                {"role": "user",   "content": f"Market context:\n{ctx_text}\n\nItems:\n{items_json}"},
-            ],
-            max_completion_tokens=4000,
-            temperature=0.4,
+        resp = get_client().responses.parse(
+            model=ELABORATION_MODEL,
+            instructions=ELABORATION_PROMPT,
+            input=f"Market context:\n{ctx_text}\n\nItems:\n{items_json}",
+            text_format=ElaborationList,
         )
-        raw = (resp.choices[0].message.content or "").strip()
-        raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
-        elab_list = json.loads(raw)
-        elab_map  = {e["index"]: e for e in elab_list}
+        if resp.output_parsed is None:
+            raise ValueError("no structured output")
+        elab_map = {e.index: e for e in resp.output_parsed.items}
 
         result = []
         for i, item in enumerate(items):
-            e = elab_map.get(i + 1, {})
+            e = elab_map.get(i + 1)
             result.append({**item,
-                "heading":      e.get("heading", item.get("label", "Insight")),
-                "elaboration":  e.get("elaboration", item.get("content", "")),
-                "action_steps": e.get("action_steps", []),
+                "heading":      e.heading if e else item.get("label", "Insight"),
+                "elaboration":  e.elaboration if e else item.get("content", ""),
+                "action_steps": list(e.action_steps) if e else [],
             })
         return result
 

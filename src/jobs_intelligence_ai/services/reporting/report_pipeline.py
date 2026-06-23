@@ -34,13 +34,11 @@ from reportlab.graphics.shapes import Drawing, Rect, Line, Polygon, Circle, Stri
 from reportlab.graphics import renderPDF
 
 # Real (simplified) Austria Bundesland geometry for the opportunity map.
+# at_geo still lives at services/at_geo (its own package lands in rework 2.3 #8).
 try:
-    from .at_geo import AT_POLYGONS, AT_WIDTH, AT_HEIGHT
-except Exception:  # pragma: no cover - import fallbacks for varied run contexts
-    try:
-        from jobs_intelligence_ai.services.at_geo import AT_POLYGONS, AT_WIDTH, AT_HEIGHT
-    except Exception:
-        from at_geo import AT_POLYGONS, AT_WIDTH, AT_HEIGHT
+    from jobs_intelligence_ai.services.at_geo import AT_POLYGONS, AT_WIDTH, AT_HEIGHT
+except Exception:  # pragma: no cover - import fallback for standalone run contexts
+    from at_geo import AT_POLYGONS, AT_WIDTH, AT_HEIGHT
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
 PAGE_W, PAGE_H = A4

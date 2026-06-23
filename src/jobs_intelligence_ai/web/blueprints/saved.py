@@ -371,7 +371,7 @@ def api_saved_report():
     Mirrors the on-screen Match Insights dashboard for the selected candidate.
     """
     from jobs_intelligence_ai.services.enrichment import build_insights
-    from jobs_intelligence_ai.services.report_pipeline import generate_insights_pdf
+    from jobs_intelligence_ai.services.reporting import generate_insights_pdf
 
     body      = request.get_json(silent=True) or {}
     candidate = (body.get("candidate") or "").strip()

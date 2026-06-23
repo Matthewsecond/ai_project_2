@@ -76,7 +76,9 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 
 **Services — `services/interview/` (2.3 #3)** — offline `unit_tests/test_1_interview` (18): inject a fake client, assert the post-processing rules Structured Outputs can't express — score clamping, the `final` override that forces a score, follow-up exhaustion on an empty question, status/impact normalisation — plus the input guards and the no-key / API-failure / `output_parsed is None` fallbacks. Live `smoke_tests/test_interview_smoke` (2, asserts): generate gap-based questions, and score a strong answer (complete + in-range).
 
-**Default gate:** `pytest -m "not smoke"` → **91 passed, 8 deselected** — offline foundation + stats + enrichment + interview + grader unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
+**Services — `services/reporting/` (2.3 #4)** — offline `unit_tests/` (12): `test_1_opportunity_briefing` (briefing returned shape-intact; `suggest_filters` drops options not in the provided lists; fallbacks on no-key / failure), `test_2_report_generator` (elaboration merged back by index; fallbacks; the pure PDF builder emits `%PDF`), `test_3_report_pipeline` (both PDF entry points emit `%PDF`, fed a real `build_insights` payload). Live `smoke_tests/test_reporting_smoke` (3, asserts): briefing sections, filter subset, per-insight elaboration. `report_pipeline` is pure reportlab (no LLM).
+
+**Default gate:** `pytest -m "not smoke"` → **103 passed, 11 deselected** — offline foundation + stats + enrichment + interview + reporting + grader unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 
@@ -114,6 +116,6 @@ helpers get a one-line docstring too. See `test_grader.py` for the house style.
 
 ## Gaps (filled as the rework proceeds)
 
-Per-service `unit_tests/` (reporting, chat, clustering, candidate, geo, auth) and
+Per-service `unit_tests/` (chat, clustering, candidate, geo, auth) and
 `frontend/integration_tests/` are scaffolded but empty — each is written when its module is
-repackaged in rework Stage 2.3 / 2.4. Done so far: stats, enrichment, interview.
+repackaged in rework Stage 2.3 / 2.4. Done so far: stats, enrichment, interview, reporting.
