@@ -241,9 +241,13 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   constant in `services/search/config.py`; **kept** `SCORE_A_MIN/B_MIN` in global (cross-cutting:
   grader + rescorer + cluster bp → they go to `shared/grading` at 2.1d, not search). search keeps
   its dataclasses for now. Gate: ✅ import-smoke + 31 offline (value-preserving — `MAX_NUM_RESULTS`=30 unchanged).
-- 2.2c `SO →` the only remaining JSON parse inside search is the **legacy `EMBEDDING_PROMPT`**
-  ids path (`embedding_search.py`), dead under `direct_retrieval=True`. **Delete the dead
-  path** (preferred) or convert it to Structured Outputs. Gate: `smoke` + stability.
+- 2.2c ✅ Investigated the legacy `EMBEDDING_PROMPT` ids path (`embedding_search.search()`).
+  It's **reachable** (the `direct_retrieval=False` A/B path), not dead, works via `parse_json`,
+  and has no test → **left as-is**. Its `parse_json` retires with the chat-search conversion
+  (#4, same `file_search`+SO pattern) or if the A/B path is dropped (product call). **Probed
+  live: `file_search` + Structured Outputs coexist** ✅ (call accepted, returns parsed object;
+  ids empty in the quick probe → prompt tuning needed, but the API combo is confirmed) — this
+  de-risks chat #4.
 
 **2.3 — Services, one module per commit** (least → most entangled). Each: create package
 (`__init__` = public API, `config.py` if needed, `orchestrator.py`, helpers, `__main__`
@@ -260,7 +264,7 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 | 2 | `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | search bp, saved bp, `core`, chat.enrich | **rescorer**, **highlighter** (drop `parse_json`); verify seniority/quality_classifier/match_insights |
 | 3 | `interview/` ← interview_helper | interview bp | **interview_helper** (`_parse_json`) |
 | 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp | **opportunity_briefing** (`json.loads` ×2); verify report_generator/pipeline |
-| 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` | **send_message** (`_parse`, **file_search — probe tools+SO first**), **send_candidate_message** (`_parse_candidate`); job/segment msgs are text-only |
+| 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` | **send_message** (`_parse`, file_search+SO confirmed in 2.2c — tune prompt), **send_candidate_message** (`_parse_candidate`); job/segment msgs are text-only |
 | 6 | `clustering/` ← clustering, persona, + send_segment_message | cluster bp | **persona** (`_parse_json_obj`); clustering.py = embeddings, no parse |
 | 7 | `candidate/` ← candidate_store, example_cv, profile_enricher | candidate bp, guided bp, saved bp, cluster bp | **profile_enricher** (`_parse_json`); verify example_cv |
 | 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers | — none (geo lookup) |
@@ -350,7 +354,7 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ Services-module pattern (§7).
 - ✅ `tests/` + `documentation/` stay at **repo root** as siblings of `src/`, mirroring the package (matches Work convention; already true today). Not nested in `src/`.
 - ✅ `shared/` (§4): `llm` + `job` + `grading` + `taxonomy`; unifies 2 client paths and the duplicated ~30-field job mapping.
-- ✅ **Structured Outputs (2.1b)**: JSON-returning model calls use `responses.parse(text_format=Pydantic)` → `output_parsed`. Deletes the 3 JSON parsers (no `shared/json.py`). Verified vs official docs + live SDK 2.30.0. `pydantic` added to deps. Open: file_search + structured together (probe before chat #4).
+- ✅ **Structured Outputs (2.1b)**: JSON-returning model calls use `responses.parse(text_format=Pydantic)` → `output_parsed`. Deletes the 3 JSON parsers (no `shared/json.py`). Verified vs official docs + live SDK 2.30.0. `pydantic` added to deps. ✅ file_search + structured outputs confirmed to coexist (probed live in 2.2c) — chat #4 unblocked (needs prompt tuning, not an API change).
 - ✅ Config (§5): flat module constants per service; global = environment/identity layer (not aggregator); move matching tunables into `services/search/config.py`. Dataclasses dropped.
 - ✅ Execution plan (§6): ordered, commit-per-step, shim-based, verify after each. Test scaffold (2.0) goes first.
 - ✅ Testing (§10): full coverage scope — mirrored test tree, **a test package per service** (mirrors the API principle), unit tests with `_fake_db` + mocked `shared/llm` client; fake-DB now, docker integration later.
