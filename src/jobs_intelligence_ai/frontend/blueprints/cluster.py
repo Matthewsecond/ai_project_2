@@ -96,36 +96,9 @@ def api_cluster_overview():
     if not segments:
         return jsonify({"ok": False, "error": "segments are required"}), 400
 
-    lines = []
-    for s in segments:
-        samples = "; ".join(f"{j.get('title', '')} [{j.get('grade', '')}]"
-                            for j in (s.get("sample_jobs") or [])[:6])
-        lines.append(
-            f"- Segment '{s.get('title', '')}': {s.get('candidates', 0)} candidate(s); "
-            f"{s.get('ab_jobs', 0)} strong (A/B) roles of {s.get('total_jobs', 0)} matched. "
-            f"Sample strong roles: {samples or 'none'}. {s.get('summary', '')}"
-        )
-    prompt = "TALENT SEGMENTS (candidates we have vs. open roles that matched them):\n" + "\n".join(lines)
-
     try:
-        from jobs_intelligence_ai.core import get_client
-        client = get_client()
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "You are a recruitment strategy analyst writing for an HR / recruitment lead. "
-                "Each segment is a cluster of similar candidates, with how many candidates we have "
-                "and how many strong (A/B grade) job openings matched that profile. Write a concise "
-                "OPPORTUNITY OVERVIEW (~150–220 words) that: (1) ranks where the biggest opportunity "
-                "is — segments with many strong open roles relative to the number of candidates "
-                "(high demand, easy to place / worth sourcing more), (2) flags oversupplied segments "
-                "(many candidates but few matching roles → competition / harder to place), and "
-                "(3) gives 2–4 concrete recommendations on where to focus. Refer to segments by name "
-                "and cite the role/candidate counts. Use short paragraphs or bullets. Respond in English."
-            ),
-            input=prompt,
-        )
-        return jsonify({"ok": True, "text": response.output_text or ""})
+        text = clustering.segment_overview(segments)
+        return jsonify({"ok": True, "text": text})
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
@@ -190,26 +163,8 @@ def api_cluster_grade_job():
     if not job.get("title") or not candidates:
         return jsonify({"ok": False, "error": "job.title and candidates are required"}), 400
 
-    job_desc = (f"Title: {job.get('title','')}\nCompany: {job.get('company','')}\n"
-                f"Skills: {job.get('skills_en') or job.get('skills') or ''}\n"
-                f"{(job.get('description') or '')[:900]}")
-    lines = [f"{i}. {c.get('name','')}: {(c.get('text') or '')[:600]}"
-             for i, c in enumerate(candidates)]
-    prompt = "JOB:\n" + job_desc + "\n\nCANDIDATES:\n" + "\n".join(lines)
     try:
-        from jobs_intelligence_ai.core import get_client
-        client = get_client()
-        resp = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "Score how well EACH candidate fits THIS job. Respond with ONLY a JSON array, "
-                "one object per candidate IN THE SAME ORDER, each: "
-                '{"score": float 0.0-1.0, "reason": one short sentence}. '
-                "Use the full range; judge genuine fit, not keyword overlap."
-            ),
-            input=prompt,
-        )
-        scores = search_utils.parse_json(resp.output_text or "")
+        scores = clustering.grade_candidates_for_job(job, candidates)
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500

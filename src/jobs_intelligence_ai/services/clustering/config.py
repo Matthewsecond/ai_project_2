@@ -66,3 +66,48 @@ LANG_INSTRUCTIONS = {
     "sk":   "Vždy odpovedaj po slovensky, bez ohľadu na jazyk inzerátu alebo správy používateľa.",
     "auto": "Respond in the same language the user writes in.",
 }
+
+
+# ── segment_analysis.segment_overview ───────────────────────────────────────────
+# Cross-segment opportunity overview. Converted to Structured Outputs in rework 2.4 — prose
+# output, so SegmentOverview is a single `text` field (was a bare responses.create in the bp).
+OVERVIEW_MODEL = config.CHAT_MODEL
+
+OVERVIEW_PROMPT = (
+    "You are a recruitment strategy analyst writing for an HR / recruitment lead. "
+    "Each segment is a cluster of similar candidates, with how many candidates we have "
+    "and how many strong (A/B grade) job openings matched that profile. Write a concise "
+    "OPPORTUNITY OVERVIEW (~150–220 words) that: (1) ranks where the biggest opportunity "
+    "is — segments with many strong open roles relative to the number of candidates "
+    "(high demand, easy to place / worth sourcing more), (2) flags oversupplied segments "
+    "(many candidates but few matching roles → competition / harder to place), and "
+    "(3) gives 2–4 concrete recommendations on where to focus. Refer to segments by name "
+    "and cite the role/candidate counts. Use short paragraphs or bullets. Respond in English."
+)
+
+
+class SegmentOverview(BaseModel):
+    """cross-segment opportunity overview (prose)."""
+    text: str
+
+
+# ── segment_analysis.grade_candidates_for_job ───────────────────────────────────
+# Opt-in precise grading: score each candidate against ONE job. Converted to Structured
+# Outputs in rework 2.4 — replaces the "ONLY a JSON array" prompt + search_utils.parse_json.
+GRADE_MODEL = config.CHAT_MODEL
+
+GRADE_PROMPT = (
+    "Score how well EACH candidate fits THIS job. For every candidate, IN THE SAME ORDER as "
+    "given, return a score from 0.0 to 1.0 and one short sentence reason. Use the full range; "
+    "judge genuine fit, not keyword overlap."
+)
+
+
+class _CandidateGrade(BaseModel):
+    score: float
+    reason: str
+
+
+class CandidateGrades(BaseModel):
+    """per-candidate fit scores for one job, in the same order as the input candidates."""
+    candidates: list[_CandidateGrade]

@@ -262,9 +262,11 @@ job-search-chat JS cleanup), then **2.5** (dissolve `core/`, remove shims).
 ③ analytics + radar chats → `services/reporting/session_chat.py` (SO `AdvisorReply`, single
 prose field; killed the last `chat.completions` + raw `OpenAI()` in those bps).
 ④ company summary → `services/reporting/company_summary.py` (SO `CompanySummary`, single prose
-field; returns "" on error since the summary is optional). Offline gate: **143 passed, 21
-deselected.** Remaining: cluster, saved, job_detail (×5), search; then dead-JS cleanup +
-integration tests.
+field; returns "" on error since the summary is optional).
+⑤ cluster overview + grade-job → `services/clustering/segment_analysis.py` (SO: prose
+`SegmentOverview` + JSON `CandidateGrades` list; the latter kills the last `parse_json` caller
+in a blueprint). Offline gate: **148 passed, 23 deselected.** Remaining: saved, job_detail (×5),
+search; then dead-JS cleanup + integration tests.
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature

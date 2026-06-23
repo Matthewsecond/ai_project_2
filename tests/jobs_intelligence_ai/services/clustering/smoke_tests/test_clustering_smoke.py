@@ -16,6 +16,7 @@ import pytest
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.services.clustering import (
     embed_profiles, cluster_labels, synthesize_persona, send_segment_message,
+    segment_overview, grade_candidates_for_job,
 )
 
 pytestmark = [
@@ -52,3 +53,26 @@ def test_segment_chat_live():
            "jobs": [{"grade": "A", "title": "Account Executive"}]}
     out = send_segment_message("smoke-seg", "Why are these candidates grouped together?", seg)
     assert out["text"].strip()
+
+
+def test_segment_overview_live():
+    """Live: the cross-segment overview returns a non-empty prose analysis."""
+    segments = [
+        {"title": "SaaS sellers", "candidates": 3, "ab_jobs": 10, "total_jobs": 12,
+         "summary": "Senior B2B AEs", "sample_jobs": [{"title": "Account Executive", "grade": "A"}]},
+        {"title": "ICU nurses", "candidates": 5, "ab_jobs": 1, "total_jobs": 8,
+         "summary": "Experienced ICU nurses", "sample_jobs": [{"title": "Staff Nurse", "grade": "B"}]},
+    ]
+    out = segment_overview(segments)
+    assert isinstance(out, str) and out.strip()
+
+
+def test_grade_candidates_for_job_live():
+    """Live: grading returns one score+reason per candidate, in input order."""
+    job = {"title": "Account Executive", "company": "ACME", "skills": "B2B SaaS sales",
+           "description": "Close six-figure enterprise SaaS deals."}
+    cands = [{"name": "Ann", "text": _SALES}, {"name": "Bob", "text": _NURSE}]
+    out = grade_candidates_for_job(job, cands)
+    assert len(out) == 2
+    assert all(0.0 <= g["score"] <= 1.0 and g["reason"].strip() for g in out)
+    assert out[0]["score"] >= out[1]["score"]   # the seller fits the sales role better
