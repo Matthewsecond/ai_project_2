@@ -270,7 +270,7 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 | 2 | ✅ `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | ✅ repointed (core, search orch, chat, search bp, saved bp) | ✅ DONE: 2a moved; rescorer/highlighter/seniority/quality → SO (prompts+schemas in `config.py`, `shared.get_client`); match_insights verified no-LLM. 26 offline + 4 live smoke. All `parse_json`/`json.loads`/own-clients gone. |
 | 3 | ✅ `interview/` ← interview_helper | ✅ interview bp repointed | ✅ DONE: file → package (`orchestrator.py` + `config.py`, `__init__` API); all 8 model calls → SO (prompts+schemas in `config.py`, `shared.get_client`); `_parse_json` gone; "ONLY JSON" boilerplate gone. 18 offline + 2 live smoke. |
 | 4 | ✅ `reporting/` ← report_generator, report_pipeline, opportunity_briefing | ✅ analytics/saved/radar bps repointed | ✅ DONE: package (`__init__` API + `config.py`); 3 calls → SO (opportunity_briefing `generate_briefing`/`suggest_filters`, report_generator `elaborate_items` — was `chat.completions`+JSON array); own clients/`json.loads`/fence-strip gone, prompts+schemas in `config.py`; report_pipeline verified pure PDF (no LLM). 12 offline + 3 live smoke. |
-| 5 | 🔄 chat distributed (see DECISION) — **job-search chat DELETED** (superseded; UI already gone), **single-job chat → `services/search/job_chat.py`** | ✅ chat bp deleted + unregistered; core repointed (job_chat→search, get_client→shared) | **send_message DELETED** not migrated (incl. `_parse`, `enrich_jobs_from_db`+`_apply_row`, `_build_filter_context`); send_job_message text-only move. 4 offline tests. **Pending:** strip the dead job-search-chat JS from index.html (separate commit); candidate assistant→#7, segment chat→#6. |
+| 5 | ✅ chat distributed (see DECISION) — **job-search chat DELETED** (superseded; UI already gone), **single-job chat → `services/search/job_chat.py`** | ✅ chat bp deleted + unregistered; core repointed (job_chat→search, get_client→shared) | **send_message DELETED** not migrated (incl. `_parse`, `enrich_jobs_from_db`+`_apply_row`, `_build_filter_context`); send_job_message text-only move. 4 offline tests. Backend done. Candidate assistant→#7, segment chat→#6. **Dead job-search-chat JS in index.html → removed in 2.4** (interleaved with live code + the shared `jobChatLang` page-lang var; safe only with in-app verification). |
 | 6 | `clustering/` ← clustering, persona, **+ send_segment_message/_SEGMENT_SYSTEM** | cluster bp | **persona** (`_parse_json_obj`); clustering.py = embeddings, no parse; segment chat is text-only |
 | 7 | `candidate/` ← candidate_store, example_cv, profile_enricher, **+ send_candidate_message/_parse_candidate** | candidate bp, guided bp, saved bp, cluster bp | **profile_enricher** (`_parse_json`); **send_candidate_message** (`_parse_candidate`→SO, `profile_updates` becomes an explicit-field schema); verify example_cv |
 | 8 | `geo/` ← at_geo  *(grouping: confirm)* | map/radar consumers | — none (geo lookup) |
@@ -306,6 +306,14 @@ frontend repackaging — `candidate`, `analytics`, `company`, `radar` (`chat.com
   then `pip install -e .` to refresh the entry point. Thin blueprints to call service public
   APIs. Add `frontend/integration_tests/` (Flask `test_client`). Gate: `boot` + console
   script + `tab` + integration tests.
+- **Remove the dead job-search-chat JS** (left from 2.3 #5, whose backend + `/api/chat` are
+  already gone): in `index.html`, `runChatQualityCheck` (~8019–8100) and the `sendChat`
+  cluster (`8319–8638`: vars `chatLastJobs`/`chatIsWaiting`/`chatInited`, `initChat`,
+  `quickAsk`, `sendChat`, `appendUserMessage`, `appendAiMessage`, `guessSeniority` +
+  seniority-chip helpers, `loadChatJobs`, the chat-filter helpers, `newChat`, `scrollChat`,
+  the two listeners), plus simplify line ~7739 (`job._batch === 'chat' ? chatLastJobs :
+  lastResults` → `lastResults`). **Keep** `jobChatLang` (the page-wide AI-lang var used by
+  job chat / guided / interview). Verify the search/interview/guided tabs still work in-app.
 
 **2.5 — Dissolve `core/` + remove shims**  *(decision: dissolve the facade)*
 - Repoint remaining `from …core import` users to the service packages' own `__init__` APIs;
