@@ -16,6 +16,7 @@ import pytest
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.services.candidate import (
     enrich_linkedin_profile, parse_candidate_profile, send_candidate_message,
+    extract_guided_fields, phrase_guided_reply,
 )
 
 pytestmark = [
@@ -80,3 +81,26 @@ def test_assistant_cv_edit_live():
     assert out["text"].strip()
     assert out["profile_updates"]              # some field changed
     assert out["cv_note"].strip()
+
+
+_GUIDED_KW = dict(draft="{}", locked="[]",
+                  catalog="it — IT & software\nconstruction — Construction & trades",
+                  last_field="", offer="none", salary="none")
+
+
+def test_guided_extract_fields_live():
+    """Live: 'a Java developer' classifies the IT sector and records the role."""
+    out = extract_guided_fields("We're looking for a Java developer.", **_GUIDED_KW)
+    assert isinstance(out, dict)
+    assert out.get("sector") or out.get("roles")   # the message yielded some spec signal
+
+
+def test_guided_phrase_reply_live():
+    """Live: reply phrasing returns a dict with a non-empty reply string."""
+    out = phrase_guided_reply(
+        "A Java developer.", lang="English", last_question="",
+        field_updates='{"roles": ["Java Developer"], "sector": ["it"]}', user_edits="none",
+        draft='{"roles": ["Java Developer"], "sector": ["it"]}',
+        facets="- postings in this role family: 120", salary_hint="none available")
+    assert isinstance(out, dict)
+    assert (out.get("reply") or "").strip()

@@ -27,7 +27,7 @@ from sqlalchemy import text
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.database import get_engine
 from jobs_intelligence_ai.core import taxonomy as categories   # predefined Sector → role-family taxonomy
-from .saved import _gpt_json   # reuse the single-call GPT→JSON helper
+from jobs_intelligence_ai.services.candidate import extract_guided_fields, phrase_guided_reply
 
 bp = Blueprint("guided", __name__, url_prefix="/api/guided")
 
@@ -232,76 +232,6 @@ def _clean_region_options(options, facets: dict, lang: str = "en") -> list:
     return out[:5]
 
 
-_EXTRACT_SYSTEM = """You help an HR manager build a "target candidate" spec by extracting structured fields from what they say.
-Current draft so far: {draft}
-The HR manager already set these fields by hand — do NOT change them unless this message explicitly does: {locked}
-{offer}
-{salary}
-
-Most fields are FREE-TEXT. Capture the user's own wording — do NOT invent specifics they didn't give. Broad answers are fine for free-text fields; record them as stated.
-For states, prefer the official Austrian region name when the user clearly means one (e.g. "Vienna" → "Wien", "Lower Austria" → "Niederösterreich"), but keep anything else verbatim.
-
-ANSWER CONTEXT — your previous question asked the user to provide: {last_field}. If this message reads as a direct answer to THAT question, file it under that exact field and nowhere else. In particular, when the field is "skills", "certs" or "languages", do NOT reclassify the answer as a "sector" just because it mentions a technology (e.g. asked for skills, user says "SAP ERP" → add "SAP ERP" to skills, do NOT touch sector). Only deviate if the user clearly changed the subject.
-
-SECTOR CLASSIFICATION — the one fixed field. Classify the target into one or more SECTORS from this catalog, and output their IDS in "sector":
-{catalog}
-Rules: set "sector" ONLY when this message actually indicates the field/industry (e.g. "IT", "a nurse", "warehouse staff", "SAP consultant" → ["it"]). A specific role implies its sector (e.g. "electrician" → ["construction"], "chef" → ["hospitality"]). Use MULTIPLE ids only if the target genuinely spans sectors. If the message gives no usable sector signal, OMIT "sector" entirely (do not guess). Output the short ids exactly as in the catalog, never the labels.
-
-Return ONLY valid JSON, no extra text:
-{{"field_updates": {{
-  "roles":      ["target roles / job titles to add — the specific role(s), only NEW ones"],
-  "skills":     ["skills to add"],
-  "levels":     ["seniority, e.g. Senior or Mid"],
-  "states":     ["regions / locations"],
-  "sector":     ["sector IDS from the catalog above"],
-  "languages":  ["languages with level, e.g. German C1"],
-  "certs":      ["certifications / licenses"],
-  "salary":     "salary band string, e.g. >4000 or 4500-5500 — replaces prior value",
-  "availability": "e.g. immediate or 2026-09 — replaces prior value",
-  "name":       "short label for this target candidate, e.g. 'Senior SAP Logistics — Wien'"
-}}}}
-Only include field_updates keys the message gives information for. List fields = items to ADD. Empty objects are fine."""
-
-
-_REPLY_SYSTEM = """You are a proactive recruitment assistant guiding an HR manager through building a target-candidate spec. Your job is to NARROW the target step by step using REAL data.
-The HR manager said: "{message}"
-Your previous question to them was: "{last_question}"
-You applied these field updates: {field_updates}
-The HR manager also manually changed these fields since your last reply: {user_edits}
-The full draft now is: {draft}
-
-Live data from the job database for the target so far:
-{facets}
-
-Salary reference (real market data; use ONLY when salary is the topic): {salary_hint}
-
-Write your reply and question in {lang}. The live data uses the German AMS taxonomy, so occupational groups and regions appear as German terms — when you mention them, render them naturally in {lang} (translate the term, e.g. "SoftwareentwicklerIn" → "Software Developer", "NetzwerkadministratorIn" → "Network Administrator", "Wien" → "Vienna"). Do NOT show the raw German term when writing in English. When you are writing in German, the taxonomy terms are already German — use them exactly as they appear in the data, do not anglicize them.
-
-Style rules — this is the part that matters most:
-- Sound like a sharp human recruiter, not a form. Keep "reply" to ONE short sentence most turns.
-- VARY your wording. Do NOT reuse stock phrases turn after turn — never repeat things like "fairly focused", "let's narrow it down", "the strongest fit now is". If you said something last turn, say it differently or not at all.
-- BE HELPFUL WITH EXAMPLES, never just a verdict. If the target is broad, do NOT reply with only "that's too broad" — immediately give the user 3-5 concrete example role families pulled from the live data (translated into {lang}) and offer them as the choices. Always pair "that's broad" with real examples they can pick.
-- If the user ASKS what the options are (e.g. "what are the options?", "give me examples", "like what?", "what can I choose?"), answer in the context of YOUR PREVIOUS QUESTION above — list options for THAT SAME dimension, do not switch dimensions. If your last question was about skills, list concrete real skills for this role (as suggestions); if about region, list real regions from the live data (facet "states"); if about sector, list the real sectors (facet "sector"); if about role family, list real role families (facet "role"); if about seniority, list the seniority levels. Use the live data for facet dimensions; for open dimensions (skills, languages, certs) put the examples in "suggestions". Do NOT deflect with another generic question.
-- Just take in what the user said. If their message answered something OTHER than your previous question (e.g. you asked about region, they gave a salary), accept it naturally and move on — never re-ask the old question or act confused.
-- SALARY: figures in this market are MONTHLY GROSS (Austria pays ~14 salaries/year). Always work in monthly gross. Do NOT invent annual-budget→monthly conversions or ask about an annual budget unless the user themselves gives an annual figure. If the user asks a clarifying question (e.g. "monthly or annual?", "monthly approximately?"), answer it in one line ("Yes — monthly gross") and immediately suggest a concrete range, using the real market data above when available (e.g. "typically around €3,800–5,200/month for this role — want me to use that?"). The salary benchmark above is a NATIONAL figure for the role — present it as the market rate for the role, do not attribute it to a specific city/region. Never loop or re-ask the same salary question; if they decline a range, just move on.
-- Only mention the count when it actually helps the user decide; don't open every message with a number. The count is the size of the role+region pool ONLY (it does NOT reflect skills, salary, seniority or languages), so never claim "N jobs match your spec" and never imply it should shrink when those are added.
-
-Write a JSON reply with these parts:
-1. "reply": ONE natural sentence (two only if truly needed) acknowledging what you just captured.
-2. "next_question": ONE short, concrete question for the single most useful MISSING piece of the spec. Ask about ONE thing only — never a compound "should I X, or is it specific enough to run now?" question. The role axis is a TWO-STEP funnel driven by the live data above: at stage "sectors" the target isn't pinned to a sector — ask which SECTOR (set facet "sector"); at stage "families" one sector is set — ask which ROLE FAMILY within it (set facet "role"); at stage "done" (sector settled or spanning several sectors), do NOT ask about sector/role again — move to a still-empty dimension (region, seniority, must-have skills, salary, availability, languages). Never re-ask a sector/role question as if nothing was chosen — acknowledge what is already picked first. When the spec already has a clear role, region, and at least one more constraint (or the pool is small), set next_question to "" and invite them to run matching in the reply.
-3. "facet": which live-data dimension your next_question asks the user to pick from — "sector" if asking which sector/industry, "role" if asking which role family within a chosen sector, "states" if it's about region, or "" if the question isn't a pick from those lists (e.g. asking about skills/salary) or the spec is complete. This drives clickable quick-pick chips, so it MUST match what you asked and the funnel stage above.
-4. "options": LEAVE THIS EMPTY ([]) when facet is "sector" or "role" — the system fills those chips for you from the live data, so you must NOT invent them. Only when facet is "states" do you supply the up-to-5 region choices as objects {{"value": "<exact German region copied verbatim from the live data above>", "label": "<that region rendered in {lang}>"}} (copy the value exactly; translate only the label). Use [] for every other facet.
-5. "suggestions": 2-4 SHORT tappable quick-reply chips (max ~3 words each, in {lang}) the user can click to answer your next_question instantly. Tailor them to the question:
-   - Open free-text dimension (skills, certifications, languages, notes): 2-3 concrete plausible example answers for THIS specific role, PLUS the chip "What are the options?" so they can ask to see more.
-   - Seniority: the actual levels — "Junior", "Mid-level", "Senior", "Expert".
-   - Salary: when a benchmark is available above, "Use the market rate" and "I'll set my own".
-   - Availability: e.g. "Immediately", "Within 3 months".
-   Use [] when facet is "sector", "role" or "states" (the options list already covers those) or when there is no next_question. Each suggestion must read as a natural direct answer the user could send.
-6. "answer_field": the ONE draft field your next_question asks the user to fill, so their answer is filed correctly — exactly one of: "sector", "roles", "skills", "levels", "states", "languages", "certs", "salary", "availability" (use "roles" when facet is "role"; mirror the facet for sector/states). Use "" only when there is no next_question.
-
-Return ONLY valid JSON: {{"reply": "<...>", "next_question": "<...>", "facet": "<sector|role|states|>", "answer_field": "<field|>", "options": [{{"value": "<German>", "label": "<{lang}>"}}], "suggestions": ["<short answer>"]}}"""
-
-
 def _merge_draft(draft: dict, updates: dict) -> dict:
     """Merge field_updates into draft: list fields extend (dedup), scalars replace."""
     out = {**draft}
@@ -367,18 +297,17 @@ def api_guided_chat():
             f'If they give their own number or range, use theirs instead.')
 
     # ── Pass 1: extract structured field updates + classify the sector ───────
-    extract_system = _EXTRACT_SYSTEM.format(
-        draft=_json.dumps(draft, ensure_ascii=False),
-        locked=_json.dumps(locked, ensure_ascii=False),
-        catalog=categories.sector_catalog(),
-        last_field=last_field or "(nothing specific yet)",
-        offer=offer_line,
-        salary=salary_line)
-    extracted = _gpt_json(extract_system, message)
-    if "_error" in extracted:
-        return jsonify({"ok": False, "error": extracted["_error"]}), 500
-
-    field_updates = extracted.get("field_updates") or {}
+    try:
+        field_updates = extract_guided_fields(
+            message,
+            draft=_json.dumps(draft, ensure_ascii=False),
+            locked=_json.dumps(locked, ensure_ascii=False),
+            catalog=categories.sector_catalog(),
+            last_field=last_field,
+            offer=offer_line,
+            salary=salary_line)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
     # Deterministic chip-pick routing. When the user answers a facet question by
     # clicking the quick-pick chips, the front-end sends the offered values straight
@@ -418,16 +347,15 @@ def api_guided_chat():
                            f"median €{int(s2['median'])}, typical €{int(s2['p25'])}–€{int(s2['p75'])}.")
 
     # ── Pass 2: phrase reply + grounded, narrowing next question ─────────────
-    reply_system = _REPLY_SYSTEM.format(
+    reply_result  = phrase_guided_reply(
+        message,
         lang=lang_name,
-        message=message,
-        last_question=last_question or "(none yet)",
+        last_question=last_question,
         field_updates=_json.dumps(field_updates, ensure_ascii=False),
         user_edits=_json.dumps(user_edits, ensure_ascii=False) if user_edits else "none",
         draft=_json.dumps(new_draft, ensure_ascii=False),
         facets=_facets_brief(facets),
         salary_hint=salary_hint)
-    reply_result  = _gpt_json(reply_system, message)
     reply         = reply_result.get("reply") or "Got it."
     next_question = reply_result.get("next_question") or ""
     facet_dim     = reply_result.get("facet") or ""
