@@ -259,8 +259,10 @@ job-search-chat JS cleanup), then **2.5** (dissolve `core/`, remove shims).
 
 **2.4 — IN PROGRESS.** Done: ① `web/`→`frontend/` rename (package, entry point, docs).
 ② candidate bp `parse-profile` → `services/candidate/profile_parser.py` (SO `CandidateProfile`).
-Offline gate: **134 passed, 18 deselected.** Remaining blueprint SO conversions: analytics,
-company, radar, cluster, saved, job_detail (×5), search; then dead-JS cleanup + integration tests.
+③ analytics + radar chats → `services/reporting/session_chat.py` (SO `AdvisorReply`, single
+prose field; killed the last `chat.completions` + raw `OpenAI()` in those bps). Offline gate:
+**139 passed, 20 deselected.** Remaining: company summary, cluster, saved, job_detail (×5),
+search; then dead-JS cleanup + integration tests.
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature
@@ -303,9 +305,18 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 > a re-export shim until the last surface leaves, then is deleted (≤ 2.5).
 
 **2.4 frontend** also carries `SO →`: the blueprint-level model calls convert during the
-frontend repackaging — `candidate`, `analytics`, `company`, `radar` (`chat.completions` →
-`beta.chat.completions.parse` or `responses.parse`), `cluster` (`parse_json`), `saved`,
-`job_detail` (×5), `search` bp. Same rule: convert + delete parser + two test layers.
+frontend repackaging — every LLM call moves to `responses.parse(text_format=PydanticModel)`
+on the shared `get_client`, gets relocated into a service module, and the blueprint thins to
+parse→call→jsonify. Same rule: convert + delete any hand-parser + two test layers.
+
+- **Legacy hand-parsed JSON sites** (the old "respond with ONLY JSON" + `json.loads`/regex
+  pattern) → a real multi-field schema: `candidate` parse-profile (`CandidateProfile`),
+  `cluster` (`parse_json`), `saved`, `job_detail` (×5), `search` bp.
+- **Prose calls** (`analytics` chat, `radar` chat, `company` summary) → still `responses.parse`,
+  but with a **single-field** model (e.g. `AdvisorReply.answer`) since the output is prose.
+  These were mis-labeled "beg-for-JSON" in an earlier draft; they never returned JSON. The
+  point of converting them is to kill the last raw `OpenAI()` + `chat.completions` holdouts
+  and thin the blueprints, not to invent a fake schema.
 
 **2.4 — Frontend** (`web/` → `frontend/`)
 - Rename `web/` → `frontend/`. Update `web/__init__` registry, `app.py`, top-level

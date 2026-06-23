@@ -10,7 +10,8 @@ services/reporting/
 ├── config.py                # models + per-call prompts + Structured-Outputs schemas
 ├── opportunity_briefing.py  # LLM market briefing + AI filter suggestion (Radar tab)
 ├── report_generator.py      # Analytics session report: LLM elaboration + reportlab PDF
-└── report_pipeline.py       # Candidate Pipeline / Match Insights PDFs (pure reportlab)
+├── report_pipeline.py       # Candidate Pipeline / Match Insights PDFs (pure reportlab)
+└── session_chat.py          # grounded advisor chats for the Analytics + Radar tabs (prose)
 ```
 
 ## Public API
@@ -19,10 +20,11 @@ from jobs_intelligence_ai.services.reporting import (
     generate_briefing, suggest_filters,                # opportunity_briefing
     elaborate_items, generate_pdf,                     # report_generator
     generate_insights_pdf, generate_saved_jobs_pdf,    # report_pipeline
+    analytics_chat, radar_chat,                         # session_chat
 )
 ```
-Consumers: radar bp (`generate_briefing`, `suggest_filters`), analytics bp
-(`elaborate_items` + `generate_pdf`), saved bp (`generate_insights_pdf`).
+Consumers: radar bp (`generate_briefing`, `suggest_filters`, `radar_chat`), analytics bp
+(`elaborate_items` + `generate_pdf`, `analytics_chat`), saved bp (`generate_insights_pdf`).
 
 ## Structured-Outputs status (2.3 #4)
 The three LLM calls were converted to `responses.parse(text_format=<schema>)` → validated
@@ -35,6 +37,7 @@ every prompt. Prompts + schemas live in `config.py`.
 | `opportunity_briefing.generate_briefing` | `BriefingResult` (`Literal` signal) | `CLASSIFIER_MODEL` |
 | `opportunity_briefing.suggest_filters` | `FilterSuggestion` (nullable `min_salary`) | `CLASSIFIER_MODEL` |
 | `report_generator.elaborate_items` | `ElaborationList` (was `chat.completions` + JSON array) | `CHAT_MODEL` |
+| `session_chat.analytics_chat` / `radar_chat` | `AdvisorReply` (single prose `answer`) | `ADVISOR_MODEL` (= `CHAT_MODEL`) |
 
 Post-parse logic kept: `suggest_filters` still re-validates the returned occ_groups/states/
 portals against the provided option lists; both briefing calls and the elaboration fall back
@@ -42,10 +45,21 @@ to a static structure on missing key / model failure. `report_pipeline.py` has *
 call** (verified) — pure reportlab, nothing to convert. It still reads `at_geo` from
 `services/at_geo` (its own package lands in 2.3 #8).
 
+### session_chat (2.4)
+The Analytics-tab assistant and Radar-tab advisor were relocated here from the
+`analytics`/`radar` blueprints and converted off the legacy `chat.completions` + raw
+`OpenAI()` client. They return **prose**, so `AdvisorReply` is a single `answer: str` field —
+still the modern `responses.parse` path, no hand-parsing. Multi-turn history is passed in each
+turn (no server-side session) and forwarded to the Responses API as a list of `input` messages;
+the grounding context (saved items / market snapshot) is built into `instructions`. Either
+raises on no-key / model error (the blueprint maps that to a 500).
+
 ## Tests
-`tests/jobs_intelligence_ai/services/reporting/unit_tests/` (12, offline):
+`tests/jobs_intelligence_ai/services/reporting/unit_tests/` (17, offline):
 `test_1_opportunity_briefing` (briefing + filter validation + fallbacks),
 `test_2_report_generator` (elaboration merge-by-index + fallbacks + PDF emits `%PDF`),
-`test_3_report_pipeline` (both PDF builders emit `%PDF`, fed a real `build_insights` payload).
-`smoke_tests/test_reporting_smoke` (3, live-asserting): briefing sections, filter subset,
-per-insight elaboration.
+`test_3_report_pipeline` (both PDF builders emit `%PDF`, fed a real `build_insights` payload),
+`test_4_session_chat` (both chats return the reply; items/snapshot grounded into instructions,
+history+message forwarded as input; no-key/null/error raise). `smoke_tests/test_reporting_smoke`
+(5, live-asserting): briefing sections, filter subset, per-insight elaboration, analytics chat,
+radar chat.

@@ -141,93 +141,10 @@ def api_opportunity_chat():
     if not config.OPENAI_API_KEY:
         return jsonify({"ok": False, "error": "OpenAI API key not configured"}), 503
 
+    from jobs_intelligence_ai.services.reporting import radar_chat
     try:
-        from openai import OpenAI
-        client   = OpenAI(api_key=config.OPENAI_API_KEY)
-        system   = _build_radar_chat_system(context)
-        messages = [{"role": "system", "content": system}]
-        for h in history[-8:]:
-            if h.get("role") in ("user", "assistant") and h.get("content"):
-                messages.append({"role": h["role"], "content": h["content"]})
-        messages.append({"role": "user", "content": message})
-
-        resp   = client.chat.completions.create(
-            model=config.CHAT_MODEL, messages=messages,
-            max_completion_tokens=600, temperature=0.65,
-        )
-        answer = resp.choices[0].message.content or ""
+        answer = radar_chat(message, history, context)
         return jsonify({"ok": True, "answer": answer})
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
-
-
-# ── System-prompt builder ────────────────────────────────────────────────────
-
-def _build_radar_chat_system(ctx: dict) -> str:
-    lines = [
-        "You are a recruitment advisor helping HR professionals in Austria understand their job market.",
-        "Your audience is HR managers and recruiters — not data analysts. They need clear, actionable guidance.",
-        "",
-        "Tone and format rules (follow strictly):",
-        "- Lead every answer with the key action or decision, then briefly explain why using 1-2 numbers.",
-        "- Never open with a statistic. Open with what the person should DO or KNOW.",
-        "- Use plain business language. Avoid jargon like 'backlog-conversion', 'top-of-funnel', 'stale demand'.",
-        "  Say 'unfilled for 30+ days' not 'stale'. Say 'harder to fill' not 'underserved'.",
-        "- Keep it to 2-3 short paragraphs. No walls of text.",
-        "- Use **bold** for the most important figures or action words (markdown will be rendered).",
-        "- Use bullet points only when listing 3+ parallel items.",
-        "- If the data does not contain what was asked, say so in one sentence.",
-        "",
-        "=== MARKET SNAPSHOT ===",
-    ]
-
-    t = ctx.get("totals") or {}
-    if t:
-        lines += [
-            f"Active jobs      : {t.get('total_active','?')}",
-            f"Stale 30+ days   : {t.get('stale_30','?')}  ({round(t.get('stale_30',0)/max(t.get('total_active',1),1)*100)}%)",
-            f"Stale 60+ days   : {t.get('stale_60','?')}",
-            f"Urgent ≤14 days  : {t.get('urgent_14d','?')}",
-            f"Sectors tracked  : {t.get('sector_count','?')}",
-        ]
-
-    if ctx.get("headline"):
-        lines += ["", f"Headline: {ctx['headline']}"]
-
-    if ctx.get("top_opportunities"):
-        lines += ["", "Top opportunities:"]
-        for o in ctx["top_opportunities"][:6]:
-            lines.append(f"  • {o.get('label')} — {o.get('reason')} [signal:{o.get('signal')}]")
-
-    if ctx.get("underserved"):
-        lines += ["", "Underserved markets:"]
-        for u in ctx["underserved"][:4]:
-            lines.append(f"  • {u.get('label')} — {u.get('reason')}")
-
-    if ctx.get("urgency_alerts"):
-        lines += ["", "Urgency alerts:"]
-        for u in ctx["urgency_alerts"][:4]:
-            lines.append(f"  • {u.get('label')}: {u.get('count')} jobs, {u.get('note','')}")
-
-    if ctx.get("trend_summary"):
-        lines += ["", f"Volume trend: {ctx['trend_summary']}"]
-
-    if ctx.get("recommendations"):
-        lines += ["", "Recommendations:"]
-        for i, r in enumerate(ctx["recommendations"][:5], 1):
-            lines.append(f"  {i}. {r}")
-
-    if ctx.get("top_sectors"):
-        lines += ["", "Top sectors (by volume):"]
-        for s in ctx["top_sectors"][:8]:
-            sal = f"€{s.get('avg_salary'):,}" if s.get("avg_salary") else "—"
-            lines.append(
-                f"  • {s.get('occ_group')}: {s.get('total_jobs')} jobs, "
-                f"{s.get('stale_30',0)} stale30, {s.get('urgent_deadline',0)} urgent, avg {sal}"
-            )
-
-    if ctx.get("filters"):
-        lines += ["", f"Active scope filters: {ctx['filters']}"]
-
-    return "\n".join(lines)

@@ -16,6 +16,7 @@ import pytest
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.services.reporting import (
     generate_briefing, suggest_filters, elaborate_items,
+    analytics_chat, radar_chat,
 )
 
 pytestmark = [
@@ -58,3 +59,18 @@ def test_elaborate_items_live():
     out = elaborate_items(items, context={"totals": _TOTALS, "headline": "Hot IT market"})
     assert len(out) == 2
     assert all(o["heading"].strip() and o["elaboration"].strip() for o in out)
+
+
+def test_analytics_chat_live():
+    """Live: the analytics assistant returns a non-empty prose reply grounded in saved items."""
+    items = [{"type": "opportunity", "label": "IT surge", "content": "IT roles up 20% in Vienna."}]
+    out = analytics_chat([{"role": "user", "content": "What should I lead the report with?"}], items)
+    assert isinstance(out, str) and out.strip()
+
+
+def test_radar_chat_live():
+    """Live: the radar advisor returns a non-empty prose reply grounded in the snapshot."""
+    ctx = {"totals": _TOTALS, "headline": "Hot IT market",
+           "top_sectors": [{"occ_group": "IT & Software", "total_jobs": 420, "avg_salary": 3800}]}
+    out = radar_chat("Where should I focus my sourcing?", [], ctx)
+    assert isinstance(out, str) and out.strip()

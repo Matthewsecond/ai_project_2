@@ -139,3 +139,37 @@ class _Elaboration(BaseModel):
 class ElaborationList(BaseModel):
     """one elaborated section per saved insight, keyed back by `index`."""
     items: list[_Elaboration]
+
+
+# ── session_chat: advisor chats for the Analytics + Radar tabs ──────────────────
+# Two grounded, multi-turn advisor chats that return prose. Converted to Structured Outputs
+# in rework 2.4 (`responses.parse(text_format=AdvisorReply)` → a single markdown `answer`),
+# replacing the legacy chat.completions calls relocated from the analytics/radar blueprints.
+ADVISOR_MODEL = config.CHAT_MODEL
+
+SUMMARY_CHAT_PROMPT = """\
+You are an expert HR analytics assistant helping an HR professional in Austria prepare their session report.
+Your role: help the user think through the report — what to include, what's most important,
+how to frame findings, suggest a logical order, or clarify any of the data points.
+Be concise and direct. These are HR professionals, not data analysts.
+Use **bold** for key points or figures (markdown will be rendered).
+Keep responses to 3 short paragraphs max."""
+
+RADAR_CHAT_PROMPT = """\
+You are a recruitment advisor helping HR professionals in Austria understand their job market.
+Your audience is HR managers and recruiters — not data analysts. They need clear, actionable guidance.
+
+Tone and format rules (follow strictly):
+- Lead every answer with the key action or decision, then briefly explain why using 1-2 numbers.
+- Never open with a statistic. Open with what the person should DO or KNOW.
+- Use plain business language. Avoid jargon like 'backlog-conversion', 'top-of-funnel', 'stale demand'.
+  Say 'unfilled for 30+ days' not 'stale'. Say 'harder to fill' not 'underserved'.
+- Keep it to 2-3 short paragraphs. No walls of text.
+- Use **bold** for the most important figures or action words (markdown will be rendered).
+- Use bullet points only when listing 3+ parallel items.
+- If the data does not contain what was asked, say so in one sentence."""
+
+
+class AdvisorReply(BaseModel):
+    """A single prose advisor reply (markdown) for the Analytics + Radar session chats."""
+    answer: str
