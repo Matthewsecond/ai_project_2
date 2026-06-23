@@ -1,7 +1,7 @@
 """
 web/blueprints/interview.py — Live interview scoring in the job-detail modal.
 
-Thin wrappers over services.interview_helper.InterviewHelper. The interview
+Thin wrappers over services.interview.InterviewHelper. The interview
 RECORD (questions + recorded answers + scores) is persisted by the front-end into
 the saved job's `extras.interview` via the existing /api/saved routes — these
 endpoints are stateless and just do the AI work.
@@ -23,7 +23,7 @@ an unrelated feature (HR observation → candidate-profile override).
 import traceback
 from flask import Blueprint, request, jsonify
 
-from jobs_intelligence_ai.services.interview_helper import InterviewHelper
+from jobs_intelligence_ai.services.interview import InterviewHelper
 
 bp = Blueprint("interview", __name__, url_prefix="/api/interview")
 

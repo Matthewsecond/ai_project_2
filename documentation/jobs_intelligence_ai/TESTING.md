@@ -74,7 +74,9 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 
 **Services — `services/enrichment/` (2.3 #2)** — offline `unit_tests/` (26): rescorer(6), highlighter(6), seniority(6), quality(5), match_insights(3) — mock `responses.parse` (apply + clamp/skip + fallback); match_insights is pure (no LLM). Live `smoke_tests/` (4, asserts): rescorer, highlighter, seniority, quality.
 
-**Default gate:** `pytest -m "not smoke"` → **47 passed, 2 deselected** — offline foundation + stats + grader unit tests, plus the live search stability tests (the 2 live-asserting smoke tests deselected).
+**Services — `services/interview/` (2.3 #3)** — offline `unit_tests/test_1_interview` (18): inject a fake client, assert the post-processing rules Structured Outputs can't express — score clamping, the `final` override that forces a score, follow-up exhaustion on an empty question, status/impact normalisation — plus the input guards and the no-key / API-failure / `output_parsed is None` fallbacks. Live `smoke_tests/test_interview_smoke` (2, asserts): generate gap-based questions, and score a strong answer (complete + in-range).
+
+**Default gate:** `pytest -m "not smoke"` → **91 passed, 8 deselected** — offline foundation + stats + enrichment + interview + grader unit tests, plus the live search stability tests (the live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 
@@ -112,6 +114,6 @@ helpers get a one-line docstring too. See `test_grader.py` for the house style.
 
 ## Gaps (filled as the rework proceeds)
 
-Per-service `unit_tests/` (stats, enrichment, interview, reporting, chat, clustering,
-candidate, geo, auth) and `frontend/integration_tests/` are scaffolded but empty — each
-is written when its module is repackaged in rework Stage 2.3 / 2.4.
+Per-service `unit_tests/` (reporting, chat, clustering, candidate, geo, auth) and
+`frontend/integration_tests/` are scaffolded but empty — each is written when its module is
+repackaged in rework Stage 2.3 / 2.4. Done so far: stats, enrichment, interview.

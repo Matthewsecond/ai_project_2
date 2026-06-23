@@ -22,8 +22,9 @@ docs live at the top level.
 | `shared/` | [README.md](shared/README.md) — foundation layer; `llm` (single OpenAI client), and json/job/grading/taxonomy as 2.1 lands them |
 | `services/search/` | _(to document — see ARCHITECTURE.md for now)_ |
 | `services/stats/` | [SALARY_ANALYSIS.md](services/stats/SALARY_ANALYSIS.md) — two-layer chart design, Plotly traces, edge cases |
-| `services/interview/` | [INTERVIEW_REWORK_CHANGELOG.md](services/interview/INTERVIEW_REWORK_CHANGELOG.md) |
-| `services/` (enrichment, reporting, chat, clustering, candidate, geo, auth) | _(to document)_ |
+| `services/enrichment/` | [README.md](services/enrichment/README.md) — post-retrieval enrich/re-score (Structured Outputs) |
+| `services/interview/` | [README.md](services/interview/README.md) — live interview scoring (Structured Outputs) · [INTERVIEW_REWORK_CHANGELOG.md](services/interview/INTERVIEW_REWORK_CHANGELOG.md) — feature history |
+| `services/` (reporting, chat, clustering, candidate, geo, auth) | _(to document)_ |
 | `frontend/` | [API.md](frontend/API.md) — Flask endpoints, request/response shapes · [FRONTEND.md](frontend/FRONTEND.md) — tab layout, job store, modals, chat UI |
 
 > Note: folder names track the **target** structure from RESTRUCTURE_PLAN.md. Some code

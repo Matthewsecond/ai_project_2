@@ -1,5 +1,5 @@
 """
-services/interview_helper.py — Live interview scoring for the job-detail modal.
+orchestrator.py — Live interview scoring for the job-detail modal.
 
 `InterviewHelper` owns the whole interview loop for one (candidate, job) pair:
 
@@ -7,59 +7,25 @@ services/interview_helper.py — Live interview scoring for the job-detail modal
     analyze_answer(question, answer)  → score + qualitative read of one answer
     summarize(records)                → overall recommendation across answers
 
-It is deliberately a small class rather than a few inline endpoint functions so
-the evaluation RUBRIC (how an answer is judged) lives in one place, separate from
-the interview questions themselves. The recruiter records what the candidate said
-against each question; each answer is scored 0–100 and tagged with strengths,
-concerns, and soft signals (e.g. "strategic thinking") that aren't on the nose.
+It is deliberately a small class rather than a few inline endpoint functions so the
+evaluation RUBRIC (how an answer is judged) lives in one place — see `config.py`, which
+holds the rubric, calibration, per-call prompts and the Structured-Outputs schemas. The
+recruiter records what the candidate said against each question; each answer is scored
+0–100 and tagged with strengths, concerns, and soft signals that aren't on the nose.
 
-All AI calls go through the shared OpenAI client (`core.get_client`) and use
-`config.CHAT_MODEL`, matching the other AI features. Every method degrades to a
-structured error dict instead of raising, so a flaky model call never 500s the
-interview UI.
+All AI calls go through the shared OpenAI client (`shared.llm.get_client`) and use
+`config.CHAT_MODEL`. Each call uses Structured Outputs (`responses.parse(text_format=…)`),
+so replies are schema-validated rather than parsed out of prose. Every method degrades to
+a structured error dict instead of raising, so a flaky model call never 500s the UI.
 """
 import json
 import logging
-import re
 
 from jobs_intelligence_ai import config
+from jobs_intelligence_ai.shared.llm import get_client
+from . import config as ic   # interview config: prompts + Structured-Outputs schemas
 
 logger = logging.getLogger(__name__)
-
-# How an answer is judged. This is the "analysis questions" the recruiter asked
-# for — a fixed rubric applied to every answer, independent of the interview
-# question being answered. Kept here (not in the prompt strings) so it reads as
-# one list and is easy to tune.
-_RUBRIC = (
-    "Score the answer 0-100 on how well it resolves the concern the question "
-    "probes, weighing: (1) RELEVANCE — does it actually address what was asked; "
-    "(2) EVIDENCE — concrete examples, numbers, named projects, outcomes, rather "
-    "than generic claims; (3) DEPTH — does it show real understanding and "
-    "ownership versus surface familiarity; (4) COMMUNICATION — is it clear and "
-    "structured. A vague or evasive answer scores low even if confident; a "
-    "specific, quantified, first-hand answer scores high."
-)
-
-# Every judgement (questions, answer scores, running assessment) must be measured
-# against the level the posting actually asks for — not an abstract ideal. Shared
-# by all three prompts so calibration is consistent.
-_CALIBRATION = (
-    " Calibrate all expectations to the SENIORITY and EXPERIENCE the posting asks "
-    "for. Read the job title and description for level cues — e.g. 'junior', "
-    "'graduate', 'working student', 'medior', 'senior', 'lead', 'head of', or a "
-    "stated bar like '2+ years' or '5+ years' — and judge against THAT level: do "
-    "not penalise a junior/entry role for lacking senior-level depth, and do "
-    "demand more from a senior/lead role. Also weigh how each requirement is "
-    "PHRASED: treat hard 'must-have' / 'required' items as more decisive than "
-    "'nice to have' / 'a plus' / 'desirable' ones."
-)
-
-_LANG_NOTE = {
-    "en": " Write all text fields in English.",
-    "de": " Write all text fields in German.",
-    "sk": " Write all text fields in Slovak.",
-    "auto": " Write all text fields in the same language as the job description.",
-}
 
 
 class InterviewHelper:
@@ -68,28 +34,39 @@ class InterviewHelper:
 
     def __init__(self, client=None, model: str | None = None):
         self._client = client
-        self._model = model or config.CHAT_MODEL
+        self._model = model or ic.MODEL
 
     # ── client / low-level call ────────────────────────────────────────────────
     @property
     def client(self):
         if self._client is None:
-            from jobs_intelligence_ai.core import get_client
             self._client = get_client()
         return self._client
 
-    def _call_json(self, instructions: str, prompt: str):
-        """One model call expected to return JSON. Returns the parsed object, or
-        a {"_error": ...} dict so callers can surface failure without raising."""
+    def _call_parsed(self, instructions: str, prompt: str, schema):
+        """One Structured-Outputs model call. Returns the validated `output_parsed`
+        Pydantic object, or a {"_error": ...} dict so callers can surface failure
+        without raising."""
         if not config.OPENAI_API_KEY:
             return {"_error": "Interview features require an OpenAI API key — add OPENAI_API_KEY to your .env file."}
         try:
-            resp = self.client.responses.create(
-                model=self._model, instructions=instructions, input=prompt)
-            return _parse_json(resp.output_text or "")
+            resp = self.client.responses.parse(
+                model=self._model, instructions=instructions, input=prompt,
+                text_format=schema)
+            parsed = resp.output_parsed
+            if parsed is None:
+                return {"_error": "model returned no structured output"}
+            return parsed
         except Exception as e:
             logger.error("InterviewHelper call failed: %s", e)
             return {"_error": str(e)}
+
+    @staticmethod
+    def _err(data):
+        """The error string if `data` is a {"_error": ...} dict, else None."""
+        if isinstance(data, dict) and "_error" in data:
+            return data["_error"]
+        return None
 
     # ── job / cv context block shared by every prompt ──────────────────────────
     @staticmethod
@@ -123,20 +100,13 @@ class InterviewHelper:
         questions, structured so each can carry its own answer + score."""
         if not (job.get("title") and (cv_text or "").strip()):
             return {"ok": False, "error": "job.title and cv_text required"}
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
-        instructions = (
-            "You are a recruitment assistant preparing an interviewer. Compare the "
-            "job and the candidate CV, find the gaps or unproven areas, and write "
-            f"{n} targeted interview questions that probe them. For each, add a short "
-            "note naming the gap it addresses." + _CALIBRATION +
-            " Return ONLY valid JSON in this exact "
-            'shape: {"questions":[{"id":1,"question":"<text>","note":"<gap it '
-            'addresses>"}]}. Number ids from 1.' + lang_note
-        )
-        data = self._call_json(instructions, self._context(job, cv_text, profile))
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
-        questions = _coerce_questions(data.get("questions"))
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
+        instructions = ic.QUESTIONS_PROMPT.format(n=n) + lang_note
+        data = self._call_parsed(instructions, self._context(job, cv_text, profile),
+                                 ic.QuestionList)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        questions = _coerce_questions(data.model_dump()["questions"])
         if not questions:
             return {"ok": False, "error": "model returned no questions"}
         return {"ok": True, "questions": questions}
@@ -153,23 +123,10 @@ class InterviewHelper:
         text = (text or "").strip()
         if not text:
             return {"ok": False, "error": "no text to parse"}
-        instructions = (
-            "You are given a prepared interview document as free-form text. It contains "
-            "interview QUESTIONS and, after some of them, the candidate's ANSWER. There "
-            "are no explicit labels: questions and answers simply alternate, and NOT "
-            "every question has an answer. A question is what the interviewer asks (it "
-            "need not end in '?'); an answer is the candidate's reply, usually "
-            "first-person. Extract them IN ORDER. For each question give its text and "
-            "the answer that immediately follows it — use an empty string when the next "
-            "item is another question or the document ends. Preserve the original "
-            "wording and language EXACTLY: do not translate, summarise, merge, or "
-            'invent. Return ONLY valid JSON: {"questions":[{"id":1,"question":"<text>",'
-            '"answer":"<text or empty>"}]}. Number ids from 1.'
-        )
-        data = self._call_json(instructions, text[:12000])
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
-        questions = _coerce_parsed(data.get("questions"))
+        data = self._call_parsed(ic.PARSE_PROMPT, text[:12000], ic.ParsedQAList)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        questions = _coerce_parsed(data.model_dump()["questions"])
         if not questions:
             return {"ok": False, "error": "no questions found in the text"}
         return {"ok": True, "questions": questions}
@@ -191,49 +148,19 @@ class InterviewHelper:
         "score"(null when not complete), "verdict", "strengths", "concerns", "signals"}."""
         if not (question or "").strip() or not (answer or "").strip():
             return {"ok": False, "error": "question and answer required"}
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
-        gate = (
-            "You are an expert interviewer assessing a candidate during a LIVE, ongoing "
-            "interview. You are shown one interview question and the exchange so far — "
-            "the candidate's reply, plus any interviewer clarifications and further "
-            "replies. FIRST decide whether the exchange is already a COMPLETE answer or "
-            "still IN PROGRESS. The candidate's latest turn may be: a clarifying or "
-            "scoping question back to the interviewer (e.g. asking what data, format, "
-            "tools or constraints apply); a partial answer that clearly needs more; or a "
-            "complete answer. A clarifying or scoping question is a normal and often "
-            "POSITIVE move (it can show curiosity, rigour or real-world experience) — "
-            "never treat it as a failed or weak answer. "
-        )
-        if final:
-            gate += ("The interviewer has marked this answer FINAL: treat it as complete "
-                     "and score it as it stands, even if brief or partial. ")
-        else:
-            gate += ("If the exchange is NOT yet a complete answer, set \"complete\" false, "
-                     "set \"score\" null, and in \"needs\" briefly state what the candidate "
-                     "asked for or what is still missing and what the interviewer should do "
-                     "next. Only when it is a complete answer set \"complete\" true and "
-                     "score it. ")
-        instructions = (
-            gate + "When scoring a complete answer: " + _RUBRIC + _CALIBRATION +
-            " Also surface SIGNALS — qualities the answer reveals that aren't explicitly "
-            "asked for (e.g. strategic thinking, ownership, commercial awareness, "
-            "quantitative rigour, or asking sharp clarifying questions) — as short tags. "
-            "Judge the WHOLE exchange, not just the first turn. Return ONLY valid JSON: "
-            '{"complete":<true|false>,"status":"answer|clarifying|partial","needs":'
-            '"<text or empty>","score":<int 0-100 or null>,"verdict":"<one sentence>",'
-            '"strengths":["<short point>"],"concerns":["<short point>"],'
-            '"signals":["<short tag>"]}.' + lang_note
-        )
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
+        gate = ic.ANALYZE_GATE + (ic.ANALYZE_FINAL_NOTE if final else ic.ANALYZE_OPEN_NOTE)
+        instructions = gate + ic.ANALYZE_SCORING + lang_note
         gap = f"\nGAP THIS QUESTION PROBES: {note}" if note else ""
         prompt = (
             f"{self._context(job, cv_text, profile)}{_others_block(others)}\n\n"
             f"INTERVIEW QUESTION: {question}{gap}\n\n"
             f"THE EXCHANGE SO FAR (interviewer's notes — may be multiple turns):\n{answer[:2000]}"
         )
-        data = self._call_json(instructions, prompt)
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
-        return {"ok": True, **_coerce_analysis(data, force_complete=final)}
+        data = self._call_parsed(instructions, prompt, ic.AnswerAnalysis)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        return {"ok": True, **_coerce_analysis(data.model_dump(), force_complete=final)}
 
     # ── context preview (for the "what the AI sees" panel) ─────────────────────
     def preview_context(self, job: dict, cv_text: str, profile: dict | None = None,
@@ -258,21 +185,8 @@ class InterviewHelper:
             return {"ok": False, "error": "thread with at least one question+answer required"}
         if not any((t.get("answer") or "").strip() for t in thread):
             return {"ok": False, "error": "no answer to follow up on yet"}
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
-        instructions = (
-            "You are conducting a live interview. Below is ONE line of questioning: the "
-            "original question, the candidate's answer, and any follow-ups already asked "
-            "with their answers. Decide whether ONE more follow-up would meaningfully "
-            "improve your read of the candidate ON THIS TOPIC. Propose a follow-up ONLY "
-            "when the latest answer leaves a genuine unresolved gap, an unverified or "
-            "vague claim, or a promising thread worth exactly one more probe. If the topic "
-            "is already well covered, the answer is specific and complete, or further "
-            "probing would be redundant, STOP: set \"exhausted\" to true and do NOT invent "
-            "a question. Ask at most one question at a time." + _CALIBRATION +
-            ' Return ONLY valid JSON: {"exhausted":<true|false>,"question":"<the follow-up, '
-            'or empty if exhausted>","note":"<the gap this follow-up probes>","reason":"<if '
-            'exhausted, why this thread is done>"}.' + lang_note
-        )
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
+        instructions = ic.FOLLOWUP_PROMPT + lang_note
         lines = []
         for i, t in enumerate(thread, 1):
             label = "ORIGINAL QUESTION" if i == 1 else f"FOLLOW-UP {i - 1}"
@@ -283,10 +197,10 @@ class InterviewHelper:
         prompt = (self._context(job, cv_text, profile)
                   + _others_block(others)
                   + "\n\nLINE OF QUESTIONING SO FAR:\n" + "\n\n".join(lines))
-        data = self._call_json(instructions, prompt)
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
-        return {"ok": True, **_coerce_followup(data)}
+        data = self._call_parsed(instructions, prompt, ic.Followup)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        return {"ok": True, **_coerce_followup(data.model_dump())}
 
     # ── 3. summarize the interview ─────────────────────────────────────────────
     def summarize(self, records: list[dict], job: dict, cv_text: str,
@@ -298,7 +212,7 @@ class InterviewHelper:
         answered = [r for r in (records or []) if (r.get("answer") or "").strip()]
         if not answered:
             return {"ok": False, "error": "no answered questions to summarize"}
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
         lines = []
         for i, r in enumerate(answered, 1):
             lines.append(
@@ -306,25 +220,17 @@ class InterviewHelper:
                 f"  Answer: {(r.get('answer') or '')[:600]}\n"
                 f"  Score: {r.get('score', '—')}  Verdict: {r.get('verdict', '')}"
             )
-        instructions = (
-            "You are a hiring manager writing the wrap-up of an interview from the "
-            "scored answers below. Give an overall fit score 0-100 (consider both "
-            "the individual scores and how the answers hang together), a one-word/"
-            "short recommendation (e.g. 'Advance', 'Hold', 'Pass'), and a 2-3 "
-            "sentence summary covering the strongest evidence and the biggest "
-            "remaining risk." + _CALIBRATION + " Return ONLY valid JSON: "
-            '{"score":<int 0-100>,"recommendation":"<short>","summary":"<text>"}.'
-            + lang_note
-        )
+        instructions = ic.SUMMARIZE_PROMPT + lang_note
         prompt = self._context(job, cv_text, profile) + "\n\nSCORED ANSWERS:\n" + "\n\n".join(lines)
-        data = self._call_json(instructions, prompt)
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
+        data = self._call_parsed(instructions, prompt, ic.InterviewSummary)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        d = data.model_dump()
         return {
             "ok": True,
-            "score": _clamp_score(data.get("score")),
-            "recommendation": str(data.get("recommendation") or "").strip(),
-            "summary": str(data.get("summary") or "").strip(),
+            "score": _clamp_score(d.get("score")),
+            "recommendation": str(d.get("recommendation") or "").strip(),
+            "summary": str(d.get("summary") or "").strip(),
         }
 
     # ── 3b. model answer (candidate coaching, revealed after they answer) ───────
@@ -338,28 +244,19 @@ class InterviewHelper:
         {"ok", "model_answer", "covers":[<key point>]}."""
         if not (question or "").strip():
             return {"ok": False, "error": "question required"}
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
-        instructions = (
-            "You are an interview coach helping a CANDIDATE. Given the role and the "
-            "candidate's background, explain what a STRONG answer to this interview "
-            "question would cover — the substance, concrete evidence and framing the "
-            "company is really looking for. Tailor it to THIS role; where the "
-            "candidate's CV gives them something real to draw on, point that out. "
-            "Coach the candidate on what to convey — do NOT write a word-for-word "
-            "script for them to recite." + _CALIBRATION +
-            ' Return ONLY valid JSON: {"model_answer":"<2-4 sentence guidance>",'
-            '"covers":["<a key point a strong answer hits>"]}.' + lang_note
-        )
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
+        instructions = ic.MODEL_ANSWER_PROMPT + lang_note
         gap = f"\nGAP THIS QUESTION PROBES: {note}" if note else ""
         prompt = (self._context(job, cv_text, profile)
                   + f"\n\nINTERVIEW QUESTION: {question}{gap}")
-        data = self._call_json(instructions, prompt)
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
+        data = self._call_parsed(instructions, prompt, ic.ModelAnswer)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        d = data.model_dump()
         return {
             "ok": True,
-            "model_answer": str(data.get("model_answer") or "").strip(),
-            "covers": _str_list(data.get("covers")),
+            "model_answer": str(d.get("model_answer") or "").strip(),
+            "covers": _str_list(d.get("covers")),
         }
 
     # ── 3c. improvement opportunities (candidate-facing, forward-looking) ───────
@@ -374,7 +271,7 @@ class InterviewHelper:
         answered = [r for r in (records or []) if (r.get("answer") or "").strip()]
         if not answered:
             return {"ok": False, "error": "no answered questions to analyze yet"}
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
         lines = []
         for i, r in enumerate(answered, 1):
             lines.append(
@@ -382,29 +279,17 @@ class InterviewHelper:
                 f"  Answer: {(r.get('answer') or '')[:600]}"
                 + (f"  (scored {r['score']})" if r.get("score") is not None else "")
             )
-        instructions = (
-            "You are a candidate's interview coach. From the role, the candidate's "
-            "CV/profile, and the answers they have given, identify the BIGGEST "
-            "opportunities for this candidate to improve their chances for THIS role. "
-            "Rank 3-5 of them by how much each would move the company's decision. For "
-            "each give: a short title (the opportunity), a one-line rationale (why it "
-            "matters for this role), a concrete ACTION the candidate can take (a "
-            "strength to surface, evidence to add, an answer to sharpen, a gap to "
-            "close), and an impact tag 'high' | 'medium' | 'low'. Be specific and "
-            "constructive — never generic filler." + _CALIBRATION +
-            ' Return ONLY valid JSON: {"opportunities":[{"title":"<text>","rationale":'
-            '"<text>","action":"<text>","impact":"high|medium|low"}],"summary":'
-            '"<2-3 sentence encouraging overview>"}.' + lang_note
-        )
+        instructions = ic.OPPORTUNITIES_PROMPT + lang_note
         prompt = (self._context(job, cv_text, profile)
                   + "\n\nANSWERS GIVEN SO FAR:\n" + "\n\n".join(lines))
-        data = self._call_json(instructions, prompt)
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
+        data = self._call_parsed(instructions, prompt, ic.OpportunityList)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        d = data.model_dump()
         return {
             "ok": True,
-            "opportunities": _coerce_opportunities(data.get("opportunities")),
-            "summary": str(data.get("summary") or "").strip(),
+            "opportunities": _coerce_opportunities(d.get("opportunities")),
+            "summary": str(d.get("summary") or "").strip(),
         }
 
     # ── 4. live candidate assessment (aspects, updated as answers come in) ──────
@@ -419,7 +304,7 @@ class InterviewHelper:
         `prior_aspects` (the last result) is passed back so aspect NAMES stay stable
         and only their scores/notes move as evidence accrues."""
         answered = [r for r in (records or []) if (r.get("answer") or "").strip()]
-        lang_note = _LANG_NOTE.get(lang, _LANG_NOTE["en"])
+        lang_note = ic.LANG_NOTE.get(lang, ic.LANG_NOTE["en"])
 
         if answered:
             lines = "\n".join(
@@ -439,56 +324,25 @@ class InterviewHelper:
                            "their score/status/note as new answers warrant:\n"
                            + json.dumps(prior_aspects, ensure_ascii=False))
 
-        instructions = (
-            "You are continuously assessing a candidate for a specific role across the "
-            "KEY ASPECTS that matter for it. Pick 4-6 aspects inferred from the job and "
-            "candidate (e.g. core technical skills, domain/industry experience, relevant "
-            "seniority, communication, and any role-specific competencies). For EACH "
-            "aspect give: a score 0-100, a status of 'strong' | 'mixed' | 'weak' | "
-            "'unknown', and a one-line note citing the evidence. Interview answers are the "
-            "strongest evidence as they accumulate; the CV and profile are the baseline. "
-            "If an aspect has no evidence yet, use status 'unknown'." + _CALIBRATION +
-            " Also give a 2-3 "
-            "sentence overall summary. Return ONLY valid JSON: "
-            '{"aspects":[{"aspect":"<name>","score":<int 0-100>,'
-            '"status":"<strong|mixed|weak|unknown>","note":"<evidence>"}],"summary":"<text>"}.'
-            + lang_note
-        )
+        instructions = ic.ASSESS_PROMPT + lang_note
         prompt = self._context(job, cv_text, profile) + prior_block + answers_block
-        data = self._call_json(instructions, prompt)
-        if "_error" in data:
-            return {"ok": False, "error": data["_error"]}
+        data = self._call_parsed(instructions, prompt, ic.AspectAssessment)
+        if (err := self._err(data)):
+            return {"ok": False, "error": err}
+        d = data.model_dump()
         return {
             "ok": True,
-            "aspects": _coerce_aspects(data.get("aspects")),
-            "summary": str(data.get("summary") or "").strip(),
+            "aspects": _coerce_aspects(d.get("aspects")),
+            "summary": str(d.get("summary") or "").strip(),
         }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Parsing / coercion helpers — keep the model's output well-shaped
+#  Post-processing helpers — normalise the Structured-Outputs payloads
+#  (clamp scores, cap list lengths, apply the `final`/exhausted business rules).
+#  Structured Outputs guarantees the SHAPE; these enforce the value bounds and the
+#  interview-specific defaulting the schema can't express.
 # ══════════════════════════════════════════════════════════════════════════════
-def _parse_json(raw: str):
-    """Parse a model response that should be a JSON object, tolerating ```json
-    fences and leading/trailing prose."""
-    s = (raw or "").strip()
-    if s.startswith("```"):
-        s = s.split("```")[1]
-        if s.startswith("json"):
-            s = s[4:]
-        s = s.strip()
-    try:
-        return json.loads(s)
-    except (ValueError, TypeError):
-        m = re.search(r"\{.*\}", s, re.DOTALL)
-        if m:
-            try:
-                return json.loads(m.group(0))
-            except (ValueError, TypeError):
-                pass
-    return {"_error": "could not parse model response"}
-
-
 def _clamp_score(v) -> int | None:
     try:
         n = int(round(float(v)))

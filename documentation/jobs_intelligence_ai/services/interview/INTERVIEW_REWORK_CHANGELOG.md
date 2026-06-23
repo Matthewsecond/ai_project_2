@@ -1,5 +1,10 @@
 # Interview Scorecard Rework + UX Cleanup — Session Changelog
 
+> **Note (rework 2.3 #3):** the backend has since moved from the single
+> `services/interview_helper.py` to the `services/interview/` package
+> (`orchestrator.py` + `config.py`) and its model calls now use Structured Outputs — see
+> [README.md](README.md). Paths below reflect the layout at the time of this changelog.
+
 _2026-06-19. Summary of the work done in this session. Files are under
 `src/jobs_intelligence_ai/`. Frontend = `web/templates/index.html` (inline JS/HTML).
 Verified throughout with `node --check` (inline JS) + Python parse/route checks + direct

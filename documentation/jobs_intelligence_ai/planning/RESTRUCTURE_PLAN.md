@@ -268,7 +268,7 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 |---|---|---|---|
 | 1 | ✅ `stats/` ← opportunity, quality_score, salary_stats | radar bp, search bp, quality_classifier → package API | — none (pure stats); +`config.py`, `__init__` API, `__main__`, 14 offline tests; found 2 quality_score bugs (flagged) |
 | 2 | ✅ `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | ✅ repointed (core, search orch, chat, search bp, saved bp) | ✅ DONE: 2a moved; rescorer/highlighter/seniority/quality → SO (prompts+schemas in `config.py`, `shared.get_client`); match_insights verified no-LLM. 26 offline + 4 live smoke. All `parse_json`/`json.loads`/own-clients gone. |
-| 3 | `interview/` ← interview_helper | interview bp | **interview_helper** (`_parse_json`) |
+| 3 | ✅ `interview/` ← interview_helper | ✅ interview bp repointed | ✅ DONE: file → package (`orchestrator.py` + `config.py`, `__init__` API); all 8 model calls → SO (prompts+schemas in `config.py`, `shared.get_client`); `_parse_json` gone; "ONLY JSON" boilerplate gone. 18 offline + 2 live smoke. |
 | 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp | **opportunity_briefing** (`json.loads` ×2); verify report_generator/pipeline |
 | 5 | `chat/` ← send_message/_parse, send_job_message, send_candidate_message, enrich_jobs_from_db | chat bp, job_detail bp, `core` | **send_message** (`_parse`, file_search+SO confirmed in 2.2c — tune prompt), **send_candidate_message** (`_parse_candidate`); job/segment msgs are text-only |
 | 6 | `clustering/` ← clustering, persona, + send_segment_message | cluster bp | **persona** (`_parse_json_obj`); clustering.py = embeddings, no parse |
