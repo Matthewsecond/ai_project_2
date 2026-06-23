@@ -9,24 +9,16 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 
+from . import config
+
 
 # ── Completeness ─────────────────────────────────────────────────────────────
 
-_COMPLETENESS_FIELDS = [
-    ("description", 3),   # longest description = most weight
-    ("skills_en",   2),
-    ("salary",      2),
-    ("url",         1),
-    ("contacts",    1),
-    ("city",        1),
-]
-
-
 def completeness_score(job: dict) -> float:
     """0.0–1.0: how much of the important info is present."""
-    total_weight = sum(w for _, w in _COMPLETENESS_FIELDS)
+    total_weight = sum(w for _, w in config.COMPLETENESS_FIELDS)
     earned = 0
-    for field, weight in _COMPLETENESS_FIELDS:
+    for field, weight in config.COMPLETENESS_FIELDS:
         v = job.get(field)
         if v and str(v).strip():
             earned += weight
@@ -139,7 +131,8 @@ def freshness_signal(job: dict) -> dict:
         "days_old":        days_old,
         "deadline_passed": deadline_passed,
         "deadline_date":   str(deadline) if deadline else None,
-        "freshness_score": max(0.0, 1.0 - (days_old or 30) / 90) if days_old is not None else 0.5,
+        "freshness_score": max(0.0, 1.0 - (days_old or config.FRESHNESS_DEFAULT_DAYS)
+                               / config.FRESHNESS_WINDOW_DAYS) if days_old is not None else 0.5,
     }
 
 

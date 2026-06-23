@@ -44,7 +44,7 @@ def api_opportunity():
     if _portals:    filters["portals"]    = _portals
 
     try:
-        from jobs_intelligence_ai.stats.opportunity import (
+        from jobs_intelligence_ai.services.stats import (
             get_sector_snapshot, get_state_snapshot, get_portal_snapshot,
             get_volume_trend, get_summary_totals,
         )
@@ -87,7 +87,7 @@ def api_opportunity_jobs():
     portal    = request.args.get("portal") or None
 
     try:
-        from jobs_intelligence_ai.stats.opportunity import get_stale_jobs, get_urgent_jobs
+        from jobs_intelligence_ai.services.stats import get_stale_jobs, get_urgent_jobs
         if mode == "urgent":
             deadline = int(request.args.get("deadline", 14))
             jobs = get_urgent_jobs(deadline_days=deadline, limit=limit)

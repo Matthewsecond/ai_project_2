@@ -69,7 +69,10 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
   outscores an obvious mismatch. Catches "structured call is misconfigured/rejected".
 - `smoke_tests/test_search_smoke` (1, **live**) — runs the real Orchestrator and prints matches; no asserts (eyeball).
 
-**Default gate:** `pytest -m "not smoke"` → **28 passed, 1 deselected**.
+**Services — `services/stats/unit_tests/` (14, offline)** — the first repackaged service (2.3 #1):
+`test_1_quality_score` (pure quality signals) + `test_2_opportunity` (SQL filter-clause builder + type converter). DB query functions covered by boot + the radar tab.
+
+**Default gate:** `pytest -m "not smoke"` → **47 passed, 2 deselected** — offline foundation + stats + grader unit tests, plus the live search stability tests (the 2 live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 

@@ -266,7 +266,7 @@ SAME step (delete its JSON parser + prompt boilerplate, add the two test layers 
 
 | # | Module ← current files | Importers to repoint | `SO →` convert |
 |---|---|---|---|
-| 1 | `stats/` ← opportunity, quality_score, salary_stats | (already grouped; add API + `__main__`) | — none (pure stats) |
+| 1 | ✅ `stats/` ← opportunity, quality_score, salary_stats | radar bp, search bp, quality_classifier → package API | — none (pure stats); +`config.py`, `__init__` API, `__main__`, 14 offline tests; found 2 quality_score bugs (flagged) |
 | 2 | `enrichment/` ← seniority_classifier, quality_classifier, match_insights, rescorer, highlighter | search bp, saved bp, `core`, chat.enrich | **rescorer**, **highlighter** (drop `parse_json`); verify seniority/quality_classifier/match_insights |
 | 3 | `interview/` ← interview_helper | interview bp | **interview_helper** (`_parse_json`) |
 | 4 | `reporting/` ← report_generator, report_pipeline, opportunity_briefing | analytics bp, saved bp, radar bp | **opportunity_briefing** (`json.loads` ×2); verify report_generator/pipeline |

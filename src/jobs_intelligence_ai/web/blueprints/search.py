@@ -271,7 +271,7 @@ def api_quality():
         return jsonify({"ok": False, "error": "jobs array required"}), 400
 
     try:
-        from jobs_intelligence_ai.stats.salary_stats import get_group_stats
+        from jobs_intelligence_ai.services.stats import get_group_stats
         from jobs_intelligence_ai.services.quality_classifier import classify_quality
         group_stats = get_group_stats(occ_group, state) if occ_group else {}
         result_jobs = classify_quality(list(jobs), group_stats)

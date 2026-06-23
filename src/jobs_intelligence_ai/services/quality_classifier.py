@@ -102,7 +102,7 @@ def classify_quality(jobs: list[dict], group_stats: dict) -> list[dict]:
     if not config.OPENAI_API_KEY:
         return _fallback(jobs)
 
-    from jobs_intelligence_ai.stats.quality_score import build_quality_context
+    from jobs_intelligence_ai.services.stats import build_quality_context
 
     # Build the prompt body — one block per job
     market_context = _format_market_context(group_stats)
@@ -206,7 +206,7 @@ def _format_job_block(i: int, job: dict, ctx: dict) -> str:
 
 def _apply_fallback_single(job: dict) -> None:
     """Simple rule-based quality estimate when AI is unavailable."""
-    from jobs_intelligence_ai.stats.quality_score import completeness_score, salary_signal
+    from jobs_intelligence_ai.services.stats import completeness_score, salary_signal
 
     comp = completeness_score(job)
     sal_s = salary_signal(job, {})  # no group stats
