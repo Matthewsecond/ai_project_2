@@ -19,67 +19,13 @@ Output per job:
   fit           "overpaying" | "fair" | "underpaying" | "unknown"
   flags         list of short observations (max 4)
 """
-import json
 import logging
-import re
 
-from openai import OpenAI
 from jobs_intelligence_ai import config
+from jobs_intelligence_ai.shared.llm import get_client
+from .config import QUALITY_PROMPT, QualityResults
 
 logger = logging.getLogger(__name__)
-
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=config.OPENAI_API_KEY)
-    return _client
-
-
-_SYSTEM = """\
-You are a senior recruitment analyst assessing the quality and fairness of job postings.
-
-For each job you receive:
-  1. The job title, full description, required skills, and employment terms.
-  2. Pre-computed signals: salary vs group mean/percentile, completeness score, freshness.
-  3. Market context: salary statistics for the same occupational group.
-
-Your PRIMARY task is to evaluate RESPONSIBILITY-COMPENSATION FIT:
-  - Read what the job actually demands: scope of responsibilities, required experience,
-    skill breadth, leadership duties, complexity of tasks.
-  - Compare that against the offered salary (if present) and market benchmarks.
-  - A posting asking for a senior architect with 7+ years at €2,400/month = LOW quality.
-  - A clear junior role at €2,200/month with good description = HIGH quality.
-  - A vague posting with no salary and generic requirements = MID at best.
-
-Secondary signals to consider:
-  - Completeness: does the posting respect the candidate's time? (description, skills, link, contact)
-  - Employment terms: permanent vs temp, full vs part-time
-  - Freshness: is the deadline already passed?
-
-Rules:
-  - "high"  : fair or above-fair compensation for the responsibilities; complete posting
-  - "mid"   : some mismatch OR incomplete info, but not egregiously unfair
-  - "low"   : clear underpaying for responsibilities, expired deadline, or very low quality posting
-
-Respond with ONLY a valid JSON array — no prose, no markdown.
-One element per job (in input order):
-[
-  {
-    "i":       0,
-    "quality": "high",
-    "score":   0.82,
-    "verdict": "Competitive salary for described responsibilities; permanent full-time role.",
-    "fit":     "fair",
-    "flags":   ["Above group median", "Full description", "Permanent contract"]
-  },
-  ...
-]
-score: 0.0–1.0 (your overall quality assessment).
-flags: at most 4 short observations, mix of positive and negative.
-"""
 
 
 def classify_quality(jobs: list[dict], group_stats: dict) -> list[dict]:
@@ -120,29 +66,23 @@ def classify_quality(jobs: list[dict], group_stats: dict) -> list[dict]:
     )
 
     try:
-        client = _get_client()
-        response = client.responses.create(
+        response = get_client().responses.parse(
             model=config.CLASSIFIER_MODEL,
-            instructions=_SYSTEM,
+            instructions=QUALITY_PROMPT,
             input=user_input,
+            text_format=QualityResults,
         )
-        raw = (response.output_text or "").strip()
-        raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
-        results = json.loads(raw)
-
-        if not isinstance(results, list):
-            raise ValueError("Expected JSON array")
+        results = response.output_parsed.items if response.output_parsed else []
 
         for item in results:
-            idx = item.get("i")
-            if idx is None or not (0 <= int(idx) < len(jobs)):
+            if not (0 <= item.i < len(jobs)):
                 continue
-            j = jobs[int(idx)]
-            j["quality"]         = item.get("quality", "mid")
-            j["quality_score"]   = float(item.get("score", 0.5))
-            j["quality_verdict"] = item.get("verdict", "")
-            j["quality_fit"]     = item.get("fit", "unknown")
-            j["quality_flags"]   = item.get("flags", [])
+            j = jobs[item.i]
+            j["quality"]         = item.quality
+            j["quality_score"]   = float(item.score)
+            j["quality_verdict"] = item.verdict
+            j["quality_fit"]     = item.fit
+            j["quality_flags"]   = item.flags
 
         # Fill any the model skipped
         for j in jobs:

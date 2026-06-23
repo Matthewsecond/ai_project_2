@@ -5,6 +5,8 @@ The home for this module's knobs. Each sub-feature's prompt + Structured-Outputs
 schema migrates here as it's converted (rescorer, highlighter in 2.3 #2b/#2c). Today the
 per-feature dataclasses (RescorerConfig, HighlighterConfig) still live in their own files.
 """
+from typing import Literal
+
 from pydantic import BaseModel
 
 from jobs_intelligence_ai import config
@@ -52,3 +54,62 @@ that match (empty if none)."""
 class HighlightResult(BaseModel):
     """The highlighter's reply: the 0-based indices of the jobs that match the criterion."""
     indices: list[int]
+
+
+# ── seniority_classifier (2.3 #2d) ────────────────────────────────────────────────
+SENIORITY_PROMPT = """You are a recruitment expert. Classify each job posting as exactly one of:
+  "senior"  — requires 5+ years experience, leadership, architecture, or expert-level ownership
+  "mid"     — standard professional role (2–5 years), no explicit seniority marker
+  "junior"  — entry-level, trainee, apprentice, intern, student worker, or 0–2 years experience
+
+Use ALL available signals: title keywords, required skills, years of experience in the
+description, scope of responsibilities, and occupational group. Return one entry per job,
+each with its 0-based index `i` and `level`."""
+
+
+class _Seniority(BaseModel):
+    i: int
+    level: Literal["senior", "mid", "junior"]
+
+
+class SeniorityResults(BaseModel):
+    """The seniority classifier's reply: one (index, level) per classified job."""
+    items: list[_Seniority]
+
+
+# ── quality_classifier (2.3 #2e) ──────────────────────────────────────────────────
+QUALITY_PROMPT = """You are a senior recruitment analyst assessing the quality and fairness of job postings.
+
+For each job you receive: the title, full description, required skills and employment terms;
+pre-computed signals (salary vs group mean/percentile, completeness score, freshness); and
+market salary statistics for the same occupational group.
+
+Your PRIMARY task is to evaluate RESPONSIBILITY-COMPENSATION FIT:
+  - Read what the job actually demands: scope, required experience, skill breadth, leadership, complexity.
+  - Compare that against the offered salary (if present) and market benchmarks.
+  - A senior architect with 7+ years at €2,400/month = LOW. A clear junior role at €2,200/month
+    with a good description = HIGH. A vague posting with no salary = MID at best.
+
+Secondary signals: completeness (does it respect the candidate's time?), employment terms, freshness.
+
+Rules:
+  - "high" : fair or above-fair compensation for the responsibilities; complete posting
+  - "mid"  : some mismatch OR incomplete info, but not egregiously unfair
+  - "low"  : clear underpaying for responsibilities, expired deadline, or very low-quality posting
+
+Return one entry per job IN INPUT ORDER, each with its 0-based index `i`, `quality`, `score`
+(0.0–1.0 overall assessment), a one-sentence `verdict`, `fit`, and up to 4 short `flags`."""
+
+
+class _Quality(BaseModel):
+    i: int
+    quality: Literal["high", "mid", "low"]
+    score: float
+    verdict: str
+    fit: Literal["overpaying", "fair", "underpaying", "unknown"]
+    flags: list[str]
+
+
+class QualityResults(BaseModel):
+    """The quality classifier's reply: one assessment per job, in input order."""
+    items: list[_Quality]

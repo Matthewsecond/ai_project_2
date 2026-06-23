@@ -6,37 +6,14 @@ skills, description, and occupational group to decide Senior / Mid / Junior.
 
 Falls back to a lightweight keyword heuristic if the API call fails.
 """
-import json
 import logging
 import re
 
-from openai import OpenAI
 from jobs_intelligence_ai import config
+from jobs_intelligence_ai.shared.llm import get_client
+from .config import SENIORITY_PROMPT, SeniorityResults
 
 logger = logging.getLogger(__name__)
-
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=config.OPENAI_API_KEY)
-    return _client
-
-
-_SYSTEM = """\
-You are a recruitment expert. Classify each job posting as exactly one of:
-  "senior"  — requires 5+ years experience, leadership, architecture, or expert-level ownership
-  "mid"     — standard professional role (2–5 years), no explicit seniority marker
-  "junior"  — entry-level, trainee, apprentice, intern, student worker, or 0–2 years experience
-
-Use ALL available signals: title keywords, required skills, years of experience in the
-description, scope of responsibilities, and occupational group.
-
-Respond with ONLY a valid JSON array — no prose, no markdown fences.
-Each element: {"i": <index>, "level": "<senior|mid|junior>"}
-"""
 
 
 def classify_seniority(jobs: list[dict]) -> list[dict]:
@@ -74,27 +51,18 @@ def classify_seniority(jobs: list[dict]) -> list[dict]:
     user_input = "Classify these job postings:\n\n" + "\n".join(lines)
 
     try:
-        client = _get_client()
-        response = client.responses.create(
+        response = get_client().responses.parse(
             model=config.CLASSIFIER_MODEL,
-            instructions=_SYSTEM,
+            instructions=SENIORITY_PROMPT,
             input=user_input,
+            text_format=SeniorityResults,
         )
-        raw = (response.output_text or "").strip()
+        results = response.output_parsed.items if response.output_parsed else []
 
-        # Strip accidental markdown fences
-        raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
-        results = json.loads(raw)
-
-        if not isinstance(results, list):
-            raise ValueError("Expected a JSON array")
-
-        # Apply classifications back to jobs
+        # Apply classifications back to jobs (level is schema-constrained to the 3 values)
         for item in results:
-            idx   = item.get("i")
-            level = item.get("level", "").lower()
-            if idx is not None and 0 <= int(idx) < len(jobs) and level in ("senior", "mid", "junior"):
-                jobs[int(idx)]["seniority"] = level
+            if 0 <= item.i < len(jobs):
+                jobs[item.i]["seniority"] = item.level
 
         # Any job the model missed → fallback keyword guess
         for j in jobs:
