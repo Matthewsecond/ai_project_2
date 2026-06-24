@@ -283,8 +283,10 @@ thins to validate → call → jsonify.
 ⑨ search bp match-analysis → `services/search/match_analysis.py` (the candidate-vs-matched-jobs
 assessment; prose → single-field `MatchAnalysis`, surfaced via `core`). This was the **last inline
 blueprint LLM call** — every blueprint model call now lives in a service on `responses.parse`.
-Offline gate: **171 passed, 31 deselected.** Remaining (non-conversion): dead job-search-chat JS
-cleanup in `index.html` (needs in-app verification) + `frontend/integration_tests/`.
+⑩ `frontend/integration_tests/` — real Flask `test_client` (auth-gate 401/redirect + the thinned
+2.4 routes: validation 400 / mocked-service 200 / service-error 500), `auth.init_db` stubbed and
+services mocked at the blueprint boundary (no OpenAI/DB). Offline gate: **182 passed, 31 deselected.**
+Remaining (non-conversion): dead job-search-chat JS cleanup in `index.html` (needs in-app verification).
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature

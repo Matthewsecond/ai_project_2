@@ -90,7 +90,9 @@ helpers being merged into `shared/` in rework Stage 2.1; the equivalence guard f
 
 **Services — `services/auth/` (2.3 #9)** — `unit_tests/test_1_verify_login` (3, offline): the password check via a tiny inline fake engine — correct password → user dict (no hash), wrong/unknown → None. `init_db`/`create_user`/`list_users` are boot- + login-flow-covered (DB only).
 
-**Default gate:** `pytest -m "not smoke"` → **171 passed, 31 deselected** — offline foundation + all repackaged services (stats, enrichment [+observation], interview, reporting [+analytics/radar session chats +company summary], search [grader + job_chat + match analysis], clustering [+segment analysis], candidate [+CV-text parser +guided builder], job_detail, geo, auth), plus the live search stability tests (the live-asserting smoke tests deselected).
+**Frontend — `frontend/integration_tests/` (2.4)** — offline, via the real Flask `test_client` (built by `create_app()` with `auth.init_db` stubbed; services mocked at the blueprint boundary so nothing hits OpenAI/DB). `test_1_auth` (4): the app-level `before_request` gate — unauthenticated `/api/` → JSON 401, unauthenticated page → redirect to `/login`, `/login` is public, and an authenticated request clears the gate. `test_2_converted_routes` (7): the routes thinned in 2.4 (`desc_translate`, `candidate_strength`, `match/analyze`) — input validation (400), the mocked service result jsonified (200), and a service error mapped to the 500 envelope. A local `conftest.py` provides the `app` / `client` / `auth_client` fixtures.
+
+**Default gate:** `pytest -m "not smoke"` → **182 passed, 31 deselected** — offline foundation + all repackaged services (stats, enrichment [+observation], interview, reporting [+analytics/radar session chats +company summary], search [grader + job_chat + match analysis], clustering [+segment analysis], candidate [+CV-text parser +guided builder], job_detail, geo, auth) + frontend integration tests (auth gate + converted routes), plus the live search stability tests (the live-asserting smoke tests deselected).
 
 ## Testing Structured-Outputs calls (the conversion pattern)
 
@@ -128,6 +130,8 @@ helpers get a one-line docstring too. See `test_grader.py` for the house style.
 
 ## Gaps (filled as the rework proceeds)
 
-All Stage 2.3 service `unit_tests/` are now written (stats, enrichment, interview, reporting,
-search [grader + job_chat], clustering, candidate, geo, auth). Remaining: `frontend/
-integration_tests/` (Flask `test_client`), filled in rework Stage 2.4.
+All Stage 2.3 service `unit_tests/` are written (stats, enrichment, interview, reporting,
+search [grader + job_chat + match analysis], clustering, candidate, geo, auth), and the Stage 2.4
+`frontend/integration_tests/` (Flask `test_client`: auth gate + the converted routes) are now in
+place. No outstanding test gaps; the remaining 2.4 item is the dead job-search-chat JS cleanup in
+`index.html` (a code cleanup needing in-app verification, not a test).
