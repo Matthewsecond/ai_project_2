@@ -389,7 +389,11 @@ one 10,754-line `index.html` (≈1,400 CSS / ≈650 HTML / ≈8,300 JS in a sing
 high-cohesion treatment.* Asset/module strategy **DECIDED: native ES modules** (§12).
 The cuts, lowest-risk first, each its own commit and **leaving the app working** (verify in-app
 per the workflow we just used — login, reload, console clean, tabs exercised):
-- 2.6a **Extract CSS** → `frontend/static/css/` via `<link>` (keep the Jinja feature-flag toggles inline).
+- 2.6a ✅ **DONE** Extracted the 3 non-Jinja `<style>` blocks → `frontend/static/css/` (`app.css` 1085 /
+  `saved-dashboard.css` 287 / `feedback.css` 16 lines), linked via `url_for('static', …)`; kept the 4 Jinja
+  feature-flag toggles inline. Added `frontend/static/css/*.css` to pyproject package-data. index.html
+  **10,754 → 9,364 lines**. Verified in-app: all 3 sheets load + parse (978/262/16 rules), computed styles
+  correct (feedback btn, body theme, tabs), console clean, page renders.
 - 2.6b **Extract a thin API client** — collapse the 88 `fetch()` calls behind one module
   (`api.js`: `api.match()`, `api.saveJob()`, … one place for endpoint strings + `{ok,error}` unwrap).
   Single decoupling point between UI and backend.

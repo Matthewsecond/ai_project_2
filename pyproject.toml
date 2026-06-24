@@ -30,7 +30,7 @@ jobs-intelligence-ai = "jobs_intelligence_ai.frontend.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-jobs_intelligence_ai = ["frontend/templates/*.html"]
+jobs_intelligence_ai = ["frontend/templates/*.html", "frontend/static/css/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

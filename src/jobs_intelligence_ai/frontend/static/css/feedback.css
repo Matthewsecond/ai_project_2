@@ -1,0 +1,17 @@
+/* feedback.css — feedback widget styles (2.6a) */
+  #fbBtn{position:fixed;right:18px;bottom:18px;z-index:9000;display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;border:none;border-radius:22px;background:#1a3864;color:#fff;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.18);transition:background .12s,transform .12s}
+  #fbBtn:hover{background:#22488a;transform:translateY(-1px)}
+  #fbBtn svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2}
+  #fbOverlay{position:fixed;inset:0;z-index:9001;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center}
+  #fbOverlay.show{display:flex}
+  #fbCard{background:#fff;width:min(460px,92vw);border-radius:14px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+  #fbCard h3{margin:0 0 4px;font-size:16px;color:#1a3864}
+  #fbCard p{margin:0 0 12px;font-size:12.5px;color:#6b7280}
+  #fbText{width:100%;box-sizing:border-box;min-height:120px;resize:vertical;padding:10px 12px;border:1px solid #d8d7d0;border-radius:9px;font-family:inherit;font-size:13px;line-height:1.5}
+  #fbText:focus{outline:none;border-color:#1a3864}
+  .fb-row{display:flex;justify-content:flex-end;gap:9px;margin-top:14px;align-items:center}
+  .fb-msg{margin-right:auto;font-size:12px}
+  .fb-btn{height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid transparent}
+  .fb-cancel{background:#f1f0ea;border-color:#e0dfd8;color:#444}
+  .fb-send{background:#1a3864;color:#fff}
+  .fb-send:disabled{opacity:.55;cursor:default}
