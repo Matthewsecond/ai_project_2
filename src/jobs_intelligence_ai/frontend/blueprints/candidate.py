@@ -83,7 +83,7 @@ def api_enrich_linkedin():
     if not config.APIFY_API_KEY:
         return jsonify({"ok": False, "error": "Apify API key not configured"}), 503
 
-    from jobs_intelligence_ai.integrations.linkedin import enrich_linkedin, map_to_profile, to_candidate_text
+    from jobs_intelligence_ai.infra.integrations.linkedin import enrich_linkedin, map_to_profile, to_candidate_text
     from jobs_intelligence_ai.services.candidate import enrich_linkedin_profile
     try:
         items = enrich_linkedin(urls)

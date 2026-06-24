@@ -1,11 +1,10 @@
 """
-Pin the CURRENT behavior of serialize_job (the DB-row → flat job-dict mapping)
-before it moves to shared/job.py (Stage 2.1c).
+Behavior of serialize_job (the DB-row → flat job-dict mapping) in services/search/utils.
 
-serialize_job is the "fresh dict" path; chat._apply_row is the "overlay" path.
-They share the same field map — when shared/job.py is built, BOTH serialize_job
-and the new overlay_job must reproduce these results. Imports flip to shared in 2.1c;
-asserts stay identical (equivalence guard).
+Originally a pinning test for a planned move to shared/job.py, but that move was DROPPED
+(2.5): the only second caller, chat._apply_row, was deleted with the job-search chat (2.3 #5),
+so serialize_job is single-domain and stays in search/utils. Relocated here from
+shared/unit_tests in the 2.5 follow-up.
 """
 from jobs_intelligence_ai.services.search.utils import serialize_job
 
