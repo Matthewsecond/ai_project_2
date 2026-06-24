@@ -274,8 +274,13 @@ catalog, salary benchmark, chip-routing).
 ⑦ saved bp HR profile-override chat → `services/enrichment/observation.py` (SO
 `ObservationOverrides` extract + single-prose `ObservationReply`; replaced two `responses.create`
 + `json.loads` calls behind two "ONLY JSON" prompts). Deletes the now-unused shared `_gpt_json`
-helper. Offline gate: **158 passed, 27 deselected.** Remaining: job_detail (×5), search; then
-dead-JS cleanup + integration tests.
+helper.
+⑧ job_detail modal tools → `services/job_detail/` (5 calls: translate / compact / cv-questions /
+outreach → single-prose `JobDetailText`; candidate-strength → `CandidateStrength`, which kills the
+**last "Return ONLY valid JSON" + `json.loads` in a blueprint**). All five were inline
+`responses.create`; now service functions on `shared.get_client` via `responses.parse`; blueprint
+thins to validate → call → jsonify. Offline gate: **166 passed, 30 deselected.** Remaining: search;
+then dead-JS cleanup + integration tests.
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature
@@ -323,8 +328,10 @@ on the shared `get_client`, gets relocated into a service module, and the bluepr
 parse→call→jsonify. Same rule: convert + delete any hand-parser + two test layers.
 
 - **Legacy hand-parsed JSON sites** (the old "respond with ONLY JSON" + `json.loads`/regex
-  pattern) → a real multi-field schema: `candidate` parse-profile (`CandidateProfile`),
-  `cluster` (`parse_json`), `saved`, `job_detail` (×5), `search` bp.
+  pattern) → a real multi-field schema: ✅ `candidate` parse-profile (`CandidateProfile`, #2),
+  ✅ `cluster` (`parse_json`, #5), ✅ `saved` (`ObservationOverrides`, #7), ✅ `job_detail`
+  (candidate-strength → `CandidateStrength`; its other 4 calls were prose → `JobDetailText`, #8),
+  `search` bp (remaining). The `job_detail` strength call was the **last** such hand-parse in a blueprint.
 - **Prose calls** (`analytics` chat, `radar` chat, `company` summary) → still `responses.parse`,
   but with a **single-field** model (e.g. `AdvisorReply.answer`) since the output is prose.
   These were mis-labeled "beg-for-JSON" in an earlier draft; they never returned JSON. The

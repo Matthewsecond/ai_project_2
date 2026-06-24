@@ -9,14 +9,26 @@ Routes:
   POST /api/desc_cv_questions     → generate gap-based interview questions
   POST /api/desc_outreach         → write candidate outreach message
   POST /api/candidate_strength    → score candidate against job on 5 dimensions
+
+The job-chat routes delegate to `services/search/job_chat` (via `core`); the five one-shot AI
+tools delegate to `services/job_detail` (Structured Outputs). The blueprint just validates input,
+calls the service, and jsonifies — any service error becomes a 500.
 """
-import json as _json
-import re
+import traceback
 from flask import Blueprint, request, jsonify
-from jobs_intelligence_ai import config
+
 from jobs_intelligence_ai.core import send_job_message, clear_job_session
+from jobs_intelligence_ai.services.job_detail import (
+    translate_description, compact_description, generate_cv_questions,
+    write_outreach, score_candidate_strength,
+)
 
 bp = Blueprint("job_detail", __name__, url_prefix="/api")
+
+
+def _fail(e):
+    """Map a service exception to the modal's 500 envelope (with a trace for the console)."""
+    return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @bp.route("/job_chat", methods=["POST"])
@@ -39,8 +51,7 @@ def api_job_chat():
                                   candidate_text=candidate_text)
         return jsonify({"ok": True, **result})
     except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return _fail(e)
 
 
 @bp.route("/job_chat/reset", methods=["POST"])
@@ -59,21 +70,9 @@ def api_desc_translate():
     if not description:
         return jsonify({"ok": False, "error": "description required"}), 400
     try:
-        from jobs_intelligence_ai.core import get_client
-        client   = get_client()
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "You are a professional translator. "
-                "Translate the following job description to English. "
-                "Output only the translated text, preserving the original structure and line breaks."
-            ),
-            input=description[:4000],
-        )
-        return jsonify({"ok": True, "text": response.output_text or ""})
+        return jsonify({"ok": True, "text": translate_description(description)})
     except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return _fail(e)
 
 
 @bp.route("/desc_compact", methods=["POST"])
@@ -84,24 +83,10 @@ def api_desc_compact():
     lang        = body.get("lang", "de")
     if not description:
         return jsonify({"ok": False, "error": "description required"}), 400
-    lang_note = " Respond in English." if lang == "en" else ""
     try:
-        from jobs_intelligence_ai.core import get_client
-        client   = get_client()
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "Summarize the following job description in 3-4 sentences. "
-                "Cover: the role and main responsibilities, key required skills or experience, "
-                "and salary or benefits if mentioned. Be concise and informative. "
-                f"Output only the summary, nothing else.{lang_note}"
-            ),
-            input=description[:4000],
-        )
-        return jsonify({"ok": True, "text": response.output_text or ""})
+        return jsonify({"ok": True, "text": compact_description(description, lang=lang)})
     except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return _fail(e)
 
 
 @bp.route("/desc_cv_questions", methods=["POST"])
@@ -113,29 +98,10 @@ def api_desc_cv_questions():
     lang        = body.get("lang", "de")
     if not description or not cv_text:
         return jsonify({"ok": False, "error": "description and cv_text required"}), 400
-    lang_note = " Write all questions and notes in English." if lang == "en" else ""
     try:
-        from jobs_intelligence_ai.core import get_client
-        client = get_client()
-        prompt = (
-            f"JOB DESCRIPTION:\n{description[:3000]}\n\n"
-            f"CANDIDATE CV:\n{cv_text[:3000]}"
-        )
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "You are a recruitment assistant. Compare the job description and the candidate CV. "
-                "Identify gaps or areas where the candidate's experience may not fully match the role. "
-                "Generate 5-7 targeted interview questions that probe those gaps. "
-                "For each question add a brief one-line note (in parentheses) explaining the gap it addresses. "
-                f"Use a numbered list. Output only the questions, nothing else.{lang_note}"
-            ),
-            input=prompt,
-        )
-        return jsonify({"ok": True, "text": response.output_text or ""})
+        return jsonify({"ok": True, "text": generate_cv_questions(description, cv_text, lang=lang)})
     except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return _fail(e)
 
 
 @bp.route("/desc_outreach", methods=["POST"])
@@ -148,85 +114,23 @@ def api_desc_outreach():
     lang           = body.get("lang", "de")
     if not job.get("title"):
         return jsonify({"ok": False, "error": "job.title required"}), 400
-    lang_note = " Write the message in English." if lang == "en" else ""
     try:
-        from jobs_intelligence_ai.core import get_client
-        client        = get_client()
-        candidate_line = f"Candidate name: {candidate_name}" if candidate_name else "No candidate name provided."
-        cv_line        = f"Candidate background (from CV):\n{cv_text}" if cv_text else "No CV provided."
-        prompt = (
-            f"Job title: {job.get('title', '—')}\n"
-            f"Company: {job.get('company', '—')}\n"
-            f"Location: {job.get('location', '—')}\n"
-            f"Salary: {job.get('salary') or 'not specified'}\n"
-            f"Key skills: {job.get('skills') or 'not specified'}\n"
-            f"Job description excerpt: {(job.get('description') or '')[:800]}\n\n"
-            f"{candidate_line}\n"
-            f"{cv_line}"
-        )
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "You are a recruiter writing a brief outreach message to a candidate about a job opportunity. "
-                "Write 3-4 sentences: mention the role and company, highlight one or two genuinely appealing aspects "
-                "of the position, and end with a clear call to action (e.g. ask if they are open to a quick chat). "
-                "If a candidate name is provided, address them by first name. "
-                "If CV details are provided, personalise one sentence to their background. "
-                f"Keep the tone professional but warm. Output only the message text, no subject line or sign-off.{lang_note}"
-            ),
-            input=prompt,
-        )
-        return jsonify({"ok": True, "text": response.output_text or ""})
+        text = write_outreach(job, candidate_name=candidate_name, cv_text=cv_text, lang=lang)
+        return jsonify({"ok": True, "text": text})
     except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return _fail(e)
 
 
 @bp.route("/candidate_strength", methods=["POST"])
 def api_candidate_strength():
-    """
-    Body: { job: dict, cv_text, lang? }
-    Returns: { ok, axes, scores, reasons, overall }
-    """
+    """Body: { job: dict, cv_text, lang? }  →  { ok, axes, scores, reasons, overall }"""
     body    = request.get_json(silent=True) or {}
     job     = body.get("job", {})
     cv_text = body.get("cv_text", "").strip()
     lang    = body.get("lang", "de")
     if not cv_text or not job.get("title"):
         return jsonify({"ok": False, "error": "job.title and cv_text required"}), 400
-    lang_note = " Respond in English." if lang == "en" else ""
     try:
-        from jobs_intelligence_ai.core import get_client
-        client = get_client()
-        prompt = (
-            f"JOB TITLE: {job.get('title','—')}\n"
-            f"COMPANY: {job.get('company','—')}\n"
-            f"REQUIRED SKILLS: {job.get('skills') or 'not specified'}\n"
-            f"JOB DESCRIPTION:\n{(job.get('description') or '')[:1500]}\n\n"
-            f"CANDIDATE CV:\n{cv_text[:1500]}"
-        )
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "You are a recruitment analyst. Score the candidate against the job on exactly these "
-                "5 dimensions: Skills Match, Experience Level, Education Fit, Salary Alignment, Location Fit. "
-                "Score each 0–10 (10 = perfect fit). Provide a one-sentence reason for each score. "
-                "Also write one overall sentence summarising the fit. "
-                f"Return ONLY valid JSON in this exact shape, nothing else:{lang_note}\n"
-                '{"axes":["Skills Match","Experience Level","Education Fit","Salary Alignment","Location Fit"],'
-                '"scores":[<int>,<int>,<int>,<int>,<int>],'
-                '"reasons":["<str>","<str>","<str>","<str>","<str>"],'
-                '"overall":"<str>"}'
-            ),
-            input=prompt,
-        )
-        raw = (response.output_text or "").strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        parsed = _json.loads(raw)
-        return jsonify({"ok": True, **parsed})
+        return jsonify({"ok": True, **score_candidate_strength(job, cv_text, lang=lang)})
     except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return _fail(e)
