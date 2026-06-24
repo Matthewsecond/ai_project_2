@@ -584,46 +584,12 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
-/* ── CHAT TAB ─────────────────────────────────────────────── */
-.chat-wrap{display:flex;flex-direction:column;height:590px}
-.chat-toolbar{padding:10px 24px;border-bottom:1px solid #e0dfd8;background:#f8f7f2;display:flex;align-items:center;gap:10px}
-.chat-filter-bar{padding:7px 24px;background:#f8f7f2;border-bottom:1px solid #e0dfd8;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.chat-filter-bar select,.chat-filter-bar input[type=number]{height:28px;font-size:12px;padding:0 8px;border:1px solid #ddd;border-radius:7px;background:#fff;color:#333;font-family:inherit;outline:none}
-.chat-filter-bar select:focus,.chat-filter-bar input:focus{border-color:#99b8f0}
-.chat-filter-bar input[type=number]{width:80px}
-.chat-filter-sep{width:1px;height:16px;background:#ddd;flex-shrink:0;margin:0 2px}
-.chat-filter-label{font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-.chat-filter-active-dot{width:6px;height:6px;border-radius:50%;background:#1a56c4;display:inline-block;margin-left:3px;vertical-align:middle}
-.chat-toolbar-info{font-size:12px;color:#999}
-.chat-new-btn{margin-left:auto;font-size:11px;padding:5px 12px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;font-family:inherit;transition:all .15s}
-.chat-new-btn:hover{border-color:#aac;color:#555}
-.chat-thread{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px}
 .chat-msg{display:flex;flex-direction:column;max-width:76%}
 .chat-msg.user{align-self:flex-end;align-items:flex-end}
 .chat-msg.ai{align-self:flex-start;align-items:flex-start}
-.chat-msg.ai.has-jobs{max-width:92%}
 .chat-bubble{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
 .chat-msg.user .chat-bubble{background:#1a3864;color:#fff;border-radius:12px 12px 4px 12px}
 .chat-msg.ai .chat-bubble{background:#f8f7f2;color:#1a1a18;border-radius:12px 12px 12px 4px;border:1px solid #e8e7e0}
-.chat-jobs{margin-top:8px;display:flex;flex-direction:column;gap:6px;width:100%}
-.chat-job-card{background:#fff;border:1px solid #e0dfd8;border-radius:8px;padding:10px 14px 10px 13px;display:flex;flex-direction:column;gap:5px;transition:border-color .15s;border-left-width:3px}
-.chat-job-card:hover{border-color:#b0ccf0;background:#f5f8ff}
-.chat-job-card[data-seniority="senior"]{border-left-color:#d4950a}
-.chat-job-card[data-seniority="mid"]{border-left-color:#2563eb}
-.chat-job-card[data-seniority="junior"]{border-left-color:#16a34a}
-.chat-job-header{display:flex;align-items:center;gap:8px}
-.chat-job-title{font-weight:600;font-size:13px;color:#1a1a18;flex:1;min-width:0}
-.chat-job-row1{font-size:12px;color:#555;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.chat-job-row2{font-size:11px;color:#888;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.chat-job-sep{color:#ddd}
-.chat-job-snippet{font-size:11px;color:#aaa;line-height:1.45;margin-top:2px;border-top:1px solid #f0efe8;padding-top:5px}
-.chat-load-btn{margin-top:6px;font-size:12px;padding:6px 14px;border-radius:8px;background:#e8f0fb;color:#1a56c4;border:1px solid #b0ccf0;cursor:pointer;font-family:inherit;transition:all .15s;align-self:flex-start}
-.chat-load-btn:hover{background:#d0e4f9}
-/* Seniority badge pill */
-.snr-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
-.snr-badge-senior{background:#fdf3e3;color:#b87108;border:1px solid #f0c87a}
-.snr-badge-mid{background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd}
-.snr-badge-junior{background:#f0fdf4;color:#15803d;border:1px solid #86efac}
 /* Seniority filter strip */
 .snr-filter{display:flex;align-items:center;gap:5px;padding:7px 0 4px;flex-wrap:wrap;border-top:1px solid #f0efe8;margin-top:2px}
 .snr-filter-label{font-size:11px;color:#aaa;margin-right:3px}
@@ -634,9 +600,6 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
 .snr-btn[data-snr="senior"].active{background:#fdf3e3;color:#b87108;border-color:#f0c87a}
 .snr-btn[data-snr="mid"].active{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
 .snr-btn[data-snr="junior"].active{background:#f0fdf4;color:#15803d;border-color:#86efac}
-#chatQuickRow .chip[data-snr="senior"].on{background:#fdf3e3;color:#b87108;border-color:#f0c87a}
-#chatQuickRow .chip[data-snr="mid"].on{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
-#chatQuickRow .chip[data-snr="junior"].on{background:#f0fdf4;color:#15803d;border-color:#86efac}
 /* ── Quality assessment ─────────────────────────────────────── */
 .quality-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
 .quality-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px;letter-spacing:.2px}
@@ -657,19 +620,7 @@ tbody td{padding:10px 14px;color:#1a1a18;vertical-align:middle}
 .qflag-pos{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
 .qflag-neg{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
 .quality-loading{color:#bbb;font-size:12px;font-style:italic;padding:8px 0}
-/* quality badge on chat card */
-.quality-card-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;flex-shrink:0}
-.quality-card-high{background:#f0fdf4;color:#15803d;border:1px solid #86efac}
-.quality-card-mid{background:#fffbeb;color:#b45309;border:1px solid #fcd34d}
-.quality-card-low{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
 .chat-typing{color:#bbb;font-size:12px;font-style:italic;padding:2px 4px}
-.chat-quick-row{padding:8px 24px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #f0efe8;background:#fafaf6}
-.chat-input-bar{padding:12px 24px;border-top:1px solid #e0dfd8;display:flex;gap:8px;background:#fff}
-.chat-input-bar input{flex:1;height:36px;padding:0 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;outline:none;color:#333}
-.chat-input-bar input:focus{border-color:#99b8f0}
-.chat-send-btn{padding:0 20px;height:36px;background:#1a3864;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;white-space:nowrap}
-.chat-send-btn:hover{background:#22488a}
-.chat-send-btn:disabled{background:#8fa8cc;cursor:not-allowed}
 
 /* ── CANDIDATE ASSISTANT (docked main-page chat) ──────── */
 .cand-asst{border:1px solid #dce8fb;border-radius:12px;background:#fff;overflow:hidden;margin-top:16px}
@@ -3293,12 +3244,10 @@ async function loadFilters() {
     // Cache for AI filter assist
     _filterOpts = {states, occ_groups: occGroups, portals};
 
-    // Search + chat filters
+    // Search filters
     populateSelect('filterState',    states,    'All states');
     populateSelect('filterOccGroup', occGroups, 'Occupational group');
     populateSelect('filterPortal',   portals,   'All portals', 'ams');
-    populateSelect('cfPortal',       portals,   'All portals', 'ams');
-    populateSelect('cfState',        states,    'All states');
 
     // Radar scope filters — separate block so errors above can't kill these
     populateSelect('rfSector',  occGroups, 'All sectors');
@@ -7736,7 +7685,7 @@ function openJobModal(storeId) {
   }
 
   // Analysis panels — lazy, reset state
-  _analysisBatchJobs = job._batch === 'chat' ? chatLastJobs : lastResults;
+  _analysisBatchJobs = lastResults;
   _analysisLoaded = { salary: false, quality: false, strength: false };
   _analysisOpen   = { salary: false, quality: false, strength: false };
   _strengthData   = null;
@@ -8012,93 +7961,6 @@ function _salaryBarPos(salary, stats) {
   return clamp(75 + (salary - p75) / (max  - p75) * 25,  75, 100);
 }
 
-// ════════════════════════════════════════════════════════════
-//  Quality check — chat quick-row
-// ════════════════════════════════════════════════════════════
-
-async function runChatQualityCheck(btn) {
-  if (!chatLastJobs.length) return;
-  btn.textContent = '⏳ Checking…';
-  btn.onclick = null;
-
-  // Determine dominant occ_group from jobs
-  const groups = chatLastJobs.map(j => j.occ_group).filter(Boolean);
-  const occ_group = groups.sort((a,b) =>
-    groups.filter(v=>v===b).length - groups.filter(v=>v===a).length
-  )[0] || '';
-
-  try {
-    const res  = await fetch('/api/quality', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ jobs: chatLastJobs, occ_group, state: null }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    // Merge quality data back into chatLastJobs and update cards
-    const counts = {high:0, mid:0, low:0};
-    data.jobs.forEach((enriched, i) => {
-      if (chatLastJobs[i]) Object.assign(chatLastJobs[i], {
-        quality: enriched.quality, quality_score: enriched.quality_score,
-        quality_verdict: enriched.quality_verdict, quality_fit: enriched.quality_fit,
-        quality_flags: enriched.quality_flags,
-      });
-      counts[enriched.quality || 'mid'] = (counts[enriched.quality || 'mid'] || 0) + 1;
-
-      // Add/update badge on the card
-      const allCards = document.querySelectorAll('.chat-jobs .chat-job-card');
-      const card = allCards[i];
-      if (card) {
-        const existing = card.querySelector('.quality-card-badge');
-        if (existing) existing.remove();
-        const q = enriched.quality || 'mid';
-        const badgeTxt = {high:'🟢 High', mid:'🟡 Mid', low:'🔴 Low'}[q] || q;
-        const badgeEl = document.createElement('span');
-        badgeEl.className = `quality-card-badge quality-card-${q}`;
-        badgeEl.textContent = badgeTxt;
-        card.querySelector('.chat-job-header').appendChild(badgeEl);
-      }
-    });
-
-    // Update quick-row: add quality filter chips after seniority chips
-    const row = document.getElementById('chatQuickRow');
-    const qChips = document.createElement('span');
-    qChips.id = 'qualityFilterChips';
-    qChips.style.cssText = 'display:contents';
-    const total = counts.high + counts.mid + counts.low;
-    const qColors = {high:'#15803d', mid:'#b45309', low:'#dc2626'};
-    const qLabels = {high:'🟢 High', mid:'🟡 Mid', low:'🔴 Low'};
-    let chipHTML = `<span class="chip" style="border-color:#e0dfd8;color:#aaa;cursor:default">Quality:</span>
-      <span class="chip on" data-qfilter="all" onclick="filterByQuality(this)">All (${total})</span>`;
-    ['high','mid','low'].forEach(lvl => {
-      if (counts[lvl]) chipHTML += `<span class="chip" data-qfilter="${lvl}"
-        onclick="filterByQuality(this)" style="color:${qColors[lvl]}">${qLabels[lvl]} (${counts[lvl]})</span>`;
-    });
-    qChips.innerHTML = chipHTML;
-
-    // Replace the quality-check chip with filter chips
-    const oldQBtn = row.querySelector('[data-quality-btn]');
-    if (oldQBtn) oldQBtn.replaceWith(qChips);
-    else row.appendChild(qChips);
-
-  } catch(e) {
-    btn.textContent = '📊 Quality check';
-    btn.onclick = () => runChatQualityCheck(btn);
-  }
-}
-
-function filterByQuality(btn) {
-  const level = btn.dataset.qfilter;
-  document.querySelectorAll('#chatQuickRow [data-qfilter]').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  const allCards = document.querySelectorAll('.chat-jobs .chat-job-card');
-  allCards.forEach((card, i) => {
-    const q = chatLastJobs[i]?.quality || 'mid';
-    card.style.display = (level === 'all' || q === level) ? '' : 'none';
-  });
-}
-
 function closeJobModal() {
   document.getElementById('jobModal').classList.add('hidden');
   _modalJob = null;
@@ -8313,329 +8175,9 @@ document.addEventListener('click', function(e) {
 });
 
 // ════════════════════════════════════════════════════════════
-//  Chat
+//  Session id (candidate-assistant chat)
 // ════════════════════════════════════════════════════════════
 const SESSION_ID   = Math.random().toString(36).slice(2) + Date.now().toString(36);
-let chatLastJobs   = [];
-let chatIsWaiting  = false;
-let chatInited     = false;
-
-function initChat() {
-  if (chatInited) return;
-  chatInited = true;
-  appendAiMessage(
-    "Hello! I'm your recruitment assistant for the {{ country_demonym }} job market.\n\n" +
-    "Ask me to find jobs for a candidate — e.g. \"Find forklift operator jobs in Vienna\" — " +
-    "or describe a candidate profile and I'll search the live job database for matches.",
-    []
-  );
-}
-
-function quickAsk(text) {
-  document.getElementById('chatInput').value = text;
-  sendChat();
-}
-
-async function sendChat() {
-  if (chatIsWaiting) return;
-  const input = document.getElementById('chatInput');
-  const text  = input.value.trim();
-  if (!text) return;
-
-  appendUserMessage(text);
-  input.value = '';
-  chatIsWaiting = true;
-  document.getElementById('chatSend').disabled = true;
-
-  const typingEl = document.createElement('div');
-  typingEl.className = 'chat-msg ai';
-  typingEl.id = 'chatTyping';
-  typingEl.innerHTML = '<div class="chat-typing">Searching job database…</div>';
-  document.getElementById('chatThread').appendChild(typingEl);
-  scrollChat();
-
-  const chatFilters    = getChatFilters();
-  const chatMaxResults = getChatMaxResults();
-
-  try {
-    const res  = await fetch('/api/chat', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({
-        session_id:  SESSION_ID,
-        message:     text,
-        lang:        jobChatLang,
-        filters:     chatFilters,
-        max_results: chatMaxResults,
-      }),
-    });
-    const data = await res.json();
-    document.getElementById('chatTyping')?.remove();
-    if (data.ok) {
-      const filtered = applyJobFilters(data.jobs || [], chatFilters);
-      const filterNote = (data.jobs || []).length > filtered.length
-        ? ` (${(data.jobs || []).length - filtered.length} filtered out by active filters)`
-        : '';
-      appendAiMessage(data.text + filterNote, filtered);
-    } else {
-      appendAiMessage(`Error: ${esc(data.error)}`, []);
-    }
-  } catch(e) {
-    document.getElementById('chatTyping')?.remove();
-    appendAiMessage(`Network error: ${esc(e.message)}`, []);
-  } finally {
-    chatIsWaiting = false;
-    document.getElementById('chatSend').disabled = false;
-  }
-}
-
-function appendUserMessage(text) {
-  const el = document.createElement('div');
-  el.className = 'chat-msg user';
-  el.innerHTML = `<div class="chat-bubble">${esc(text)}</div>`;
-  document.getElementById('chatThread').appendChild(el);
-  scrollChat();
-}
-
-function appendAiMessage(text, jobs) {
-  const el = document.createElement('div');
-  el.className = 'chat-msg ai';
-
-  let html = `<div class="chat-bubble">${esc(text).replace(/\n/g, '<br>')}</div>`;
-
-  if (jobs && jobs.length) {
-    chatLastJobs = jobs;
-    el.classList.add('has-jobs');
-
-    const cards = jobs.slice(0, 10).map((j, idx) => {
-      const score = j.score != null ? Math.round(j.score * 100) : null;
-      const g     = score == null ? 'c' : score >= 70 ? 'a' : score >= 50 ? 'b' : 'c';
-      const gl    = score == null ? '?' : score >= 70 ? 'A' : score >= 50 ? 'B' : 'C';
-      const loc   = [j.city, j.state].filter(Boolean).join(', ');
-      const row2  = [j.occ_group, j.portal].filter(Boolean);
-      const snr   = j.seniority || guessSeniority(j.title || '');
-      // Normalise job for the store so the modal always has grade/score_pct
-      const normalized = {
-        job_id: j.job_id || `chat-${Date.now()}-${idx}`,
-        title: j.title, company: j.company, city: j.city, state: j.state,
-        municipality: j.municipality || null,
-        zipcode: j.zipcode || null,
-        detailed_location: j.detailed_location || null,
-        salary: j.salary, salary_type: j.salary_type || null,
-        original_salary: j.original_salary || null,
-        work_time: j.work_time || null,
-        employment_relationship: j.employment_relationship || null,
-        education: j.education || null,
-        portal: j.portal, occ_group: j.occ_group,
-        url: j.url || null, posted: j.posted || null,
-        application_deadline: j.application_deadline || null,
-        start_timeline: j.start_timeline || null,
-        order_number: j.order_number || null,
-        description: j.description || null,
-        description_snippet: j.description_snippet || null,
-        summary: j.summary || null,
-        skills: j.skills || null, skills_en: j.skills_en || null,
-        contacts: j.contacts || null,
-        score: j.score, score_pct: score != null ? score + '%' : null,
-        grade: gl === '?' ? null : gl, match_reason: '',
-        seniority: snr,
-      };
-      const sid = storeJob({ ...normalized, _batch: 'chat' });
-      const snrBadge = snr ? `<span class="snr-badge snr-badge-${snr}">${snr.charAt(0).toUpperCase()+snr.slice(1)}</span>` : '';
-      return `<div class="chat-job-card" data-seniority="${snr}" style="cursor:pointer" onclick="openJobModal('${sid}')">
-        <div class="chat-job-header">
-          <span class="grade grade-${g}">${gl}</span>
-          ${score != null ? `<span class="pct" style="margin-left:0;margin-right:2px">${score}%</span>` : ''}
-          <span class="chat-job-title">${esc(j.title || '—')}</span>
-          ${snrBadge}
-        </div>
-        <div class="chat-job-row1">
-          ${j.company ? `<span style="font-weight:500;color:#1a1a18">${esc(j.company)}</span>` : ''}
-          ${loc ? `<span class="chat-job-sep">·</span><span>${esc(loc)}</span>` : ''}
-          ${j.salary ? `<span class="chat-job-sep">·</span><span style="color:#1a7a2e;font-weight:500">${esc(j.salary)}</span>` : ''}
-        </div>
-        ${row2.length ? `<div class="chat-job-row2">
-          ${row2.map((v,i) => (i>0?'<span class="chat-job-sep">·</span>':'')+`<span>${esc(v)}</span>`).join('')}
-        </div>` : ''}
-        ${j.description_snippet ? `<div class="chat-job-snippet">${esc(j.description_snippet)}</div>` : ''}
-      </div>`;
-    }).join('');
-
-    // Count by seniority and swap the quick-row chips
-    const snrCounts = {senior:0, mid:0, junior:0};
-    jobs.slice(0,10).forEach(j => {
-      const s = j.seniority || guessSeniority(j.title || '');
-      if (snrCounts[s] !== undefined) snrCounts[s]++;
-    });
-    showSeniorityChips(snrCounts);
-
-    html += `<div class="chat-jobs">
-      ${cards}
-      <button class="chat-load-btn" onclick="loadChatJobs()">
-        Load ${jobs.length} job${jobs.length !== 1 ? 's' : ''} into results →
-      </button>
-    </div>`;
-  }
-
-  el.innerHTML = html;
-  document.getElementById('chatThread').appendChild(el);
-  scrollChat();
-}
-
-// ── Seniority helpers ─────────────────────────────────────────────────────────
-function guessSeniority(title) {
-  const t = (title || '').toLowerCase();
-  if (/\b(senior|sr\.?|lead|principal|head\s+of|chief|staff|architect|leitend|expert|teamleiter|teamlead|director|manager|consultant)\b/.test(t)) return 'senior';
-  if (/\b(junior|jr\.?|trainee|intern|praktikant|werkstudent|berufseinsteiger|absolvent|nachwuchs|apprentice|azubi|entry[\s-]?level|einstieg)\b/.test(t)) return 'junior';
-  return 'mid';
-}
-
-function showSeniorityChips(counts) {
-  const row = document.getElementById('chatQuickRow');
-  if (!row) return;
-  // Save default chips the first time
-  if (!row._defaultHTML) row._defaultHTML = row.innerHTML;
-
-  const snrColors = {senior:'#b87108', mid:'#1d4ed8', junior:'#15803d'};
-  const labels    = {senior:'Senior', mid:'Mid-level', junior:'Junior'};
-  let chips = `<span class="chip on" data-snr="all" onclick="filterSeniorityChip(this)">All levels</span>`;
-  ['senior','mid','junior'].forEach(lvl => {
-    if (counts[lvl]) {
-      chips += `<span class="chip" data-snr="${lvl}" onclick="filterSeniorityChip(this)"
-        style="color:${snrColors[lvl]}">${labels[lvl]} (${counts[lvl]})</span>`;
-    }
-  });
-  chips += `<span class="chip" data-quality-btn onclick="runChatQualityCheck(this)" style="color:#6366f1;border-color:#c7d2fe">📊 Quality check</span>`;
-  chips += `<span class="chip" onclick="restoreDefaultChips()" style="margin-left:auto;color:#bbb;font-size:10px">✕ reset</span>`;
-  row.innerHTML = chips;
-}
-
-function filterSeniorityChip(btn) {
-  const level = btn.dataset.snr;
-  document.querySelectorAll('#chatQuickRow .chip').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  // Filter cards in the most recent chat-jobs block
-  const allBlocks = document.querySelectorAll('.chat-jobs');
-  const last = allBlocks[allBlocks.length - 1];
-  if (!last) return;
-  last.querySelectorAll('.chat-job-card').forEach(card => {
-    card.style.display = (level === 'all' || card.dataset.seniority === level) ? '' : 'none';
-  });
-}
-
-function restoreDefaultChips() {
-  const row = document.getElementById('chatQuickRow');
-  if (row && row._defaultHTML) row.innerHTML = row._defaultHTML;
-  // Restore all cards too
-  document.querySelectorAll('.chat-job-card').forEach(c => c.style.display = '');
-}
-
-function loadChatJobs() {
-  if (!chatLastJobs.length) return;
-  lastResults = chatLastJobs.map((j, i) => {
-    const score = j.score != null ? parseFloat(j.score) : 0.5;
-    const g     = score >= 0.70 ? 'A' : score >= 0.50 ? 'B' : 'C';
-    return {
-      job_id:       `chat-${i}`,
-      title:        j.title   || '—',
-      company:      j.company || '—',
-      state:        null,
-      city:         j.city    || null,
-      salary:       j.salary  || null,
-      url:          null, portal: null, occ_group: null, posted: null,
-      lat:          null, lon: null,
-      score:        score,
-      score_pct:    `${Math.round(score * 100)}%`,
-      grade:        g,
-      match_reason: '',
-    };
-  });
-
-  // Switch to Search tab and show these results
-  if (_navMode !== 'search') switchNavMode('search');
-  else _activateTab('search');
-  renderResults(lastResults);
-  updateMapStats(lastResults);
-}
-
-// ════════════════════════════════════════════════════════════
-//  Chat filters
-// ════════════════════════════════════════════════════════════
-function toggleChatFilters() {
-  const bar = document.getElementById('chatFilterBar');
-  bar.style.display = bar.style.display === 'none' ? '' : 'none';
-}
-
-function getChatFilters() {
-  return {
-    portal:      document.getElementById('cfPortal').value    || null,
-    state:       document.getElementById('cfState').value     || null,
-    salary_min:  parseInt(document.getElementById('cfSalMin').value) || null,
-    salary_max:  parseInt(document.getElementById('cfSalMax').value) || null,
-  };
-}
-
-function getChatMaxResults() {
-  return parseInt(document.getElementById('cfMaxResults').value) || 20;
-}
-
-function updateChatFilterDot() {
-  const f = getChatFilters();
-  const active = !!(f.portal || f.state || f.salary_min || f.salary_max);
-  document.getElementById('chatFilterDot').style.display = active ? 'inline-block' : 'none';
-}
-
-function clearChatFilters() {
-  document.getElementById('cfPortal').value = '';
-  document.getElementById('cfState').value  = '';
-  document.getElementById('cfSalMin').value = '';
-  document.getElementById('cfSalMax').value = '';
-  updateChatFilterDot();
-}
-
-function applyJobFilters(jobs, filters) {
-  if (!filters || !(filters.portal || filters.state || filters.salary_min || filters.salary_max))
-    return jobs;
-  return jobs.filter(j => {
-    if (filters.portal && j.portal &&
-        j.portal.toLowerCase() !== filters.portal.toLowerCase()) return false;
-    if (filters.state && j.state &&
-        !j.state.toLowerCase().includes(filters.state.toLowerCase())) return false;
-    if (filters.salary_min || filters.salary_max) {
-      const sal = parseFloat(String(j.salary || '').replace(/[^0-9.]/g, ''));
-      if (sal) {
-        if (filters.salary_min && sal < filters.salary_min) return false;
-        if (filters.salary_max && sal > filters.salary_max) return false;
-      }
-    }
-    return true;
-  });
-}
-
-async function newChat() {
-  await fetch('/api/chat/reset', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ session_id: SESSION_ID }),
-  });
-  document.getElementById('chatThread').innerHTML = '';
-  chatLastJobs = [];
-  chatInited   = false;
-  initChat();
-}
-
-function scrollChat() {
-  const thread = document.getElementById('chatThread');
-  thread.scrollTop = thread.scrollHeight;
-}
-
-// The standalone Chat tab was removed in a refactor, but this wiring stayed
-// behind. The elements no longer exist, so getElementById returns null — guard
-// with ?. so a null access here can't halt the rest of the script (which would
-// break the job-detail modal and everything below this line).
-document.getElementById('chatSend')?.addEventListener('click', sendChat);
-document.getElementById('chatInput')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
-});
 
 // ════════════════════════════════════════════════════════════
 //  RADAR TAB
