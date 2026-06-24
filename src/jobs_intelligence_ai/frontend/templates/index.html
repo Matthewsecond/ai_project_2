@@ -16,6 +16,13 @@
 {% if not has_map %}<style>.tab-btn[data-tab="map"]{display:none!important}</style>{% endif %}
 {% if not has_analytics %}<style>.mode-toggle-btn[data-mode="analytics"]{display:none!important}</style>{% endif %}
 {% if not has_occ_filter %}<style>#filterOccGroup{display:none!important}</style>{% endif %}
+{# 2.6b bridge: expose the api.js ES module to the not-yet-modularized inline script as window.api.
+   Module scripts are deferred, so api is ready before DOMContentLoaded (and parse-time init is
+   deferred to that event accordingly). Removed once the page JS is split into modules (2.6c). #}
+<script type="module">
+  import api from "{{ url_for('static', filename='js/api.js') }}";
+  window.api = api;
+</script>
 </head>
 <body>
 
@@ -1861,9 +1868,7 @@ let _filterOpts = {states: [], occ_groups: [], portals: []};  // for AI filter a
 
 async function loadFilters() {
   try {
-    const res  = await fetch('/api/filters');
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.get('/api/filters');
     const states    = data.data.states     || [];
     const occGroups = data.data.occ_groups || [];
     const portals   = data.data.portals    || [];
@@ -3454,13 +3459,7 @@ async function _fetchHighlightIds(criterion, results) {
     salary: j.salary, skills: j.skills, skills_en: j.skills_en,
     summary: j.summary, description: (j.description || '').slice(0, 700),
   }));
-  const res  = await fetch('/api/match/highlight', {
-    method:  'POST',
-    headers: {'Content-Type': 'application/json'},
-    body:    JSON.stringify({ criterion, jobs }),
-  });
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'request failed');
+  const data = await api.post('/api/match/highlight', { criterion, jobs });
   return data.job_ids || [];
 }
 
@@ -4097,13 +4096,7 @@ async function rescoreFrozenResults() {
   }));
 
   try {
-    const res  = await fetch('/api/match/rescore', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({ candidate_text: text, jobs }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.post('/api/match/rescore', { candidate_text: text, jobs });
     const map = {};
     (data.jobs || []).forEach(u => { map[u.job_id] = u; });
     lastResults.forEach(j => {
@@ -4215,13 +4208,7 @@ async function runMatching() {
     } catch (streamErr) {
       // Streaming unavailable/failed — fall back to the one-shot endpoint.
       console.warn('Match stream failed, falling back to /api/match:', streamErr);
-      const res  = await fetch('/api/match', {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({ candidate_text: text, filters, top_n: topN }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
+      const data = await api.post('/api/match', { candidate_text: text, filters, top_n: topN });
       finalJobs = data.jobs || [];
     }
     applyFinalJobs(finalJobs);
@@ -4269,13 +4256,7 @@ async function findMoreJobs() {
       // top_n 0 = no display cap; max_results 50 = widen Stage-1 retrieval to the cap.
       fresh = await streamMatching(text, filters, 0, 50);
     } catch (streamErr) {
-      const res  = await fetch('/api/match', {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({ candidate_text: text, filters, max_results: 50 }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
+      const data = await api.post('/api/match', { candidate_text: text, filters, max_results: 50 });
       fresh = data.jobs || [];
     }
     // We only care about strong matches: add new A/B jobs, ignore C. The warning
@@ -4326,11 +4307,10 @@ function renderMatchProgress(cycle, total, added, done) {
 }
 
 async function streamMatching(text, filters, topN, maxResults) {
-  const res = await fetch('/api/match/stream', {
-    method:  'POST',
-    headers: {'Content-Type': 'application/json'},
-    body:    JSON.stringify({ candidate_text: text, filters, top_n: topN,
-                             ...(maxResults ? { max_results: maxResults } : {}) }),
+  const res = await api.raw('/api/match/stream', {
+    method: 'POST',
+    body: { candidate_text: text, filters, top_n: topN,
+            ...(maxResults ? { max_results: maxResults } : {}) },
   });
   if (!res.ok || !res.body) throw new Error(`stream HTTP ${res.status}`);
 
@@ -4696,9 +4676,7 @@ async function loadTestData() {
   document.getElementById('resultsStatus').innerHTML =
     '<div class="spinner"></div><span>Loading test fixtures…</span>';
   try {
-    const res  = await fetch('/api/test/match');
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.get('/api/test/match');
     lastResults = data.jobs;
     renderResults(lastResults);
     updateMapStats(lastResults);
@@ -6499,13 +6477,8 @@ async function loadQualityAssessment(job) {
       occ_group: job.occ_group || '',
       state: job.state || null,
     };
-    const res  = await fetch('/api/quality', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!data.ok || !data.jobs?.length) throw new Error(data.error || 'No result');
+    const data = await api.post('/api/quality', payload);
+    if (!data.jobs?.length) throw new Error(data.error || 'No result');
 
     const enriched    = data.jobs[0];
     const groupStats  = data.group_stats || {};
@@ -9340,7 +9313,7 @@ async function sendFeedback(){
 // ════════════════════════════════════════════════════════════
 //  Init
 // ════════════════════════════════════════════════════════════
-loadFilters();
+document.addEventListener('DOMContentLoaded', loadFilters);
 </script>
 
 <!-- ═══ FEEDBACK WIDGET ═══ -->

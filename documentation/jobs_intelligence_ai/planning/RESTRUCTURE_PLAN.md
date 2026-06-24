@@ -394,9 +394,18 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   feature-flag toggles inline. Added `frontend/static/css/*.css` to pyproject package-data. index.html
   **10,754 → 9,364 lines**. Verified in-app: all 3 sheets load + parse (978/262/16 rules), computed styles
   correct (feedback btn, body theme, tabs), console clean, page renders.
-- 2.6b **Extract a thin API client** — collapse the 88 `fetch()` calls behind one module
-  (`api.js`: `api.match()`, `api.saveJob()`, … one place for endpoint strings + `{ok,error}` unwrap).
-  Single decoupling point between UI and backend.
+- 2.6b **Extract a thin API client** — collapse the 88 `fetch()` calls behind one module. **IN PROGRESS.**
+  - ✅ Infra: `static/js/api.js` (ES module) with the protocol core — `get(path)` / `post(path,body)`
+    (parsed `{ok,error}` envelope, throws on `!ok`) / `raw(path,opts)` (Response, for SSE streams + blob
+    downloads). Module bridge in `<head>` assigns `window.api` for the not-yet-modularized inline script;
+    bare `loadFilters()` init deferred to `DOMContentLoaded` (only parse-time API caller — audited) so it
+    runs after the deferred bridge. Added `static/js/*.js` to package-data.
+  - ✅ Batch 1 (search family, 8 sites): loadFilters, match ×2, match/rescore, match/highlight,
+    test/match, quality, match/stream(→raw). Verified live: get/post/raw + envelope-throw all work,
+    filters populate on load, console clean.
+  - ⏳ Remaining ~80 sites to migrate in feature batches; the compact `await(await fetch()).json()` +
+    inline-`ok` sites (multi-CV, candidate assistant, quality-on-card) need behavior-preserving care
+    (they don't throw today). app stays working throughout (raw fetch + api.js coexist).
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
