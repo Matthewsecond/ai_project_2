@@ -279,8 +279,12 @@ helper.
 outreach → single-prose `JobDetailText`; candidate-strength → `CandidateStrength`, which kills the
 **last "Return ONLY valid JSON" + `json.loads` in a blueprint**). All five were inline
 `responses.create`; now service functions on `shared.get_client` via `responses.parse`; blueprint
-thins to validate → call → jsonify. Offline gate: **166 passed, 30 deselected.** Remaining: search;
-then dead-JS cleanup + integration tests.
+thins to validate → call → jsonify.
+⑨ search bp match-analysis → `services/search/match_analysis.py` (the candidate-vs-matched-jobs
+assessment; prose → single-field `MatchAnalysis`, surfaced via `core`). This was the **last inline
+blueprint LLM call** — every blueprint model call now lives in a service on `responses.parse`.
+Offline gate: **171 passed, 31 deselected.** Remaining (non-conversion): dead job-search-chat JS
+cleanup in `index.html` (needs in-app verification) + `frontend/integration_tests/`.
 
 **Every service module gets its own `config.py`** (mirrors the `pipelines` convention) —
 the single home for that module's settings: model choice, prompts, thresholds, feature
@@ -330,10 +334,12 @@ parse→call→jsonify. Same rule: convert + delete any hand-parser + two test l
 - **Legacy hand-parsed JSON sites** (the old "respond with ONLY JSON" + `json.loads`/regex
   pattern) → a real multi-field schema: ✅ `candidate` parse-profile (`CandidateProfile`, #2),
   ✅ `cluster` (`parse_json`, #5), ✅ `saved` (`ObservationOverrides`, #7), ✅ `job_detail`
-  (candidate-strength → `CandidateStrength`; its other 4 calls were prose → `JobDetailText`, #8),
-  `search` bp (remaining). The `job_detail` strength call was the **last** such hand-parse in a blueprint.
-- **Prose calls** (`analytics` chat, `radar` chat, `company` summary) → still `responses.parse`,
-  but with a **single-field** model (e.g. `AdvisorReply.answer`) since the output is prose.
+  (candidate-strength → `CandidateStrength`; its other 4 calls were prose → `JobDetailText`, #8).
+  The `job_detail` strength call was the **last** such hand-parse in a blueprint. (The `search` bp
+  turned out to have no real-JSON site — its one inline call, match-analysis, is prose → `MatchAnalysis`, #9.)
+- **Prose calls** (`analytics` chat, `radar` chat, `company` summary; the 4 `job_detail` text
+  tools; `search` match-analysis) → still `responses.parse`, but with a **single-field** model
+  (e.g. `AdvisorReply.answer`, `JobDetailText.text`, `MatchAnalysis.text`) since the output is prose.
   These were mis-labeled "beg-for-JSON" in an earlier draft; they never returned JSON. The
   point of converting them is to kill the last raw `OpenAI()` + `chat.completions` holdouts
   and thin the blueprints, not to invent a fake schema.

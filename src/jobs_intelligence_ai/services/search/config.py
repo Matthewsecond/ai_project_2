@@ -12,6 +12,8 @@ config/settings.py, but every field is overridable per instance.
 """
 from dataclasses import dataclass, field
 
+from pydantic import BaseModel
+
 from jobs_intelligence_ai import config
 
 # Search-owned retrieval setting (moved out of global config in rework 2.2b — it's
@@ -46,6 +48,31 @@ Scoring rubric — use the FULL range and be decisive:
   0.60–0.79  good fit    — clear overlap but real gaps (stack, focus, or seniority)
   below 0.60 weak fit    — only partial or tangential overlap
 Judge genuine fit for the candidate, not mere keyword presence."""
+
+
+# ── match_analysis.analyze_candidate_match ──────────────────────────────────────
+# Overall recruiter-facing assessment of a candidate vs the jobs they matched against.
+# Converted to Structured Outputs in rework 2.4 — prose output, so MatchAnalysis is a single
+# `text` field (was a bare responses.create + output_text in the search blueprint).
+ANALYZE_MODEL = config.CHAT_MODEL
+
+ANALYZE_PROMPT = (
+    "You are a recruitment analyst writing FOR AN HR RECRUITER — not for the candidate. "
+    "Given a candidate profile and the jobs they matched against, write a concise OVERALL "
+    "assessment of how this candidate stacks up across these roles, for the recruiter's "
+    "eyes. Always refer to the candidate in the third person ('the candidate', 'they', "
+    "'his/her'); never address the candidate directly ('you'). Cover: (1) the candidate's "
+    "strongest selling points for these roles, (2) recurring skills or experience the roles "
+    "require that the candidate does NOT directly address or is light on, (3) 2-4 gaps or "
+    "areas the recruiter should probe in an interview before placing them. Describe patterns "
+    "across the jobs, not one by one. Short paragraphs or bullets, ~120-180 words. "
+    "Respond in English."
+)
+
+
+class MatchAnalysis(BaseModel):
+    """recruiter-facing overall assessment of a candidate vs their matched jobs (prose)."""
+    text: str
 
 
 @dataclass

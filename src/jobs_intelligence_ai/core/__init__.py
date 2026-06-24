@@ -9,6 +9,7 @@ domain modules themselves (search/, chat, taxonomy, services); infra
 """
 from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
 from jobs_intelligence_ai.services.search.job_chat import send_job_message, clear_job_session
+from jobs_intelligence_ai.services.search.match_analysis import analyze_candidate_match
 from jobs_intelligence_ai.services.enrichment import Rescorer, Highlighter
 from jobs_intelligence_ai.shared.llm import get_client
 from jobs_intelligence_ai.services.candidate import (
@@ -24,6 +25,8 @@ __all__ = [
     "Rescorer", "Highlighter",
     # single-job chat (search domain)
     "send_job_message", "clear_job_session",
+    # candidate-vs-matched-jobs analysis (search domain)
+    "analyze_candidate_match",
     # candidate assistant (services/candidate/)
     "send_candidate_message", "clear_candidate_session",
     # shared OpenAI client

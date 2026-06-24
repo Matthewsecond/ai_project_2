@@ -10,9 +10,8 @@ Routes:
 """
 import json
 from flask import Blueprint, request, jsonify, Response, stream_with_context
-from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.database import get_filter_options
-from jobs_intelligence_ai.core import Orchestrator, Rescorer, Highlighter
+from jobs_intelligence_ai.core import Orchestrator, Rescorer, Highlighter, analyze_candidate_match
 
 bp = Blueprint("search", __name__, url_prefix="/api")
 
@@ -222,35 +221,7 @@ def api_match_analyze():
         return jsonify({"ok": False, "error": "jobs array required"}), 400
 
     try:
-        from jobs_intelligence_ai.core import get_client
-        client = get_client()
-        lines = []
-        for j in jobs[:30]:
-            loc    = ", ".join(filter(None, [j.get("city"), j.get("state")]))
-            skills = (j.get("skills_en") or j.get("skills") or "")[:160]
-            blurb  = (j.get("summary") or j.get("description") or "")[:200]
-            lines.append(f"- [{j.get('grade','?')} {j.get('score_pct','')}] {j.get('title','')} "
-                         f"@ {j.get('company','')}{(' · ' + loc) if loc else ''} "
-                         f"| skills: {skills} | {blurb}")
-        prompt = ("CANDIDATE PROFILE:\n" + candidate_text[:2500] +
-                  "\n\nMATCHED JOBS (the A/B/C grade reflects current fit):\n" + "\n".join(lines))
-        response = client.responses.create(
-            model=config.CHAT_MODEL,
-            instructions=(
-                "You are a recruitment analyst writing FOR AN HR RECRUITER — not for the candidate. "
-                "Given a candidate profile and the jobs they matched against, write a concise OVERALL "
-                "assessment of how this candidate stacks up across these roles, for the recruiter's "
-                "eyes. Always refer to the candidate in the third person ('the candidate', 'they', "
-                "'his/her'); never address the candidate directly ('you'). Cover: (1) the candidate's "
-                "strongest selling points for these roles, (2) recurring skills or experience the roles "
-                "require that the candidate does NOT directly address or is light on, (3) 2-4 gaps or "
-                "areas the recruiter should probe in an interview before placing them. Describe patterns "
-                "across the jobs, not one by one. Short paragraphs or bullets, ~120-180 words. "
-                "Respond in English."
-            ),
-            input=prompt,
-        )
-        return jsonify({"ok": True, "text": response.output_text or ""})
+        return jsonify({"ok": True, "text": analyze_candidate_match(candidate_text, jobs)})
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
