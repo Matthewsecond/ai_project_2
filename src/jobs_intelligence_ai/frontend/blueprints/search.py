@@ -11,7 +11,9 @@ Routes:
 import json
 from flask import Blueprint, request, jsonify, Response, stream_with_context
 from jobs_intelligence_ai.infra.database import get_filter_options
-from jobs_intelligence_ai.core import Orchestrator, Rescorer, Highlighter, analyze_candidate_match
+from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
+from jobs_intelligence_ai.services.search.match_analysis import analyze_candidate_match
+from jobs_intelligence_ai.services.enrichment import Rescorer, Highlighter
 
 bp = Blueprint("search", __name__, url_prefix="/api")
 

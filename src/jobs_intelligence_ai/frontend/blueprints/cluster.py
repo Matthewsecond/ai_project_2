@@ -17,7 +17,7 @@ from flask import Blueprint, request, jsonify, session
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.services import clustering
 from jobs_intelligence_ai.services.candidate import store as candidate_store
-from jobs_intelligence_ai.services.search import utils as search_utils
+from jobs_intelligence_ai.shared.grading import grade
 
 bp = Blueprint("cluster", __name__, url_prefix="/api")
 logger = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ def api_cluster_grade_job():
         except Exception:
             sc = 0.5
         out.append({"name": c.get("name", ""), "score": sc, "score_pct": f"{int(sc * 100)}%",
-                    "grade": search_utils.grade(sc, config.SCORE_A_MIN, config.SCORE_B_MIN),
+                    "grade": grade(sc, config.SCORE_A_MIN, config.SCORE_B_MIN),
                     "reason": (item.get("reason") or "").strip()})
     out.sort(key=lambda r: -r["score"])
     return jsonify({"ok": True, "candidates": out})

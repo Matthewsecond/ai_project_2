@@ -2,7 +2,6 @@
 utils.py — Pure helpers for the search module (no state, no OpenAI client).
 
   parse_json     : pull a JSON array out of a model response (citation-marker safe)
-  grade          : map a 0–1 score to an A/B/C letter given the thresholds
   passes_filters : hard-filter a DB row against the request filters
   serialize_job  : turn a raw DB row into the flat job dict the API returns
 """
@@ -62,15 +61,6 @@ def _clean(item):
 def _strip_citation_markers(text: str) -> str:
     """Drop file_search citation tokens (and any orphan private-use chars)."""
     return _PUA_CHARS.sub("", _CITATION_SPAN.sub("", text))
-
-
-def grade(score: float, a_min: float, b_min: float) -> str:
-    """A/B/C letter for a score, using caller-supplied thresholds (from config)."""
-    if score >= a_min:
-        return "A"
-    if score >= b_min:
-        return "B"
-    return "C"
 
 
 def passes_filters(row: dict, filters: dict) -> bool:

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.shared.llm import get_client
-from jobs_intelligence_ai.services.search.utils import grade
+from jobs_intelligence_ai.shared.grading import grade
 from .config import RESCORE_PROMPT, RescoreResults
 
 logger = logging.getLogger(__name__)

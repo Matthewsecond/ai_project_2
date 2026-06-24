@@ -1,10 +1,10 @@
 """
-Pin the CURRENT behavior of grade() (score → A/B/C banding) before it moves to
-shared/grading.py (Stage 2.1d). Imports flip to shared in 2.1d; asserts stay identical.
+grade() score → A/B/C banding. Moved from services/search/utils.py to
+shared/grading.py in Stage 2.5 (kills the search→enrichment sideways import).
 """
 import pytest
 
-from jobs_intelligence_ai.services.search.utils import grade
+from jobs_intelligence_ai.shared.grading import grade
 
 A_MIN, B_MIN = 0.80, 0.60
 

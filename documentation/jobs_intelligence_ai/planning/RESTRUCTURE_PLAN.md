@@ -2,8 +2,9 @@
 
 > **Status:** Plan COMPLETE and execution-ready. Architecture, `shared/` (§4),
 > config (§5), execution plan (§6), testing (§10), and all structural decisions (§9)
-> agreed. Only the Stage 3 production feature set remains deferred. Nothing in §6 has
-> run yet except Stage 1 (the `develop` branch). Running record.
+> agreed. Backend stages 2.0–2.5 are done (`core/` dissolved, `shared/` = llm+grading+taxonomy,
+> zero shims left); only **2.6** (frontend internal modularization — §12, asset strategy OPEN)
+> remains, then the Stage 3 production feature set (deferred). Running record.
 >
 > **STANDING RULE — docs track the code.** After each phase/step is done, update the
 > documentation to reflect it *as part of that step* (before moving on): the mirrored
@@ -86,21 +87,23 @@ src/jobs_intelligence_ai/
 
 ---
 
-## 4. `shared/` — ✅ AGREED (expanded after reading the code)
+## 4. `shared/` — ✅ DONE (final shape differs from the original plan — see notes)
 
 Contents derived from the **actual import graph + duplication found in the code**.
-Several things are either trapped in the wrong place or copy-pasted across modules:
+**As built (after 2.5):** `shared/` = `llm` + `grading` + `taxonomy`. The originally-planned
+`json.py` and `job.py` were both dropped (see strikethrough below) — neither's justification survived
+the rest of the rework.
 
 ```
 shared/
 ├── __init__.py
-├── llm.py        ◄ get_client() OpenAI client singleton — replaces BOTH client paths
+├── llm.py        ◄ get_client() OpenAI client singleton — replaces BOTH client paths   ✅
 │                    (FROM: chat.py top-level; AND search/orchestrator.py:59 made its own)
-├── job.py        ◄ ★ canonical job dict: JOB_FIELDS map + serialize_job(row) [fresh]
-│                    + overlay_job(job, row) [overlay] — kills the duplicated ~30-field
-│                    mapping (FROM: search/utils.serialize_job + chat._apply_row)
-├── grading.py    ◄ grade() + score→A/B/C banding  (FROM: search/utils.py; may fold into job.py)
-└── taxonomy.py   ◄ sector/role taxonomy for the funnel  (FROM: taxonomy.py, top-level)
+├── (job.py)      ◄ ❌ DROPPED — was justified by serialize_job vs chat._apply_row duplication;
+│                    _apply_row deleted with job-search chat (#5), so serialize_job is single-domain
+│                    now. Stays in services/search/utils.py.
+├── grading.py    ◄ grade() + score→A/B/C banding  (FROM: search/utils.py)              ✅ (2.5)
+└── taxonomy.py   ◄ sector/role taxonomy for the funnel  (FROM: taxonomy.py, top-level)  ✅ (2.5)
 ```
 
 > **`json.py` dropped (superseded by Structured Outputs — see §6 2.1b).** The 3 JSON
@@ -224,12 +227,15 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
   As each parser dies, retire its `test_1_json` case. By the end `parse_json`,
   `chat._parse/_parse_candidate`, and the per-service parsers are all gone; `shared/json.py`
   is NOT created (residual `strip_citations` only if a file_search call needs it).
-- 2.1c `shared/job.py` ← `JOB_FIELDS` + `serialize_job(row)` [fresh] + `overlay_job(job,row)`
-  [overlay]; `search/utils.serialize_job` + `chat._apply_row` delegate. Gate: `pytest`
-  (equivalence tests) + `smoke`.
-- 2.1d `shared/grading.py` ← `grade()`; `rescorer` + `search` delegate. Gate: `pytest`.
-- 2.1e `shared/taxonomy.py` ← top-level `taxonomy.py`; importers (`core`, guided, stats)
-  updated; old path shim. Gate: `pytest` + `boot`.
+- 2.1c ❌ **DROPPED** (done as part of 2.5 analysis). `shared/job.py` was justified only by the
+  `serialize_job` vs `chat._apply_row` duplication — and `_apply_row` was deleted with the job-search
+  chat (#5). `serialize_job` is now single-domain (search only), so a `shared/job.py` would be ceremony
+  with no second caller. Left in `services/search/utils.py`.
+- 2.1d ✅ **DONE (in 2.5)** `shared/grading.py` ← `grade()` (pure; thresholds stay caller-supplied from
+  global config per §5). Repointed `search/grader`, `enrichment/rescorer` (kills the search→enrichment
+  sideways import), cluster bp; `test_3_grading` flipped to the new path. Gate: ✅ 182 passed.
+- 2.1e ✅ **DONE (in 2.5)** `shared/taxonomy.py` ← top-level `taxonomy.py` (`git mv`); guided bp +
+  `test_4_taxonomy` repointed; no shim (the only other importer was the now-deleted `core`). Gate: ✅ boot + 182 passed.
 
 **2.2 — Relocate `search` + config cleanup**  *(decision: search moves under `services/`)*
 - 2.2a ✅ Moved `search/` → `services/search/` (git rename); updated 7 src importers
@@ -362,10 +368,38 @@ parse→call→jsonify. Same rule: convert + delete any hand-parser + two test l
   lastResults` → `lastResults`). **Keep** `jobChatLang` (the page-wide AI-lang var used by
   job chat / guided / interview). Verify the search/interview/guided tabs still work in-app.
 
-**2.5 — Dissolve `core/` + remove shims**  *(decision: dissolve the facade)*
-- Repoint remaining `from …core import` users to the service packages' own `__init__` APIs;
-  delete `core/`. Remove all re-export shims (chat remnants, `search/utils` delegations,
-  old `taxonomy.py`). Gate: full `pytest` + `smoke` + `boot` + `tab`.
+**2.5 — Dissolve `core/` + remove shims** ✅ **DONE** *(decision: dissolve the facade)*
+- ✅ Repointed the 5 `from …core import` sites (search, job_detail, candidate ×2, guided) to the
+  service packages' own APIs — `candidate`/`enrichment` via package `__init__`; `search` symbols
+  (Orchestrator, analyze_candidate_match, send_job_message/clear_job_session) via submodule, since
+  `search/__init__` is intentionally export-free. Deleted `core/`.
+- ✅ Audit correction: the "shims" this step expected to remove **didn't exist** — chat remnants were
+  already gone (#5/#7), and 2.1c/d/e had never run, so `search/utils` was real code, not a delegation,
+  and `taxonomy.py` was the real module. So 2.5 absorbed the deferred **2.1d** (`grade`→`shared/grading`,
+  removing the search→enrichment sideways import — the one real §3 violation) and **2.1e**
+  (`taxonomy`→`shared/taxonomy`), and formally **dropped 2.1c** (`shared/job` no longer justified).
+  Cleaned the stale `TODO(rework 2.1d)` in `config/settings.py`.
+- Gate: ✅ `boot` (create_app, 74 url rules) + `pytest -m "not smoke"` = **182 passed, 31 deselected**
+  (unchanged from the 2.4 baseline → behavior-preserving). Smoke + in-app `tab` not re-run (no model/DB
+  path changed — only import locations).
+- **Shims remaining after 2.5: none.** `shared/` is now `llm` + `grading` + `taxonomy` (no `json`, no `job`).
+
+**2.6 — Frontend internal modularization** (the symmetric half of the front/back split — see §12)
+*Stages 2.1–2.5 modularized the **backend**; the API seam is clean but the **client** is still
+one 10,754-line `index.html` (≈1,400 CSS / ≈650 HTML / ≈8,300 JS in a single global `<script>`,
+88 inline `fetch()`, 197 inline `onclick=`). 2.6 gives the frontend the same low-coupling /
+high-cohesion treatment.* Asset/module strategy is **OPEN** (§12) — decide before executing.
+The cuts, lowest-risk first, each its own commit and **leaving the app working** (verify in-app
+per the workflow we just used — login, reload, console clean, tabs exercised):
+- 2.6a **Extract CSS** → `frontend/static/css/` via `<link>` (keep the Jinja feature-flag toggles inline).
+- 2.6b **Extract a thin API client** — collapse the 88 `fetch()` calls behind one module
+  (`api.js`: `api.match()`, `api.saveJob()`, … one place for endpoint strings + `{ok,error}` unwrap).
+  Single decoupling point between UI and backend.
+- 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
+  modules + a boot module + a shared-util module.
+- 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
+  stops referencing globals by name — kills the HTML→global-fn coupling that made the dead-code sweep hard.
+Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.
 
 - [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto `master`
       (search + whatever basics we bless — deferred), replacing the old `demo_real/` content. Push.
@@ -412,7 +446,7 @@ Conventions:
 | `chat.py` → send_segment_message | `services/clustering/segment_chat.py` (#6) |
 | `chat.py` (file) | **DELETED** at #7 — fully dissolved |
 | `taxonomy.py` | `shared/taxonomy.py` |
-| `search/utils.py` (parse_json, serialize_job, grade) | `shared/json.py`, `shared/job.py`, `shared/grading.py` |
+| `search/utils.py` → grade | `shared/grading.py` (2.5). parse_json + serialize_job **STAY** in `search/utils.py` (no `shared/json.py`/`shared/job.py` — see §4) |
 | `core/` (facade re-exporting chat/search/services) | **dissolved** — each service `__init__` is its own public API |
 | `config/` | `config/` = environment layer; matching tunables move OUT to `services/search/config.py` (§5) |
 | `infra/`, `integrations/linkedin.py` | `infra/` (+ `infra/integrations/`) |
@@ -444,9 +478,14 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ Testing (§10): full coverage scope — mirrored test tree, **a test package per service** (mirrors the API principle), unit tests with `_fake_db` + mocked `shared/llm` client; fake-DB now, docker integration later.
 - ✅ Documentation (§11): `documentation/` mirrors the package, one folder per module (`Work` convention); docs realigned to the target structure; `TESTING.md` added.
 - ✅ `search/` moves under `services/search/` (2.2a).
-- ✅ `core/` facade dissolved into per-service `__init__` APIs (2.5).
+- ✅ `core/` facade dissolved into per-service `__init__` APIs (2.5 — DONE). 2.5 also absorbed the
+  never-run 2.1d (`grade`→`shared/grading`, fixing the search→enrichment sideways import) + 2.1e
+  (`taxonomy`→`shared/taxonomy`), and **dropped 2.1c `shared/job.py`** (single-domain after `_apply_row`
+  deletion). Final `shared/` = llm+grading+taxonomy; zero shims remain. Gate: 182 passed, boot OK.
 - ✅ `geo` + `auth` as their own `services/` modules.
 - ✅ **Chat distributed by domain** (amends "one `chat/` module", 2026-06-23): `chat.py` is a junk-drawer of 4 independent Responses-API functions; 3 move to the domain they serve (candidate assistant→`candidate/` #7, segment chat→`clustering/` #6), and `chat/` keeps only the jobs-domain conversational layer (`send_message` + `send_job_message` + `enrich_jobs_from_db`). Each surface's SO conversion rides with its step. See the DECISION block under §6.
+- ✅ **Frontend internal modularization added as Stage 2.6** (2026-06-24): the symmetric half of the front/back split — `index.html` (10,754 lines) breaks into `static/css` + a thin `api.js` client + per-tab JS modules, replacing inline `onclick=` with listeners. Mirrors the backend's "feature = a unit" principle. See §12 + §6 2.6.
+- ⚠ **Frontend asset/module strategy (§12) — OPEN.** Plain `<script>` vs native ES modules vs bundler. Leaning native ES modules (no toolchain added to the build-free Flask app). Decide before executing 2.6.
 - ⚠ Production feature set (Stage 3) — deferred, not chosen.
 
 ---
@@ -514,3 +553,56 @@ Realigned to the target structure (docs lead the code so the end state is docume
 
 Each module gets its own doc folder; new module docs land beside the code as it's
 repackaged in Stage 2.3 / 2.4. `README.md` is the mirror index.
+
+---
+
+## 12. Frontend modularization (Stage 2.6) — design + OPEN decision
+
+**Why.** The backend rework (2.1–2.5) made "frontend vs backend" true at the *process*
+boundary: thin blueprints, clean JSON API, services that never import the frontend. But it
+is **not** true *inside* the frontend. [index.html](../../../src/jobs_intelligence_ai/frontend/templates/index.html)
+is one file fusing four concerns:
+
+| Region | ~Lines |
+|---|---|
+| CSS (`<style>`) | ~1,400 |
+| HTML markup | ~650 |
+| JS (one global `<script>`) | ~8,300 |
+
+with **88 inline `fetch()`** (every feature hand-rolls its endpoint string + `{ok,error}`
+unwrap) and **197 inline `onclick=`** (markup wired to global JS functions *by name* — the exact
+coupling that forced the painstaking identifier sweep in the dead-job-search-chat cleanup). Low
+coupling at the API ≠ low coupling across the whole design; 2.6 closes that gap.
+
+**Target shape** (mirrors the backend's "feature = a unit, not scattered" principle):
+```
+frontend/
+├── static/
+│   ├── css/            # extracted styles (2.6a)
+│   └── js/
+│       ├── api.js      # ONE thin client over the 88 fetch() calls (2.6b)
+│       ├── boot.js     # app init, tab wiring, shared state
+│       ├── util.js     # shared helpers (formatting, DOM)
+│       └── tabs/       # search.js · saved.js · radar.js · map.js · analytics.js (2.6c)
+└── templates/
+    └── index.html      # markup + Jinja only; data-action hooks, no inline JS (2.6d)
+```
+
+**OPEN — asset/module strategy (decide before executing 2.6).** Today the app is pure Flask
++ three CDN `<script>` tags (leaflet/plotly/xlsx); **no `static/` dir, no JS build tooling**.
+Three ways to split the JS, in ascending toolchain cost:
+
+1. **Plain multi-file `<script src>`** — global namespace, load-order-dependent. Zero tooling;
+   smallest change, but keeps the global-soup coupling (just spread across files).
+2. **Native ES modules (`<script type="module">` + `import`)** — real module boundaries, no
+   bundler (modern browsers do it natively), Flask just serves the files. *Recommended:* the
+   sweet spot — true decoupling, no toolchain added to a demo app.
+3. **Bundler (Vite/esbuild)** — best DX/minification, but introduces a build step + `node_modules`
+   to a currently build-free Python app. Likely overkill for the demo phase.
+
+Leaning **(2)**; needs a decision because it sets how `api.js`/tab modules reference each other and
+whether `pyproject.toml` package-data must grow to ship `static/`.
+
+**Sequencing note.** 2.6 is independent of 2.5 (backend shim removal) and could run in parallel,
+but the API client (2.6b) is cleanest *after* the API surface stops moving (post-2.4, which is done).
+Order within 2.6 is risk-ascending: CSS extract → API client → JS-by-tab → de-inline handlers.

@@ -14,7 +14,7 @@ import logging
 
 from pydantic import BaseModel
 
-from . import utils
+from jobs_intelligence_ai.shared.grading import grade
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,6 @@ class Grader:
                 score = 0.5
             job["score"]        = score
             job["score_pct"]    = f"{int(score * 100)}%"
-            job["grade"]        = utils.grade(score, cfg.score_a_min, cfg.score_b_min)
+            job["grade"]        = grade(score, cfg.score_a_min, cfg.score_b_min)
             job["match_reason"] = (item.match_reason if item else "").strip()
         return jobs

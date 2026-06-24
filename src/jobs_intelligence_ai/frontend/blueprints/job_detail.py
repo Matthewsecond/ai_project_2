@@ -17,7 +17,7 @@ calls the service, and jsonifies — any service error becomes a 500.
 import traceback
 from flask import Blueprint, request, jsonify
 
-from jobs_intelligence_ai.core import send_job_message, clear_job_session
+from jobs_intelligence_ai.services.search.job_chat import send_job_message, clear_job_session
 from jobs_intelligence_ai.services.job_detail import (
     translate_description, compact_description, generate_cv_questions,
     write_outreach, score_candidate_strength,

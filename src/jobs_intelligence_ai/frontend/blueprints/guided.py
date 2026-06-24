@@ -26,7 +26,7 @@ from sqlalchemy import text
 
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.database import get_engine
-from jobs_intelligence_ai.core import taxonomy as categories   # predefined Sector → role-family taxonomy
+from jobs_intelligence_ai.shared import taxonomy as categories   # predefined Sector → role-family taxonomy
 from jobs_intelligence_ai.services.candidate import extract_guided_fields, phrase_guided_reply
 
 bp = Blueprint("guided", __name__, url_prefix="/api/guided")

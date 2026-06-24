@@ -1,5 +1,5 @@
 """
-core/categories.py — Predefined role taxonomy for the guided funnel.
+shared/taxonomy.py — Predefined role taxonomy for the guided funnel.
 
 The raw AMS `occupational_group` column has ~7,600 distinct values — far too
 granular to drive a "pick a role family" funnel (it's effectively free text).

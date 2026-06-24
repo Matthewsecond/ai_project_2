@@ -1,8 +1,8 @@
 """
-Pin the CURRENT behavior of the role/sector taxonomy before it moves to
-shared/taxonomy.py (Stage 2.1e). Imports flip to shared in 2.1e; asserts stay identical.
+Role/sector taxonomy. Moved from top-level taxonomy.py to shared/taxonomy.py in
+Stage 2.5.
 """
-from jobs_intelligence_ai import taxonomy
+from jobs_intelligence_ai.shared import taxonomy
 
 
 def test_constants_present():

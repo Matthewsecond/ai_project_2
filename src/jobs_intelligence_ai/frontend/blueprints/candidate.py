@@ -150,7 +150,7 @@ def api_candidate_assistant():
     if not config.OPENAI_API_KEY:
         return jsonify({"ok": False, "error": "OpenAI API key not configured"}), 503
 
-    from jobs_intelligence_ai.core import send_candidate_message
+    from jobs_intelligence_ai.services.candidate import send_candidate_message
     result = send_candidate_message(session_id, message, profile, jobs, lang)
     return jsonify({
         "ok":              True,
@@ -165,7 +165,7 @@ def api_candidate_assistant_reset():
     """Body: { session_id } → clear the assistant's conversation memory."""
     data       = request.get_json(silent=True) or {}
     session_id = (data.get("session_id") or "default").strip() or "default"
-    from jobs_intelligence_ai.core import clear_candidate_session
+    from jobs_intelligence_ai.services.candidate import clear_candidate_session
     clear_candidate_session(session_id)
     return jsonify({"ok": True})
 

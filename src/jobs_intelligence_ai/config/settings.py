@@ -46,7 +46,8 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  GRADE BANDS  (A/B/C thresholds)
 #  Cross-cutting: used by the grader (search), rescorer, and the cluster view.
-#  TODO(rework 2.1d): move to shared/grading.py alongside grade().
+#  Stay GLOBAL by design (every deployment sets them the same way); shared/grading.grade()
+#  takes them as args so it stays pure (see RESTRUCTURE_PLAN §5 / 2.5).
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SCORE_A_MIN = 0.80   # A grade — strong match (>= 80%)
