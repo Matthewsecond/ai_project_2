@@ -6426,8 +6426,7 @@ function closeJobModal() {
   document.getElementById('jobModal').classList.add('hidden');
   _modalJob = null;
   if (jobChatSessionId) {
-    fetch('/api/job_chat/reset', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session_id: jobChatSessionId }) });
+    api.raw('/api/job_chat/reset', { method: 'POST', body: { session_id: jobChatSessionId } });
     jobChatSessionId   = null;
     _jobChatLastAnswer = '';
   }
@@ -6471,29 +6470,25 @@ async function sendJobChat() {
   scrollJobChat();
 
   try {
-    const res  = await fetch('/api/job_chat', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        session_id:     jobChatSessionId,
-        message:        text,
-        lang:           jobChatLang,
-        candidate_text: _lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
-        job_context: {
-          job_id:              _modalJob.job_id,
-          title:               _modalJob.title,
-          company:             _modalJob.company,
-          city:                _modalJob.city,
-          state:               _modalJob.state,
-          salary:              _modalJob.salary,
-          occ_group:           _modalJob.occ_group,
-          skills_en:           _modalJob.skills_en,
-          skills:              _modalJob.skills,
-          description:         _modalJob.description,
-          description_snippet: _modalJob.description_snippet,
-        },
-      }),
+    const data = await api.post('/api/job_chat', {
+      session_id:     jobChatSessionId,
+      message:        text,
+      lang:           jobChatLang,
+      candidate_text: _lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
+      job_context: {
+        job_id:              _modalJob.job_id,
+        title:               _modalJob.title,
+        company:             _modalJob.company,
+        city:                _modalJob.city,
+        state:               _modalJob.state,
+        salary:              _modalJob.salary,
+        occ_group:           _modalJob.occ_group,
+        skills_en:           _modalJob.skills_en,
+        skills:              _modalJob.skills,
+        description:         _modalJob.description,
+        description_snippet: _modalJob.description_snippet,
+      },
     });
-    const data = await res.json();
     document.getElementById('jcTyping')?.remove();
     const answer = data.ok ? (data.text || '—') : `Error: ${data.error}`;
     appendJobChatMsg(answer, 'ai');
@@ -6588,11 +6583,7 @@ async function saveFromModal() {
   if (!_modalJob || saveBtn.classList.contains('saved')) return;
   const status = document.getElementById('modalStatusSel').value;
   try {
-    const res  = await fetch('/api/saved', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() }, status, candidate_profile: _currentCandidateProfile || null }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/saved', { job: { ..._modalJob, candidate_name: getCandidateName() }, status, candidate_profile: _currentCandidateProfile || null });
     if (data.ok) {
       saveBtn.textContent = '✓ Saved';
       saveBtn.classList.add('saved');
@@ -6693,18 +6684,12 @@ async function runAIFilterSuggest() {
   document.getElementById('raifpResult').style.display = 'none';
 
   try {
-    const res = await fetch('/api/opportunity/filter-assist', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        query,
-        sectors: _filterOpts.occ_groups || [],
-        states:  _filterOpts.states     || [],
-        portals: _filterOpts.portals    || [],
-      })
+    const data = await api.post('/api/opportunity/filter-assist', {
+      query,
+      sectors: _filterOpts.occ_groups || [],
+      states:  _filterOpts.states     || [],
+      portals: _filterOpts.portals    || [],
     });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Server error');
     _aiSuggestion = data;
     _renderAISuggestion(data);
   } catch(e) {
@@ -7421,12 +7406,7 @@ async function sendTabChat(tab, text) {
       recommendations:   briefing.recommendations,
       sectors:           ((_radarData && _radarData.sectors) || []).slice(0, 15),
     };
-    const res  = await fetch('/api/opportunity/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg, history: cfg.history, context}),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/opportunity/chat', {message: msg, history: cfg.history, context});
     document.getElementById(typingId)?.remove();
     const answer = data.ok ? data.answer : (data.error || 'Something went wrong.');
     const _caIdx = _chatAnswers.push(answer) - 1;
@@ -7545,12 +7525,7 @@ async function sendOppChat(text) {
       sectors:           ((_radarData && _radarData.sectors) || []).slice(0, 15),
     };
 
-    const res  = await fetch('/api/opportunity/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg, history: _oppChatHistory, context}),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/opportunity/chat', {message: msg, history: _oppChatHistory, context});
     document.getElementById(typingId)?.remove();
 
     const answer = data.ok ? data.answer : (data.error || 'Something went wrong.');
@@ -7764,11 +7739,7 @@ async function generateReport(withCharts) {
       urgency_alerts:    briefing.urgency_alerts,
       recommendations:   briefing.recommendations,
     };
-    const res = await fetch('/api/analytics/report', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ items: _summaryItems, context, charts }),
-    });
+    const res = await api.raw('/api/analytics/report', { method: 'POST', body: { items: _summaryItems, context, charts } });
     if (!res.ok) { const d = await res.json().catch(()=>{}); throw new Error((d && d.error) || res.statusText); }
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
@@ -7904,21 +7875,16 @@ async function loadStrengthAnalysis(job, cvText) {
   const detailsEl = document.getElementById('modalStrengthDetails');
   chartEl.style.display = '';
   try {
-    const res  = await fetch('/api/candidate_strength', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        job: {
-          title:       job.title,
-          company:     job.company,
-          skills:      job.skills_en || job.skills,
-          description: (job.description || job.description_snippet || '').slice(0, 2000),
-        },
-        cv_text: cvText.slice(0, 2000),
-        lang: _modalLang,
-      })
+    const data = await api.post('/api/candidate_strength', {
+      job: {
+        title:       job.title,
+        company:     job.company,
+        skills:      job.skills_en || job.skills,
+        description: (job.description || job.description_snippet || '').slice(0, 2000),
+      },
+      cv_text: cvText.slice(0, 2000),
+      lang: _modalLang,
     });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
 
     const { axes, scores, reasons, overall } = data;
     _strengthData = { axes, scores, reasons, overall };
@@ -8938,13 +8904,9 @@ async function _persistInterview() {
       await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: _interview } } });
     } else {
       const status = document.getElementById('modalStatusSel')?.value || 'New';
-      const res = await fetch('/api/saved', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() },
-                               status, extras: { interview: _interview },
-                               candidate_profile: _currentCandidateProfile || null }),
-      });
-      const data = await res.json();
+      const data = await api.post('/api/saved', { job: { ..._modalJob, candidate_name: getCandidateName() },
+                                                  status, extras: { interview: _interview },
+                                                  candidate_profile: _currentCandidateProfile || null });
       if (data.ok) {
         savedJobs = data.jobs;
         updateSavedBadge();
@@ -9034,24 +8996,19 @@ async function descToggleOutreach() {
     btn.textContent = '…';
     try {
       const candidateName = document.getElementById('candidateName')?.value || '';
-      const res  = await fetch('/api/desc_outreach', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          job: {
-            title:    _modalJob.title,
-            company:  _modalJob.company,
-            location: [_modalJob.city, _modalJob.state].filter(Boolean).join(', '),
-            salary:   _modalJob.salary,
-            skills:   _modalJob.skills_en || _modalJob.skills,
-            description: _descOriginal.slice(0, 1500),
-          },
-          candidate_name: candidateName,
-          cv_text: _lastParsedText ? _lastParsedText.slice(0, 1500) : '',
-          lang: _modalLang,
-        })
+      const data = await api.post('/api/desc_outreach', {
+        job: {
+          title:    _modalJob.title,
+          company:  _modalJob.company,
+          location: [_modalJob.city, _modalJob.state].filter(Boolean).join(', '),
+          salary:   _modalJob.salary,
+          skills:   _modalJob.skills_en || _modalJob.skills,
+          description: _descOriginal.slice(0, 1500),
+        },
+        candidate_name: candidateName,
+        cv_text: _lastParsedText ? _lastParsedText.slice(0, 1500) : '',
+        lang: _modalLang,
       });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'failed');
       _descOutreach = data.text;
     } catch(e) {
       btn.disabled = false;

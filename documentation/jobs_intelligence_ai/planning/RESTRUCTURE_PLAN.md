@@ -394,23 +394,25 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   feature-flag toggles inline. Added `frontend/static/css/*.css` to pyproject package-data. index.html
   **10,754 → 9,364 lines**. Verified in-app: all 3 sheets load + parse (978/262/16 rules), computed styles
   correct (feedback btn, body theme, tabs), console clean, page renders.
-- 2.6b **Extract a thin API client** — collapse the 88 `fetch()` calls behind one module. **IN PROGRESS.**
+- 2.6b ✅ **DONE** **Extract a thin API client** — collapsed the `fetch()` calls behind one module.
   - ✅ Infra: `static/js/api.js` (ES module) with the protocol core — `get(path)` / `post(path,body)`
     (parsed `{ok,error}` envelope, throws on `!ok`) / `raw(path,opts)` (Response, for SSE streams + blob
     downloads). Module bridge in `<head>` assigns `window.api` for the not-yet-modularized inline script;
     bare `loadFilters()` init deferred to `DOMContentLoaded` (only parse-time API caller — audited) so it
     runs after the deferred bridge. Added `static/js/*.js` to package-data.
     api.js grew `patch`/`del` (envelope) alongside `get`/`post`/`raw`.
-  - ✅ Migrated **50 of 88 sites** across 5 commits: part 1 search (b71f8ba), part 2 saved (5c6b59b),
-    part 3 rest of throw-sites (3a522fa), part 4 cluster/multi-CV (1f1b704), part 5 extras-picker+save (7a3d6d5).
+  - ✅ Migrated **79 of 88 sites** across 9 commits: part 1 search (b71f8ba), part 2 saved (5c6b59b),
+    part 3 rest of throw-sites (3a522fa), part 4 cluster/multi-CV (1f1b704), part 5 extras-picker+save (7a3d6d5),
+    part 6 interview (5dfe646), part 7 candidate-assistant+multi-CV match (28ea981), part 8 saved
+    lookups/observation/report+example blob (6f2019c), part 9 job_chat / opportunity chats /
+    filter-assist / analytics-report blob / candidate_strength / saved POSTs / desc_outreach.
     **Decision (throw+surface):** inline-`data.ok` sites convert to `api.*` and let errors throw; the existing
     catch surfaces them (kills the silent error-swallowing). Verified live: filters/radar/saved/company/cluster
-    flow through `api.*`, console clean, boot OK; node --check after every batch.
-  - ⏳ **38 sites remain** (long tail): FormData uploads — parse-pdf ×3, interview/extract, item.pdf blob —
-    **stay raw `fetch`** (can't use the JSON client). The rest are more inline-`data.ok`/other sites
-    (candidate assistant, match/analyze, interview assess/model_answer/opportunities/context/followup/analyze,
-    opportunity chats, job_chat, analytics/report, saved lists/observation/report, salary_stats) — same
-    throw+surface treatment, per-site. App works throughout (raw fetch + api.js coexist).
+    flow through `api.*`, console clean, boot OK; node --check + Jinja compile after every batch.
+  - **9 sites stay raw `fetch` by design:** 4 FormData uploads (parse-pdf ×3, interview/extract) + 1 blob
+    fetch (`item.pdf`) — the JSON envelope client can't carry them; and 3 graceful-degradation reads
+    (the two best-effort `loadSaved` dual-loads + `salary_stats`, which fall back inline on `!ok` rather
+    than throwing). Documented at their call sites.
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
