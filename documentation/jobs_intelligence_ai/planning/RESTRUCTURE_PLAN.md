@@ -421,6 +421,11 @@ Gate per step: `boot` + console-clean reload + `tab` (all five) + integration te
 
 - [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto `master`
       (search + whatever basics we bless — deferred), replacing the old `demo_real/` content. Push.
+      Also in scope for Stage 3 (product, not just plumbing):
+      - **Rebrand to Acme Recruitment** — apply Acme Recruitment coloring/theme across the
+        UI (the CSS we extracted in 2.6a is the seam for this). Palette + assets TBD.
+      - **Expand candidate-search filters** — add more filter dimensions to the candidate search.
+        Specific fields TBD.
 
 ---
 
@@ -504,7 +509,8 @@ Note: `python -m jobs_intelligence_ai.search` becomes `…services.search` after
 - ✅ **Chat distributed by domain** (amends "one `chat/` module", 2026-06-23): `chat.py` is a junk-drawer of 4 independent Responses-API functions; 3 move to the domain they serve (candidate assistant→`candidate/` #7, segment chat→`clustering/` #6), and `chat/` keeps only the jobs-domain conversational layer (`send_message` + `send_job_message` + `enrich_jobs_from_db`). Each surface's SO conversion rides with its step. See the DECISION block under §6.
 - ✅ **Frontend internal modularization added as Stage 2.6** (2026-06-24): the symmetric half of the front/back split — `index.html` (10,754 lines) breaks into `static/css` + a thin `api.js` client + per-tab JS modules, replacing inline `onclick=` with listeners. Mirrors the backend's "feature = a unit" principle. See §12 + §6 2.6.
 - ✅ **Frontend asset/module strategy (§12) — DECIDED (2026-06-24): native ES modules** (`<script type="module">` + import/export, served from `static/`, no bundler/toolchain added to the build-free Flask app).
-- ⚠ Production feature set (Stage 3) — deferred, not chosen.
+- ⚠ Production feature set (Stage 3) — mostly deferred, but two items now in scope (2026-06-25):
+  Acme Recruitment rebrand (coloring/theme) and expanded candidate-search filters. Specifics TBD.
 
 ---
 
