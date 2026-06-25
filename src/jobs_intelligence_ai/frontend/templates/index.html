@@ -54,9 +54,9 @@
     </div>
     <div class="topbar-right">
       <span class="jc-lang-label" style="color:#bbb;font-size:10px;text-transform:uppercase;letter-spacing:.06em">AI lang:</span>
-      <button class="jc-lang-btn active" data-lang="en" onclick="setJobChatLang('en')">EN</button>
-      <button class="jc-lang-btn" data-lang="de" onclick="setJobChatLang('de')">DE</button>
-      <button class="jc-lang-btn" data-lang="auto" onclick="setJobChatLang('auto')">Auto</button>
+      <button class="jc-lang-btn active" data-lang="en" data-action="job-chat-lang">EN</button>
+      <button class="jc-lang-btn" data-lang="de" data-action="job-chat-lang">DE</button>
+      <button class="jc-lang-btn" data-lang="auto" data-action="job-chat-lang">Auto</button>
       <div style="width:1px;height:14px;background:#e0dfd8;margin:0 4px"></div>
       <div class="db-dot" id="dbDot"></div>
       <span id="dbStatus">Connecting…</span>
@@ -6447,6 +6447,7 @@ function setJobChatLang(lang) {
   document.querySelectorAll('.jc-lang-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.lang === lang));
 }
+_ACTIONS['job-chat-lang'] = (el) => setJobChatLang(el.dataset.lang);
 
 async function sendJobChat() {
   if (!jobChatSessionId || !_modalJob) return;
@@ -6621,6 +6622,19 @@ document.addEventListener('click', function(e) {
   e.stopPropagation();
   const name = link.getAttribute('data-company');
   if (name) openCompanyPanel(name);
+});
+
+// ── Action dispatch — delegated click handler (replaces inline onclick=) ──
+// Elements carry data-action="name" (+ data-* params) instead of onclick="fn(args)".
+// Each feature registers its handlers into _ACTIONS near its own code, so markup
+// stops referencing global function names by name — the prerequisite for splitting
+// the script into ES modules (2.6c). Registration runs at load, before any click.
+const _ACTIONS = {};
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const handler = _ACTIONS[el.dataset.action];
+  if (handler) handler(el, e);
 });
 
 // ════════════════════════════════════════════════════════════

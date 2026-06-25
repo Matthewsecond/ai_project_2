@@ -423,6 +423,11 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   reachable — eliminates that coupling, so the module split lands clean with no scaffold.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
   stops referencing globals by name — kills the HTML→global-fn coupling that made the dead-code sweep hard.
+  **IN PROGRESS.** Mechanism: one delegated click dispatcher reads `data-action="name"` and looks the
+  handler up in a single `_ACTIONS` registry; each feature registers its handlers (reading params from
+  `data-*`) next to its own code, so the maps split cleanly with the modules in 2.6c. ~226 inline
+  handlers total (197 onclick + 29 other), 136 distinct fns.
+  - ✅ part 1 (pilot): dispatcher core + `_ACTIONS` registry; converted the 3 job-chat lang buttons.
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.
