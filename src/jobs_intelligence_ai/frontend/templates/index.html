@@ -1315,11 +1315,7 @@ async function runClustering() {
   document.getElementById('mcSegments').innerHTML = '<div class="spinner" style="margin:16px auto"></div>';
 
   try {
-    const d = await (await fetch('/api/cluster', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidates: cands, granularity: gran }),
-    })).json();
-    if (!d.ok) { document.getElementById('mcSegments').innerHTML = `<div class="error-box">${esc(d.error || 'Clustering failed')}</div>`; return; }
+    const d = await api.post('/api/cluster', { candidates: cands, granularity: gran });
     _mcLastClusters = d.clusters || [];
     _mcRenderSegments(_mcLastClusters);
   } catch (e) {
@@ -1387,13 +1383,8 @@ async function _mcOpportunityOverview() {
       .slice(0, 6).map(j => ({ title: j.title, grade: j.grade })),
   }));
   try {
-    const d = await (await fetch('/api/cluster/overview', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ segments }),
-    })).json();
-    panel.innerHTML = d.ok
-      ? `<div class="mc-overview-head">📈 Opportunity overview</div><div class="mc-seg-analysis-text">${esc(d.text || '')}</div>`
-      : `<span class="mc-warn">${esc(d.error || 'overview failed')}</span>`;
+    const d = await api.post('/api/cluster/overview', { segments });
+    panel.innerHTML = `<div class="mc-overview-head">📈 Opportunity overview</div><div class="mc-seg-analysis-text">${esc(d.text || '')}</div>`;
   } catch (e) {
     panel.innerHTML = `<span class="mc-warn">${esc(e.message)}</span>`;
   } finally {
@@ -1415,12 +1406,9 @@ async function _mcSavePersona(i, btn) {
   if (!cl) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
-    const d = await (await fetch('/api/cluster/save_persona', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: cl.title, persona_text: cl.persona_text,
-                             members: cl.members.map(m => m.name) }),
-    })).json();
-    if (btn) { btn.textContent = d.ok ? '✓ Saved as candidate' : 'Save failed'; }
+    await api.post('/api/cluster/save_persona', { title: cl.title, persona_text: cl.persona_text,
+                             members: cl.members.map(m => m.name) });
+    if (btn) { btn.textContent = '✓ Saved as candidate'; }
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '💾 Save as candidate'; }
   }
@@ -1430,9 +1418,8 @@ async function _mcSavePersona(i, btn) {
 let _mcDbList = [];
 async function _mcLoadFromDb() {
   let d;
-  try { d = await (await fetch('/api/cluster/candidates')).json(); }
+  try { d = await api.get('/api/cluster/candidates'); }
   catch (e) { alert('Could not load saved candidates: ' + e.message); return; }
-  if (!d.ok) { alert(d.error || 'Failed to load saved candidates.'); return; }
   _mcDbList = d.candidates || [];
   if (!_mcDbList.length) { alert('No saved candidates with a profile were found.'); return; }
   document.getElementById('mcSegments').innerHTML =
@@ -1555,12 +1542,9 @@ async function sendSegChat() {
   typing.className = 'seg-msg ai'; typing.id = 'segChatTyping'; typing.textContent = '…';
   thread.appendChild(typing); thread.scrollTop = thread.scrollHeight;
   try {
-    const d = await (await fetch('/api/cluster/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: _segChatSession, message: text, segment: _segChatContext(), lang: 'en' }),
-    })).json();
+    const d = await api.post('/api/cluster/chat', { session_id: _segChatSession, message: text, segment: _segChatContext(), lang: 'en' });
     document.getElementById('segChatTyping')?.remove();
-    _segChatAppend(d.ok ? (d.text || '—') : ('Error: ' + (d.error || 'request failed')), 'ai');
+    _segChatAppend(d.text || '—', 'ai');
   } catch (e) {
     document.getElementById('segChatTyping')?.remove();
     _segChatAppend('Network error: ' + e.message, 'ai');
@@ -1687,11 +1671,7 @@ async function _segLoadRanking(i) {
     return;
   }
   try {
-    const d = await (await fetch('/api/cluster/rank', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidates, jobs }),
-    })).json();
-    if (!d.ok) { document.getElementById('segContent').innerHTML = `<div class="error-box">${esc(d.error || 'ranking failed')}</div>`; return; }
+    const d = await api.post('/api/cluster/rank', { candidates, jobs });
     cl._rank = d;
     _segRenderRanking(i);
   } catch (e) {
@@ -1740,12 +1720,8 @@ async function _segGradeJobAI(i, jx) {
   const out = document.getElementById('segGradeOut');
   out.innerHTML = '<span class="mc-muted">Grading each candidate against this role…</span>';
   try {
-    const d = await (await fetch('/api/cluster/grade_job', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job: { title: job.title, company: job.company, skills: job.skills,
-                                    skills_en: job.skills_en, description: job.description }, candidates }),
-    })).json();
-    if (!d.ok) { out.innerHTML = `<span class="mc-warn">${esc(d.error || 'grading failed')}</span>`; return; }
+    const d = await api.post('/api/cluster/grade_job', { job: { title: job.title, company: job.company, skills: job.skills,
+                                    skills_en: job.skills_en, description: job.description }, candidates });
     out.innerHTML = '<div style="margin-top:8px">' + d.candidates.map(r =>
       `<div class="seg-rank-row"><span class="grade ${gradeClass(r.grade)}">${r.grade}</span>
          <span class="seg-rank-name">${esc(r.name)} <span class="mc-muted">${esc(r.reason || '')}</span></span>

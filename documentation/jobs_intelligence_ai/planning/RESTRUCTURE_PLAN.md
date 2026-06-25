@@ -400,12 +400,16 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     downloads). Module bridge in `<head>` assigns `window.api` for the not-yet-modularized inline script;
     bare `loadFilters()` init deferred to `DOMContentLoaded` (only parse-time API caller — audited) so it
     runs after the deferred bridge. Added `static/js/*.js` to package-data.
-  - ✅ Batch 1 (search family, 8 sites): loadFilters, match ×2, match/rescore, match/highlight,
-    test/match, quality, match/stream(→raw). Verified live: get/post/raw + envelope-throw all work,
-    filters populate on load, console clean.
-  - ⏳ Remaining ~80 sites to migrate in feature batches; the compact `await(await fetch()).json()` +
-    inline-`ok` sites (multi-CV, candidate assistant, quality-on-card) need behavior-preserving care
-    (they don't throw today). app stays working throughout (raw fetch + api.js coexist).
+    api.js grew `patch`/`del` (envelope) alongside `get`/`post`/`raw`.
+  - ✅ Migrated **36 of 88 sites** across 3 commits (all explicit `if(!data.ok)throw` sites + the
+    fire-and-forget mutations): part 1 search (b71f8ba), part 2 saved (5c6b59b), part 3 the rest of the
+    throw-sites — candidate/company/guided/opportunity/radar/analytics/desc/interview/feedback (3a522fa).
+    Verified live (parts 1–3): filters/radar/saved/company flow through `api.*`, console clean, boot OK.
+  - ⏳ **52 sites remain** — the careful pass: FormData uploads (parse-pdf, interview/extract — can't use
+    the JSON client), and the inline-`data.ok`/compact `await(await fetch()).json()` sites (multi-CV,
+    cluster, candidate assistant, job-card extras, opportunity chats, several saved lists). These read
+    `.ok` WITHOUT throwing today, so each needs per-site behavior-preserving conversion. App works
+    throughout (raw fetch + api.js coexist).
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
