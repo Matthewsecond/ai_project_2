@@ -474,7 +474,20 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   - Caveat: confirm a headless browser can launch in the dev sandbox; if not, the suite still runs in the
     normal env / CI (one command vs. manual clicking).
 
-- 2.6c **Split JS into per-feature ES modules** (Phase 1 — *pure move, behavior-preserving*).
+- 2.6c **Split JS into per-feature ES modules** (Phase 1 — *pure move, behavior-preserving*). **IN PROGRESS.**
+  - ✅ step 0 (`04e2f7b`): flipped the page `<script>` → `<script type="module">`. Pure scope flip; safe
+    because 2.6d removed all inline handlers (recon: script reads only CDN globals `L`/`Plotly`/`XLSX` +
+    `window.api`, exports nothing to window, no top-level `this`). Smoke green = HTML→global coupling
+    fully gone, no `window.fn` bridge needed.
+  - ✅ module 1/13 `map.js` (`8b09185`): proof-of-shape. **Proven mechanism** the rest follow:
+    (1) move the section's funcs + private vars into `static/js/<feat>.js`, `export` them; (2) at the top
+    of the page module, `import { … } from "{{ url_for('static', filename='js/<feat>.js') }}"`;
+    (3) a cross-module data read becomes a **handoff** — pass it as an arg (e.g. `initMap(lastResults)`),
+    don't import a shared global; (4) gate: e2e smoke (clicks the tab → loads the module) + module-aware
+    `node --check` (write extracted inline JS to a `.mjs`, since top-level `import` needs ESM) + boot-302
+    + offline suite. One module per commit, smallest→largest.
+  - ⬜ remaining 12: export(155), guided(290), assistant(395), clustering(650), interview(930),
+    modal(970), saved(1240), radar(1220), candidate(1300) + the shared util(110)/state(40) + boot(120).
   Cut the one inline `<script>` into the files below (sizes = real line counts from the split), add
   `import`/`export` only for cross-file refs, and replace the inline block with
   `<script type="module" src="…/boot.js">`. **No logic changes** — a missed reuse/cleanup waits for 2.6f.
