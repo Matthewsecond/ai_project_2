@@ -1637,13 +1637,8 @@ async function _segAnalyze(i) {
   const out = document.getElementById('segAnalysisOut');
   out.innerHTML = '<span class="mc-muted">Analyzing the segment against its matched jobs…</span>';
   try {
-    const d = await (await fetch('/api/match/analyze', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate_text: cl.persona_text, jobs: (cl._jobs || []).slice(0, 30) }),
-    })).json();
-    out.innerHTML = d.ok
-      ? `<div class="mc-seg-analysis-text">${esc(d.text || '')}</div>`
-      : `<span class="mc-warn">${esc(d.error || 'analysis failed')}</span>`;
+    const d = await api.post('/api/match/analyze', { candidate_text: cl.persona_text, jobs: (cl._jobs || []).slice(0, 30) });
+    out.innerHTML = `<div class="mc-seg-analysis-text">${esc(d.text || '')}</div>`;
   } catch (e) { out.innerHTML = `<span class="mc-warn">${esc(e.message)}</span>`; }
 }
 function _segViewJobs(i) {
@@ -1756,14 +1751,11 @@ async function matchSegment(i) {
   if (!cl || cl._status === 'matching') return;
   cl._status = 'matching'; _mcUpdateSegStatus(i);
   try {
-    const d = await (await fetch('/api/match', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate_text: cl.persona_text }),
-    })).json();
-    cl._jobs   = d.ok ? (d.jobs || []) : [];
+    const d = await api.post('/api/match', { candidate_text: cl.persona_text });
+    cl._jobs   = d.jobs || [];
     cl._ab     = cl._jobs.filter(j => j.grade === 'A' || j.grade === 'B').length;
     cl._signal = _mcSupplyDemand(cl._ab, cl.size);
-    cl._status = d.ok ? 'done' : 'error';
+    cl._status = 'done';
   } catch (e) {
     cl._jobs = []; cl._status = 'error';
   }
@@ -3269,14 +3261,8 @@ async function candAsstAnalyzeFit() {
   }));
 
   try {
-    const res  = await fetch('/api/match/analyze', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({ candidate_text: text, jobs }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/match/analyze', { candidate_text: text, jobs });
     document.getElementById('candAsstTyping')?.remove();
-    if (!data.ok) { candAsstAppendAi('Could not analyze: ' + (data.error || 'request failed')); return; }
     candAsstAppendAi(data.text || 'No analysis returned.');
   } catch(e) {
     document.getElementById('candAsstTyping')?.remove();
@@ -3314,14 +3300,8 @@ async function matchJobUrl(url) {
   thread.appendChild(typing); candAsstScroll();
 
   try {
-    const res  = await fetch('/api/match/url', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({ candidate_text: profileText, url }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/match/url', { candidate_text: profileText, url });
     document.getElementById('candAsstTyping')?.remove();
-    if (!data.ok)      { candAsstAppendAi('Could not score that URL: ' + (data.error || 'request failed')); return; }
     if (!data.in_db)   { candAsstAppendAi(data.message || "That URL isn't in the database yet."); return; }
     const j   = data.job;
     const loc = [j.city, j.state].filter(Boolean).join(', ');
@@ -3561,20 +3541,14 @@ async function candAsstSend() {
   }));
 
   try {
-    const res  = await fetch('/api/candidate/assistant', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({
-        session_id: SESSION_ID,
-        message:    text,
-        profile:    _currentCandidateProfile || {},
-        jobs,
-        lang:       'en',
-      }),
+    const data = await api.post('/api/candidate/assistant', {
+      session_id: SESSION_ID,
+      message:    text,
+      profile:    _currentCandidateProfile || {},
+      jobs,
+      lang:       'en',
     });
-    const data = await res.json();
     document.getElementById('candAsstTyping')?.remove();
-    if (!data.ok) { candAsstAppendAi('Error: ' + (data.error || 'request failed')); return; }
     let applied = false;
     if (data.profile_updates && Object.keys(data.profile_updates).length) {
       applied = candAsstApplyUpdates(data.profile_updates, data.cv_note);
@@ -3596,11 +3570,7 @@ async function candAsstReset() {
   _candAsstNotes   = [];
   _candAsstMode    = '';
   try {
-    await fetch('/api/candidate/assistant/reset', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({ session_id: SESSION_ID }),
-    });
+    await api.raw('/api/candidate/assistant/reset', { method: 'POST', body: { session_id: SESSION_ID } });
   } catch(e) { /* best-effort */ }
   candAsstEnsureGreeting();
 }
