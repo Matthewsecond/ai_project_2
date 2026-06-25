@@ -2001,10 +2001,9 @@ async function checkCandidateDuplicate(name){
   if (!name || name.toLowerCase() === 'unassigned'){ _showDupWarn(null); return; }
   const seq = ++_dupCheckSeq;
   try {
-    const res  = await fetch('/api/saved/lookup?name=' + encodeURIComponent(name));
-    const data = await res.json();
+    const data = await api.get('/api/saved/lookup?name=' + encodeURIComponent(name));
     if (seq !== _dupCheckSeq) return;   // a newer check superseded this one
-    _showDupWarn(data.ok && data.exists ? data.candidate : null);
+    _showDupWarn(data.exists ? data.candidate : null);
   } catch(e){
     if (seq === _dupCheckSeq) _showDupWarn(null);
   }
@@ -2019,10 +2018,9 @@ async function checkLinkedInDuplicate(){
   if (!url){ _showDupWarn(null); return; }
   const seq = ++_dupCheckSeq;
   try {
-    const res  = await fetch('/api/saved/lookup?linkedin=' + encodeURIComponent(url));
-    const data = await res.json();
+    const data = await api.get('/api/saved/lookup?linkedin=' + encodeURIComponent(url));
     if (seq !== _dupCheckSeq) return;
-    _showDupWarn(data.ok && data.exists ? data.candidate : null);
+    _showDupWarn(data.exists ? data.candidate : null);
   } catch(e){
     if (seq === _dupCheckSeq) _showDupWarn(null);
   }
@@ -2674,7 +2672,7 @@ async function loadExamplePdf() {
   const tile = document.getElementById('exPdfTile');
   if (tile) { tile.style.opacity = '0.55'; tile.style.pointerEvents = 'none'; }
   try {
-    const res = await fetch('/api/candidate/example-pdf-2');
+    const res = await api.raw('/api/candidate/example-pdf-2');
     if (!res.ok) throw new Error('Download failed');
     const blob = await res.blob();
 
@@ -4396,12 +4394,7 @@ async function toggleSave(btn, jobId) {
   if (!job) return;
   const jobWithCandidate = { ...job, candidate_name: getCandidateName() };
   try {
-    const res  = await fetch('/api/saved', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({ job: jobWithCandidate, candidate_profile: _currentCandidateProfile || null }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/saved', { job: jobWithCandidate, candidate_profile: _currentCandidateProfile || null });
     if (data.ok) {
       btn.textContent = '✓ Saved';
       btn.classList.add('saved');
@@ -5387,14 +5380,8 @@ async function _icSend(){
   thread.appendChild(typing); thread.scrollTop = thread.scrollHeight;
 
   try {
-    const res = await fetch('/api/saved/observation', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ candidate: cand, message: msg }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/saved/observation', { candidate: cand, message: msg });
     typing.remove();
-    if (!data.ok) throw new Error(data.error || 'Server error');
 
     _icHistory[cand].push({ role:'ai', content: data.reply, overrides: data.overrides || {} });
 
@@ -5789,11 +5776,7 @@ async function saveWithExtras() {
 
   const status = document.getElementById('modalStatusSel').value;
   try {
-    const res  = await fetch('/api/saved', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: { ..._modalJob, candidate_name: getCandidateName() }, status, extras, candidate_profile: _currentCandidateProfile || null }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/saved', { job: { ..._modalJob, candidate_name: getCandidateName() }, status, extras, candidate_profile: _currentCandidateProfile || null });
     if (data.ok) {
       savedJobs = data.jobs;
       updateSavedBadge();
@@ -5950,11 +5933,7 @@ async function generateSavedReport() {
   if (label) label.textContent = 'Generating…';
   if (btn) btn.disabled = true;
   try {
-    const res = await fetch('/api/saved/report', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ candidate: cand.name }),
-    });
+    const res = await api.raw('/api/saved/report', { method: 'POST', body: { candidate: cand.name } });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
