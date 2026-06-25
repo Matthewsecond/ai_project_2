@@ -495,10 +495,21 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     `getStoredJob`; `_jobStore` Map private). **Registration pattern decided:** `_ACTIONS` stays in the
     page module; feature modules just `export` their handler functions and the existing `Object.assign`
     blocks reference the imported bindings — so `_ACTIONS` never needs to move (consolidates into boot last).
-  - ⬜ remaining 10 (now unblocked by util): guided(290), assistant(395), clustering(650), interview(930),
-    modal(970), radar(1220), saved(1240), candidate(1300) + state(40) + boot(120). Note: bigger feature
-    modules have denser cross-refs (shared mutable state like `lastResults`/`savedJobs`/`_modalJob`/
-    `_interview`/`_miCandidates`) — each needs the per-symbol handoff-vs-getter analysis before moving.
+  - ✅ module 4/13 `state.js` (`f353ccb`): keystone — `export const state = {filterOpts:…}` (shared
+    singletons as object properties so modules can mutate) + `export const _ACTIONS = {}` (so feature
+    modules keep co-located registration blocks by importing it). `_filterOpts`→`state.filterOpts`.
+  - ✅ module 5/13 `radar.js` (`f64abbc`, 1217 lines): first big feature module. Only coupling was
+    `_filterOpts` (→ state); only `loadRadar` called externally. Spliced the whole section (41 fns + its
+    own `_ACTIONS` blocks) via Python regex; prepend import header, `export loadRadar`, placeholder left.
+  - ⬜ **remaining 8 = the tightly-coupled CORE**: guided(290), assistant(395), clustering(650),
+    interview(930), modal(970), saved(1240), candidate(1300) + boot(120). Unlike map/export/util/state/
+    radar (clean leaves), these call EACH OTHER (modal↔interview↔saved, search↔candidate↔assistant↔
+    clustering) and share mutable state (`lastResults` 70×, `savedJobs`, `_modalJob`, `_interview`,
+    `_miCandidates`, `_currentCandidateProfile`, `activeMode`). Finishing requires: (a) migrate those
+    singletons into `state.js` (same pattern as `_filterOpts`); (b) accept **circular imports** between
+    feature modules — valid in ESM since the calls fire at runtime, but a module file must exist before
+    it's imported, so mutually-dependent ones extract together (or route the call through state). This is
+    a larger structural pass than the leaves, not a quick continuation.
   Cut the one inline `<script>` into the files below (sizes = real line counts from the split), add
   `import`/`export` only for cross-file refs, and replace the inline block with
   `<script type="module" src="…/boot.js">`. **No logic changes** — a missed reuse/cleanup waits for 2.6f.
