@@ -416,10 +416,15 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     fetch (`item.pdf`) — the JSON envelope client can't carry them; and 3 graceful-degradation reads
     (the two best-effort `loadSaved` dual-loads + `salary_stats`, which fall back inline on `!ok` rather
     than throwing). Documented at their call sites.
-- 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
-  modules + a boot module + a shared-util module.
+  **NOTE (2026-06-25): 2.6d runs BEFORE 2.6c.** The split into ES modules is blocked by the
+  HTML→global coupling: module scope is not global, so 197 `onclick=` + 29 other inline handlers
+  (136 distinct functions) would each need a temporary `window.fn = fn` bridge. Removing the inline
+  handlers first — while everything is still one global script and the functions are trivially
+  reachable — eliminates that coupling, so the module split lands clean with no scaffold.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
   stops referencing globals by name — kills the HTML→global-fn coupling that made the dead-code sweep hard.
+- 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
+  modules + a boot module + a shared-util module.
 Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.
 
 - [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto `master`
