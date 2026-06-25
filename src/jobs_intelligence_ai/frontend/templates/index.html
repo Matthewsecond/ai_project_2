@@ -8342,12 +8342,8 @@ async function refreshAspects() {
     .map(q => ({ question: q.question, ...(_interview.answers[q.id] || {}) }))
     .filter(r => _ivAnswerComplete(r));   // only finished answers count as evidence
   try {
-    const res = await fetch('/api/interview/assess', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(),
-                             records, prior_aspects: _interview.aspects || [], lang: _ivLang() }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/interview/assess', { job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(),
+                             records, prior_aspects: _interview.aspects || [], lang: _ivLang() });
     if (data.ok && Array.isArray(data.aspects)) {
       // Movement badges: cumulative vs the BASELINE (first assessment, established once
       // and kept for the whole interview) as the visible delta; per-answer step for the
@@ -8439,12 +8435,8 @@ async function revealModelAnswer(id) {
   const btn = document.getElementById('ivModelBtn-' + id);
   if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
   try {
-    const res = await fetch('/api/interview/model_answer', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ question: q.question, note: q.note || '', job: _ivJob(),
-                             cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/interview/model_answer', { question: q.question, note: q.note || '', job: _ivJob(),
+                             cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() });
     if (data.ok) {
       a.modelAnswer = data.model_answer || '';
       a.modelCovers = Array.isArray(data.covers) ? data.covers : [];
@@ -8501,12 +8493,8 @@ async function loadOpportunities() {
   const el = document.getElementById('interviewOpportunities');
   if (el) el.innerHTML = '<div class="iv-overall-row"><span class="iv-aspects-busy">analyzing…</span></div>';
   try {
-    const res = await fetch('/api/interview/opportunities', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ records, job: _ivJob(), cv_text: _ivCvText(),
-                             profile: _ivProfile(), lang: _ivLang() }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/interview/opportunities', { records, job: _ivJob(), cv_text: _ivCvText(),
+                             profile: _ivProfile(), lang: _ivLang() });
     if (data.ok) {
       _interview.opportunities = { items: data.opportunities || [], summary: data.summary || '' };
       if (_ivHasAnswers()) _persistInterview();
@@ -8769,14 +8757,9 @@ async function suggestFollowup(id) {
   const btn = document.querySelector(`.iv-q[data-qid="${id}"] .iv-followup-btn`);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const res = await fetch('/api/interview/followup', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ thread: _ivThread(id), job: _ivJob(), cv_text: _ivCvText(),
+    const data = await api.post('/api/interview/followup', { thread: _ivThread(id), job: _ivJob(), cv_text: _ivCvText(),
                              profile: _ivProfile(), lang: _ivLang(),
-                             others: _ivOtherRecords(_ivThreadIds(id)) }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
+                             others: _ivOtherRecords(_ivThreadIds(id)) });
     if (data.exhausted) {
       // Persist the "done" state so the marker survives reopening.
       _interview.answers[id] = { ...a, followupExhausted: true, followupReason: data.reason || '' };
@@ -8841,12 +8824,8 @@ async function toggleInterviewContext() {
   const pre = document.getElementById('ivContextText');
   pre.textContent = 'Loading…';
   try {
-    const res = await fetch('/api/interview/context', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: _ivJob(), cv_text: _ivCvText(),
-                             profile: _ivProfile(), others: _ivOtherRecords([]) }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/interview/context', { job: _ivJob(), cv_text: _ivCvText(),
+                             profile: _ivProfile(), others: _ivOtherRecords([]) });
     pre.textContent = data.ok ? (data.context || '(empty)') : ('Error: ' + (data.error || 'failed'));
   } catch (e) { pre.textContent = 'Error: ' + e.message; }
 }
@@ -8955,14 +8934,9 @@ async function analyzeInterviewAnswer(id, final = false) {
   const actionBtns = row?.querySelectorAll('.iv-q-actions button') || [];
   actionBtns.forEach(b => b.disabled = true);
   try {
-    const res  = await fetch('/api/interview/analyze', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ question: item.question, answer, note: item.note,
+    const data = await api.post('/api/interview/analyze', { question: item.question, answer, note: item.note,
                              job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang(),
-                             others: _ivOtherRecords([id]), final }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
+                             others: _ivOtherRecords([id]), final });
     const _prev = _interview.answers[id] || {};
     _interview.answers[id] = { answer, complete: data.complete, status: data.status, needs: data.needs,
                                score: data.score, verdict: data.verdict,
