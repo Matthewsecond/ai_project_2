@@ -1060,8 +1060,6 @@ import { loadRadar } from "{{ url_for('static', filename='js/radar.js') }}";
 // ════════════════════════════════════════════════════════════
 // _ACTIONS (the delegated-action registry) is imported from state.js so feature
 // modules can register their handlers next to their own code.
-let lastResults      = [];
-let savedJobs        = [];
 let currentCandidate = '';   // name entered in the candidate bar
 
 function getCandidateName() {
@@ -1069,7 +1067,6 @@ function getCandidateName() {
 }
 let sortCol          = 'score';
 let sortAsc          = false;
-let activeMode       = 'cv';
 let jobChatSessionId   = null;
 let _jobChatLastAnswer = '';
 let jobChatLang        = 'en';
@@ -1098,7 +1095,7 @@ function _activateTab(id) {
   if (group) _modeLastTab[group] = id;
   // Side effects
   if (id === 'saved') openSavedTab();
-  if (id === 'map')   initMap(lastResults);
+  if (id === 'map')   initMap(state.lastResults);
   if (id === 'radar') loadRadar();
 }
 
@@ -1122,25 +1119,25 @@ document.querySelectorAll('.tab-btn[data-mode-group]').forEach(btn =>
 // ════════════════════════════════════════════════════════════
 document.querySelectorAll('.mode-tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    const prevMode = activeMode;
+    const prevMode = state.activeMode;
     document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.input-zone').forEach(z => z.classList.remove('active'));
     tab.classList.add('active');
-    activeMode = tab.dataset.mode;
+    state.activeMode = tab.dataset.mode;
     // Switching to a DIFFERENT input source: the shown candidate was derived from the
     // previous source, so clear the stale identity (name tag, profile card, dup warning)
     // — but keep each zone's typed text so nothing the user entered is lost.
-    if (prevMode !== activeMode) _resetCandidateOnModeSwitch();
-    document.getElementById('zone-' + activeMode).classList.add('active');
-    const guided = activeMode === 'guided';
+    if (prevMode !== state.activeMode) _resetCandidateOnModeSwitch();
+    document.getElementById('zone-' + state.activeMode).classList.add('active');
+    const guided = state.activeMode === 'guided';
     if (guided) gbInit();
     const stBtn = document.getElementById('gbSaveTemplateBtn');
     if (stBtn) stBtn.style.display = guided ? 'inline-flex' : 'none';
     document.getElementById('runLabel').textContent = guided ? 'Find roles' : 'Run matching';
     _applyChrome();   // run row / candidate bar visibility (workflow + mode aware)
     // Re-evaluate the "already in DB" warning against the new mode's source.
-    if (activeMode === 'linkedin')   checkLinkedInDuplicate();
-    else if (activeMode === 'cv')    checkCandidateDuplicate(document.getElementById('candidateName')?.value || '');
+    if (state.activeMode === 'linkedin')   checkLinkedInDuplicate();
+    else if (state.activeMode === 'cv')    checkCandidateDuplicate(document.getElementById('candidateName')?.value || '');
     else                             _showDupWarn(null);
   });
 });
@@ -1157,7 +1154,7 @@ function _applyChrome() {
   const runRow = document.querySelector('.run-row');
   if (runRow) runRow.style.display = multiple ? 'none' : '';
   const cbar = document.querySelector('.candidate-bar');
-  if (cbar) cbar.style.display = (multiple || activeMode === 'guided') ? 'none' : '';
+  if (cbar) cbar.style.display = (multiple || state.activeMode === 'guided') ? 'none' : '';
 }
 
 // Switch between the single-candidate workflow (CV / LinkedIn / template tabs) and
@@ -1175,21 +1172,21 @@ function setWorkflow(wf) {
     if (methodLabel) methodLabel.style.display = 'none';
     document.querySelectorAll('.input-zone').forEach(z => z.classList.remove('active'));
     document.getElementById('zone-multiple').classList.add('active');
-    activeMode = 'multiple';
+    state.activeMode = 'multiple';
   } else {
     if (tabs) tabs.style.display = '';
     if (methodLabel) methodLabel.style.display = '';
     document.getElementById('zone-multiple').classList.remove('active');
     // Re-activate the current single input mode (default: CV).
-    const mode = (activeMode === 'multiple') ? 'cv' : activeMode;
+    const mode = (state.activeMode === 'multiple') ? 'cv' : state.activeMode;
     const tab  = document.querySelector('.mode-tab[data-mode="' + mode + '"]')
               || document.querySelector('.mode-tab[data-mode="cv"]');
     document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.input-zone').forEach(z => z.classList.remove('active'));
     tab.classList.add('active');
-    activeMode = tab.dataset.mode;
-    document.getElementById('zone-' + activeMode).classList.add('active');
-    if (activeMode === 'guided') gbInit();
+    state.activeMode = tab.dataset.mode;
+    document.getElementById('zone-' + state.activeMode).classList.add('active');
+    if (state.activeMode === 'guided') gbInit();
   }
   _applyChrome();
 }
@@ -1811,11 +1808,11 @@ function _mcApplyFilter() {
 }
 
 function _mcShowSegmentResults(cl) {
-  lastResults        = cl._jobs || [];
+  state.lastResults        = cl._jobs || [];
   _lastMatchText     = cl.persona_text;   // per-job chat / analyze use this persona
   _scoredAgainstText = cl.persona_text;   // keep the re-score guard consistent
-  renderResults(lastResults);
-  if (typeof updateMapStats === 'function') updateMapStats(lastResults);
+  renderResults(state.lastResults);
+  if (typeof updateMapStats === 'function') updateMapStats(state.lastResults);
   if (typeof reapplyHighlight === 'function') reapplyHighlight();
   document.querySelector('.results-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -1956,7 +1953,7 @@ Object.assign(_ACTIONS, {
   'gb-send-enter':           (el, e) => { if (e.key === 'Enter') { e.preventDefault(); gbSend(); } },
   'gb-send':                 ()      => gbSend(),
   // run row
-  'export-results':          ()      => exportResults(lastResults),
+  'export-results':          ()      => exportResults(state.lastResults),
   'save-all':                ()      => saveAll(),
   'gb-save-template':        ()      => gbSaveTemplate(),
   'clear-results':           ()      => clearResults(),
@@ -2125,9 +2122,9 @@ async function loadCandidateFromDb(){
       setCandidateName(name);
     }
     if (data.jobs && data.jobs.length){
-      lastResults = data.jobs;
-      renderResults(lastResults);
-      updateMapStats(lastResults);
+      state.lastResults = data.jobs;
+      renderResults(state.lastResults);
+      updateMapStats(state.lastResults);
       document.getElementById('resultsStatus').innerHTML =
         `<span>Loaded ${data.jobs.length} saved job${data.jobs.length!==1?'s':''} for ${esc(name)} from the database.</span>`;
     }
@@ -2172,11 +2169,11 @@ async function refreshCandidateFromDb(){
     }
     if (btn) btn.innerHTML = orig;
     await runMatching();                 // fresh vector search against the live DB
-    if (lastResults.length) await saveAll();   // upsert profile + save new A/B jobs
-    const n = lastResults.filter(j => j.grade !== 'C').length;
+    if (state.lastResults.length) await saveAll();   // upsert profile + save new A/B jobs
+    const n = state.lastResults.filter(j => j.grade !== 'C').length;
     document.getElementById('resultsStatus').innerHTML =
       `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; Refreshed ${esc(name)} — ` +
-      `${lastResults.length} jobs matched, ${n} saved back to the database.</span>`;
+      `${state.lastResults.length} jobs matched, ${n} saved back to the database.</span>`;
   } catch(e){
     if (btn){ btn.disabled = false; btn.innerHTML = orig; }
     alert('Could not refresh from database: ' + (e.message || e));
@@ -2204,7 +2201,7 @@ function _initials(name) {
 }
 
 function _renderCandidateProfile(data) {
-  _currentCandidateProfile = data;
+  state.currentCandidateProfile = data;
   _trackLocalCandidate(data);   // make it available in the Saved-tab "Local" view
   checkCandidateDuplicate(data.name || '');   // red banner if already in the DB
   const card    = document.getElementById('candProfileCard');
@@ -2321,7 +2318,7 @@ function _companiesFromProfile(prof){
 // Persist the current candidate's employers to the companies table (+ link who
 // worked there). Driven by the "Save companies" button in the work-history panel.
 async function saveCompanies(btn){
-  const prof = _currentCandidateProfile;
+  const prof = state.currentCandidateProfile;
   const name = (prof && prof.name || '').trim() || getCandidateName();
   const companies = _companiesFromProfile(prof);
   if (!name) { alert('Give the candidate a name first.'); return; }
@@ -2431,7 +2428,6 @@ function _gotoSavedLocal() {
 
 // ── CV loaded chip + preview ──────────────────────────────────
 let _cvLoadedName = '';
-let _currentCandidateProfile = null;
 
 function _setCvLoaded(name) {
   _cvLoadedName = name;
@@ -2628,7 +2624,7 @@ function _resetCandidateOnModeSwitch() {
   _showDupWarn(null);
   _lastParsedText = '';
   _cvLoadedName   = '';
-  _currentCandidateProfile = null;
+  state.currentCandidateProfile = null;
 }
 
 function clearCandidateProfile() {
@@ -2638,7 +2634,7 @@ function clearCandidateProfile() {
   checkCandidateDuplicate('');   // clears the duplicate warning
   _lastParsedText = '';
   _cvLoadedName   = '';
-  _currentCandidateProfile = null;
+  state.currentCandidateProfile = null;
   _linkedinText       = '';
   _linkedinScrapedKey = '';
   _candAsstNotes      = [];   // drop CV details the assistant added for this candidate
@@ -2746,7 +2742,7 @@ function _activateCVMode() {
   if (cvTab) cvTab.classList.add('active');
   const zone = document.getElementById('zone-cv');
   if (zone) zone.classList.add('active');
-  activeMode = 'cv';
+  state.activeMode = 'cv';
 }
 
 function loadExampleText() {
@@ -3207,9 +3203,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ════════════════════════════════════════════════════════════
 function buildCandidateText() {
   let base;
-  if (activeMode === 'cv') {
+  if (state.activeMode === 'cv') {
     base = document.getElementById('cvPasteText').value.trim();
-  } else if (activeMode === 'linkedin') {
+  } else if (state.activeMode === 'linkedin') {
     base = (_linkedinText || '').trim();
   } else {
     // Guided: assemble from the shared draft object.
@@ -3230,7 +3226,7 @@ function buildCandidateText() {
   }
   // A candidate loaded from the database has a structured profile but no raw CV
   // text — derive matching text from the profile so Run matching still works.
-  if (!base && _currentCandidateProfile) base = _profileToText(_currentCandidateProfile);
+  if (!base && state.currentCandidateProfile) base = _profileToText(state.currentCandidateProfile);
   return _withAsstNotes(base || '');
 }
 
@@ -3319,7 +3315,7 @@ function candAsstClearHighlight() {
   _highlightCriterion = '';
   _highlightedJobIds  = new Set();
   document.getElementById('candAsstClearHlBtn').style.display = 'none';
-  if (lastResults.length) renderResults(lastResults);
+  if (state.lastResults.length) renderResults(state.lastResults);
 }
 
 // Overall analysis: how the candidate stacks up against the CURRENT matched jobs —
@@ -3329,7 +3325,7 @@ async function candAsstAnalyzeFit() {
   if (document.getElementById('candAsst').classList.contains('collapsed')) candAsstToggle();
   _candAsstStarted = true;
 
-  if (!lastResults.length) {
+  if (!state.lastResults.length) {
     candAsstAppendAi('Run matching first so there are jobs to analyze the candidate against.');
     return;
   }
@@ -3342,7 +3338,7 @@ async function candAsstAnalyzeFit() {
   typing.innerHTML = '<div class="chat-typing">Analyzing the candidate against the matched jobs…</div>';
   thread.appendChild(typing); candAsstScroll();
 
-  const jobs = lastResults.slice(0, 30).map(j => ({
+  const jobs = state.lastResults.slice(0, 30).map(j => ({
     title: j.title, company: j.company, grade: j.grade, score_pct: j.score_pct,
     city: j.city, state: j.state, skills: j.skills, skills_en: j.skills_en,
     summary: j.summary, description: (j.description || '').slice(0, 300),
@@ -3412,7 +3408,7 @@ async function matchJobUrl(url) {
 function candAsstAppendUrlResult(text, job) {
   const el = document.createElement('div');
   el.className = 'chat-msg ai';
-  const already = lastResults.some(r => String(r.job_id) === String(job.job_id));
+  const already = state.lastResults.some(r => String(r.job_id) === String(job.job_id));
   el.innerHTML =
     `<div class="chat-bubble">${esc(text)}</div>` +
     `<div class="cand-asst-update">
@@ -3433,13 +3429,13 @@ function candAsstAppendUrlResult(text, job) {
 // by default) and sticks across re-runs — it was added deliberately.
 function addUrlJobToResults(job, btn) {
   const id = String(job.job_id);
-  if (!lastResults.some(r => String(r.job_id) === id)) {
-    lastResults.push(job);
-    lastResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+  if (!state.lastResults.some(r => String(r.job_id) === id)) {
+    state.lastResults.push(job);
+    state.lastResults.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
   _dismissedJobIds.delete(id);   // a re-added job must not stay hidden by a prior dismiss
   _pinnedJobIds.add(id);         // pin: keeps weak matches visible and sticks across re-runs
-  renderResults(lastResults);
+  renderResults(state.lastResults);
   if (btn) { btn.disabled = true; btn.textContent = '✓ Added to results'; }
 }
 
@@ -3447,7 +3443,7 @@ function addUrlJobToResults(job, btn) {
 async function applyHighlight(criterion) {
   criterion = (criterion || '').trim();
   if (!criterion) { _candAsstMode = ''; return; }
-  if (!lastResults.length) {
+  if (!state.lastResults.length) {
     candAsstAppendAi('Run matching first so there are offers to highlight.');
     _candAsstMode = '';
     return;
@@ -3459,13 +3455,13 @@ async function applyHighlight(criterion) {
   thread.appendChild(typing); candAsstScroll();
 
   try {
-    const ids = await _fetchHighlightIds(criterion, lastResults);
+    const ids = await _fetchHighlightIds(criterion, state.lastResults);
     document.getElementById('candAsstTyping')?.remove();
     _highlightCriterion = criterion;
     _highlightedJobIds  = new Set((ids || []).map(String));
     document.getElementById('candAsstClearHlBtn').style.display =
       _highlightedJobIds.size ? '' : 'none';
-    renderResults(lastResults);
+    renderResults(state.lastResults);
     const n = _highlightedJobIds.size;
     candAsstAppendAi(n
       ? `Highlighted ${n} offer${n !== 1 ? 's' : ''} matching “${criterion}” in amber. They stay highlighted when you re-run (and combine with frozen rows). Use the Actions button → Clear highlight to remove.`
@@ -3491,13 +3487,13 @@ async function _fetchHighlightIds(criterion, results) {
 // Re-apply the active highlight after a fresh re-run, so new offers get evaluated
 // and frozen rows keep their highlight. Best-effort.
 async function reapplyHighlight() {
-  if (!_highlightCriterion || !lastResults.length) return;
+  if (!_highlightCriterion || !state.lastResults.length) return;
   try {
-    const ids = await _fetchHighlightIds(_highlightCriterion, lastResults);
+    const ids = await _fetchHighlightIds(_highlightCriterion, state.lastResults);
     _highlightedJobIds = new Set((ids || []).map(String));
     document.getElementById('candAsstClearHlBtn').style.display =
       _highlightedJobIds.size ? '' : 'none';
-    renderResults(lastResults);
+    renderResults(state.lastResults);
   } catch(e) { /* keep prior highlights on failure */ }
 }
 
@@ -3510,7 +3506,7 @@ function candAsstToggle() {
 function candAsstEnsureGreeting() {
   if (_candAsstStarted) return;
   _candAsstStarted = true;
-  const p = _currentCandidateProfile;
+  const p = state.currentCandidateProfile;
   const hasCand = !!(p && (p.name || (p.skills || []).length || (p.top_skills || []).length));
   candAsstAppendAi(hasCand
     ? "I'm here to help with this candidate. Tell me a detail to add to their CV — e.g. “add a forklift licence, available from July” — or ask me anything about the matched offers."
@@ -3575,7 +3571,7 @@ function candAsstRerun(btn) {
 // Merge the assistant's structured profile_updates into the candidate card, and
 // remember the CV note so a re-run picks the change up. Returns true if applied.
 function candAsstApplyUpdates(updates, cvNote) {
-  const prof = Object.assign({}, _currentCandidateProfile || {});
+  const prof = Object.assign({}, state.currentCandidateProfile || {});
   let changed = false;
   for (const [k, v] of Object.entries(updates || {})) {
     if (v === null || v === undefined || v === '' ||
@@ -3594,7 +3590,7 @@ function candAsstApplyUpdates(updates, cvNote) {
     }
   }
   if (!changed) return false;
-  _renderCandidateProfile(prof);   // re-renders the card and updates _currentCandidateProfile
+  _renderCandidateProfile(prof);   // re-renders the card and updates state.currentCandidateProfile
   const note = (cvNote || '').trim();
   if (note) _candAsstNotes.push(note);
   return true;
@@ -3627,7 +3623,7 @@ async function candAsstSend() {
   candAsstScroll();
 
   // Compact context: the offers currently on screen.
-  const jobs = (lastResults || []).slice(0, 15).map(j => ({
+  const jobs = (state.lastResults || []).slice(0, 15).map(j => ({
     title: j.title, company: j.company, city: j.city, state: j.state,
     salary: j.salary, score: j.score, score_pct: j.score_pct,
     grade: j.grade, match_reason: j.match_reason,
@@ -3637,7 +3633,7 @@ async function candAsstSend() {
     const data = await api.post('/api/candidate/assistant', {
       session_id: SESSION_ID,
       message:    text,
-      profile:    _currentCandidateProfile || {},
+      profile:    state.currentCandidateProfile || {},
       jobs,
       lang:       'en',
     });
@@ -3933,7 +3929,7 @@ function gbProfileFromDraft() {
 }
 
 async function gbSaveTemplate() {
-  const ab = lastResults.filter(j => j.grade !== 'C');
+  const ab = state.lastResults.filter(j => j.grade !== 'C');
   if (!ab.length) { alert('Run matching first — then save the matched A/B roles as a template candidate.'); return; }
 
   // Name the template candidate (draft name → prompt fallback).
@@ -3943,8 +3939,8 @@ async function gbSaveTemplate() {
   gbDraft.name = name;
 
   // Wire the profile so saved jobs carry the template profile for Match Insights.
-  _currentCandidateProfile = { ...gbProfileFromDraft(), name };
-  _trackLocalCandidate(_currentCandidateProfile);
+  state.currentCandidateProfile = { ...gbProfileFromDraft(), name };
+  _trackLocalCandidate(state.currentCandidateProfile);
   document.getElementById('candidateName').value = name;
 
   const btn = document.getElementById('gbSaveTemplateBtn');
@@ -3983,8 +3979,8 @@ function dismissJob(jobId) {
     tr.style.transform = 'translateX(14px)';
   }
   setTimeout(() => {
-    lastResults = lastResults.filter(j => String(j.job_id) !== id);
-    renderResults(lastResults);
+    state.lastResults = state.lastResults.filter(j => String(j.job_id) !== id);
+    renderResults(state.lastResults);
   }, 200);
 }
 
@@ -3994,7 +3990,7 @@ let _showWeakC = false;
 function toggleShowWeak() {
   _showWeakC = document.getElementById('showCChk').checked;
   document.getElementById('showCToggle').classList.toggle('on', _showWeakC);
-  if (lastResults.length) renderResults(lastResults);
+  if (state.lastResults.length) renderResults(state.lastResults);
 }
 
 // Freeze / unfreeze a single result. Frozen rows are pinned to the top and are
@@ -4003,7 +3999,7 @@ function togglePinJob(jobId) {
   const id = String(jobId);
   if (_pinnedJobIds.has(id)) _pinnedJobIds.delete(id);
   else _pinnedJobIds.add(id);
-  renderResults(lastResults);
+  renderResults(state.lastResults);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4012,8 +4008,8 @@ function togglePinJob(jobId) {
 let resultsFrozen = false;
 
 function _runLabelFor() {
-  if (resultsFrozen && lastResults.length) return 'Re-score results';
-  return activeMode === 'guided' ? 'Find roles' : 'Run matching';
+  if (resultsFrozen && state.lastResults.length) return 'Re-score results';
+  return state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
 }
 
 function toggleFreeze() {
@@ -4023,10 +4019,10 @@ function toggleFreeze() {
   document.getElementById('runLabel').textContent = _runLabelFor();
   // When frozen, offer a second action: search for more jobs to add to the locked set.
   const moreBtn = document.getElementById('btnFindMore');
-  if (moreBtn) moreBtn.style.display = (resultsFrozen && lastResults.length) ? '' : 'none';
+  if (moreBtn) moreBtn.style.display = (resultsFrozen && state.lastResults.length) ? '' : 'none';
   const st = document.getElementById('statusText');
-  if (st && resultsFrozen && lastResults.length) {
-    st.textContent = `❄ Frozen — ${lastResults.length} jobs locked. Re-score them against a changed candidate, or find more jobs to add.`;
+  if (st && resultsFrozen && state.lastResults.length) {
+    st.textContent = `❄ Frozen — ${state.lastResults.length} jobs locked. Re-score them against a changed candidate, or find more jobs to add.`;
   }
   _updateStaleNotice();
 }
@@ -4040,7 +4036,7 @@ function _updateStaleNotice() {
   if (!el) return;
   let cur = '';
   try { cur = (buildCandidateText() || '').trim(); } catch (_) {}
-  const stale = resultsFrozen && lastResults.length && cur &&
+  const stale = resultsFrozen && state.lastResults.length && cur &&
                 cur !== (_scoredAgainstText || '').trim();
   el.style.display = stale ? 'flex' : 'none';
 }
@@ -4074,7 +4070,7 @@ function _animateRescore(prevRects, prevScore) {
       }
     }
     const jid = tr.id.replace('row-', '');
-    const job = lastResults.find(j => String(j.job_id) === jid);
+    const job = state.lastResults.find(j => String(j.job_id) === jid);
     if (!job) return;
     const before = prevScore[job.job_id];
     if (before == null) return;
@@ -4097,7 +4093,7 @@ async function rescoreFrozenResults() {
   const btn = document.getElementById('btnRun');
   const text = buildCandidateText();
   if (!text) { alert('Please enter a candidate profile.'); return; }
-  if (!lastResults.length) return;
+  if (!state.lastResults.length) return;
   // Nothing changed since the current scores — re-scoring identical input just churns
   // (the grader jitters a little each call). Skip it and tell the user.
   if (text.trim() === (_scoredAgainstText || '').trim()) {
@@ -4112,10 +4108,10 @@ async function rescoreFrozenResults() {
     '<div class="spinner"></div><span>Re-scoring the frozen results against the updated candidate…</span>';
 
   const prevScore = {};
-  lastResults.forEach(j => { prevScore[j.job_id] = j.score; });
+  state.lastResults.forEach(j => { prevScore[j.job_id] = j.score; });
   const prevRects = _captureRowRects();
 
-  const jobs = lastResults.map(j => ({
+  const jobs = state.lastResults.map(j => ({
     job_id: j.job_id, title: j.title, company: j.company, city: j.city, state: j.state,
     skills: j.skills, skills_en: j.skills_en, summary: j.summary,
     description: (j.description || '').slice(0, 400), occ_group: j.occ_group,
@@ -4125,7 +4121,7 @@ async function rescoreFrozenResults() {
     const data = await api.post('/api/match/rescore', { candidate_text: text, jobs });
     const map = {};
     (data.jobs || []).forEach(u => { map[u.job_id] = u; });
-    lastResults.forEach(j => {
+    state.lastResults.forEach(j => {
       if (_pinnedJobIds.has(String(j.job_id))) return;   // frozen row keeps its score
       const u = map[j.job_id];
       if (u) {
@@ -4134,9 +4130,9 @@ async function rescoreFrozenResults() {
       }
     });
     _scoredAgainstText = text;           // scores now correspond to this candidate text
-    renderResults(lastResults);          // re-sorts into the new order
+    renderResults(state.lastResults);          // re-sorts into the new order
     _animateRescore(prevRects, prevScore);
-    updateMapStats(lastResults);
+    updateMapStats(state.lastResults);
     _updateStaleNotice();                // scores fresh again — hide the warning
   } catch(e) {
     document.getElementById('resultsStatus').innerHTML =
@@ -4151,10 +4147,10 @@ async function runMatching() {
   const btn = document.getElementById('btnRun');
 
   // Frozen: don't run a fresh search — re-score the locked job set in place.
-  if (resultsFrozen && lastResults.length) return rescoreFrozenResults();
+  if (resultsFrozen && state.lastResults.length) return rescoreFrozenResults();
 
   // LinkedIn mode: scrape the profile(s) first, then match on the scraped text.
-  if (activeMode === 'linkedin') {
+  if (state.activeMode === 'linkedin') {
     btn.disabled = true;
     const ok = await ensureLinkedInScraped();
     if (!ok) {
@@ -4167,7 +4163,7 @@ async function runMatching() {
   const text = buildCandidateText();
   if (!text) {
     btn.disabled = false;
-    document.getElementById('runLabel').textContent = activeMode === 'guided' ? 'Find roles' : 'Run matching';
+    document.getElementById('runLabel').textContent = state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
     alert('Please enter a candidate profile.');
     return;
   }
@@ -4190,7 +4186,7 @@ async function runMatching() {
   const tbody = document.getElementById('resultsTbody');
   // Keep any frozen (pinned) rows visible while the new search runs; show the
   // loading spinner beneath them instead of blanking the whole table.
-  const pinnedNow = lastResults.filter(j => _pinnedJobIds.has(String(j.job_id)));
+  const pinnedNow = state.lastResults.filter(j => _pinnedJobIds.has(String(j.job_id)));
   if (pinnedNow.length) {
     renderResults(pinnedNow);
     const loader = document.createElement('tr');
@@ -4216,14 +4212,14 @@ async function runMatching() {
   // re-run, fresh results fill the rest, drop dismissed, de-dupe against pinned.
   // Shared by the streaming path and the /api/match fallback.
   const applyFinalJobs = (jobs) => {
-    const pinned    = lastResults.filter(j => _pinnedJobIds.has(String(j.job_id)));
+    const pinned    = state.lastResults.filter(j => _pinnedJobIds.has(String(j.job_id)));
     const pinnedIds = new Set(pinned.map(j => String(j.job_id)));
     const fresh     = (jobs || []).filter(j =>
       !_dismissedJobIds.has(String(j.job_id)) && !pinnedIds.has(String(j.job_id)));
-    lastResults = [...pinned, ...fresh];
+    state.lastResults = [...pinned, ...fresh];
     _scoredAgainstText = text;   // these scores correspond to this candidate text
-    renderResults(lastResults);
-    updateMapStats(lastResults);
+    renderResults(state.lastResults);
+    updateMapStats(state.lastResults);
     reapplyHighlight();   // sticky: re-evaluate the active highlight on the new set
   };
 
@@ -4245,7 +4241,7 @@ async function runMatching() {
     document.getElementById('resultsStatus').innerHTML = '<span>Error — check Flask console.</span>';
   } finally {
     btn.disabled = false;
-    document.getElementById('runLabel').textContent = activeMode === 'guided' ? 'Find roles' : 'Run matching';
+    document.getElementById('runLabel').textContent = state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
   }
 }
 
@@ -4257,7 +4253,7 @@ async function findMoreJobs() {
 
   const moreBtn = document.getElementById('btnFindMore');
   const runBtn  = document.getElementById('btnRun');
-  const prevIds = new Set(lastResults.map(j => String(j.job_id)));
+  const prevIds = new Set(state.lastResults.map(j => String(j.job_id)));
 
   const filters  = {};
   const state    = document.getElementById('filterState').value;
@@ -4291,9 +4287,9 @@ async function findMoreJobs() {
       (j.grade === 'A' || j.grade === 'B') &&
       !prevIds.has(String(j.job_id)) && !_dismissedJobIds.has(String(j.job_id)));
     if (newAB.length) {
-      lastResults = [...lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
-      renderResults(lastResults);
-      updateMapStats(lastResults);
+      state.lastResults = [...state.lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
+      renderResults(state.lastResults);
+      updateMapStats(state.lastResults);
       reapplyHighlight();
       document.getElementById('resultsStatus').innerHTML =
         `<span style="color:#1648a8;font-weight:600">➕ Added ${newAB.length} new A/B job${newAB.length !== 1 ? 's' : ''} to the frozen set.</span>`;
@@ -4409,7 +4405,7 @@ function renderResults(jobs) {
     return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
   });
 
-  const savedIds = new Set(savedJobs.map(j => j.job_id));
+  const savedIds = new Set(state.savedJobs.map(j => j.job_id));
   const tbody    = document.getElementById('resultsTbody');
   // Whole-set freeze: tint every row blue so it's clear the entire set is locked.
   tbody.classList.toggle('all-frozen', resultsFrozen);
@@ -4499,7 +4495,7 @@ Object.assign(_ACTIONS, {
 function sortBy(col) {
   if (sortCol === col) sortAsc = !sortAsc;
   else { sortCol = col; sortAsc = col !== 'score'; }
-  if (lastResults.length) renderResults(lastResults);
+  if (state.lastResults.length) renderResults(state.lastResults);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4507,29 +4503,29 @@ function sortBy(col) {
 // ════════════════════════════════════════════════════════════
 async function toggleSave(btn, jobId) {
   if (btn.classList.contains('saved')) return;
-  const job = lastResults.find(j => j.job_id == jobId);
+  const job = state.lastResults.find(j => j.job_id == jobId);
   if (!job) return;
   const jobWithCandidate = { ...job, candidate_name: getCandidateName() };
   try {
-    const data = await api.post('/api/saved', { job: jobWithCandidate, candidate_profile: _currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: jobWithCandidate, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
       btn.textContent = '✓ Saved';
       btn.classList.add('saved');
-      savedJobs = data.jobs;
+      state.savedJobs = data.jobs;
       updateSavedBadge();
     }
   } catch(e) { alert('Save failed: ' + e.message); }
 }
 
 async function saveAll() {
-  for (const job of lastResults.filter(j => j.grade !== 'C')) {
+  for (const job of state.lastResults.filter(j => j.grade !== 'C')) {
     const btn = document.getElementById(`save-${job.job_id}`);
     if (btn && !btn.classList.contains('saved')) await toggleSave(btn, job.job_id);
   }
 }
 
 function updateSavedBadge() {
-  const n  = savedJobs.length;
+  const n  = state.savedJobs.length;
   const nb = document.getElementById('savedBadgeNav');
   if (nb) { nb.style.display = n ? 'inline' : 'none'; nb.textContent = n; }
 }
@@ -4658,9 +4654,9 @@ async function doSaveWithExtras() {
   ].filter(Boolean));
 
   try {
-    const data = await api.post('/api/saved', { job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras, candidate_profile: _currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
-      savedJobs = data.jobs;
+      state.savedJobs = data.jobs;
       updateSavedBadge();
       const sb = document.getElementById(`save-${_epJobId}`);
       if (sb) { sb.textContent = '✓ Saved'; sb.classList.add('saved'); }
@@ -4675,7 +4671,7 @@ async function doSaveWithExtras() {
 }
 
 function clearResults() {
-  lastResults = [];
+  state.lastResults = [];
   _dismissedJobIds = new Set();
   _pinnedJobIds    = new Set();
   _highlightCriterion = '';
@@ -4696,9 +4692,9 @@ async function loadTestData() {
     '<div class="spinner"></div><span>Loading test fixtures…</span>';
   try {
     const data = await api.get('/api/test/match');
-    lastResults = data.jobs;
-    renderResults(lastResults);
-    updateMapStats(lastResults);
+    state.lastResults = data.jobs;
+    renderResults(state.lastResults);
+    updateMapStats(state.lastResults);
   } catch(e) {
     document.getElementById('resultsStatus').innerHTML =
       `<span style="color:#e04040">Test data error: ${esc(e.message)}</span>`;
@@ -4825,7 +4821,7 @@ async function reloadSavedFromDb() {
     setSavedSource('db');       // show what was just pulled from the database
     if (status) {
       const n = _miCandidates.length;
-      const j = savedJobs.length;
+      const j = state.savedJobs.length;
       status.textContent = n
         ? `Loaded ${n} candidate${n!==1?'s':''} · ${j} saved job${j!==1?'s':''}`
         : 'Nothing saved in the database yet';
@@ -4840,10 +4836,10 @@ async function reloadSavedFromDb() {
 async function loadSaved() {
   const empty = document.getElementById('savedEmpty');
   try {
-    // Keep the legacy savedJobs array + badge in sync (used by Excel export etc.)
+    // Keep the legacy state.savedJobs array + badge in sync (used by Excel export etc.)
     const sres = await fetch('/api/saved');
     const sdata = await sres.json();
-    if (sdata.ok) { savedJobs = sdata.jobs; updateSavedBadge(); }
+    if (sdata.ok) { state.savedJobs = sdata.jobs; updateSavedBadge(); }
 
     const res  = await fetch('/api/saved/candidates');
     const data = await res.json();
@@ -4878,7 +4874,7 @@ Object.assign(_ACTIONS, {
   'toggle-col-chooser':        (el, e) => toggleColChooser(e),
   'reload-saved-from-db':      ()      => reloadSavedFromDb(),
   'reload-saved-from-db-link': (el, e) => { e.preventDefault(); reloadSavedFromDb(); },
-  'export-saved':              ()      => exportSaved(savedJobs),
+  'export-saved':              ()      => exportSaved(state.savedJobs),
   'generate-saved-report':     ()      => generateSavedReport(_miCandidates[_miIdx]),
   'ic-toggle':                 ()      => _icToggle(),
   'ic-toggle-body':            ()      => _icToggleBody(),
@@ -5866,11 +5862,11 @@ function toggleExtrasPanel() {
   const questions = _descCvQuestions || _ivHasAnswers();
   const outreach  = _descOutreach;
   const strength  = _strengthData;
-  const salaryStats = _modalJob?._salaryStats;
-  const qualityData = _modalJob?.quality ? {
-    grade: _modalJob.quality, score: _modalJob.quality_score,
-    verdict: _modalJob.quality_verdict, fit: _modalJob.quality_fit,
-    flags: _modalJob.quality_flags,
+  const salaryStats = state.modalJob?._salaryStats;
+  const qualityData = state.modalJob?.quality ? {
+    grade: state.modalJob.quality, score: state.modalJob.quality_score,
+    verdict: state.modalJob.quality_verdict, fit: state.modalJob.quality_fit,
+    flags: state.modalJob.quality_flags,
   } : null;
   const set = (id, itemId, has) => {
     const chk  = document.getElementById(id);
@@ -5888,15 +5884,15 @@ function toggleExtrasPanel() {
 }
 
 async function saveWithExtras() {
-  if (!_modalJob) return;
+  if (!state.modalJob) return;
   const extras = {};
-  if (document.getElementById('extrasChkSalary').checked && _modalJob._salaryStats)
-    extras.salary = _modalJob._salaryStats;
-  if (document.getElementById('extrasChkQuality').checked && _modalJob.quality)
+  if (document.getElementById('extrasChkSalary').checked && state.modalJob._salaryStats)
+    extras.salary = state.modalJob._salaryStats;
+  if (document.getElementById('extrasChkQuality').checked && state.modalJob.quality)
     extras.quality = {
-      grade: _modalJob.quality, score: _modalJob.quality_score,
-      verdict: _modalJob.quality_verdict, fit: _modalJob.quality_fit,
-      flags: _modalJob.quality_flags,
+      grade: state.modalJob.quality, score: state.modalJob.quality_score,
+      verdict: state.modalJob.quality_verdict, fit: state.modalJob.quality_fit,
+      flags: state.modalJob.quality_flags,
     };
   if (document.getElementById('extrasChkCompact').checked)
     extras.compact    = _descCompact_orig || _descCompact_trans || null;
@@ -5911,16 +5907,16 @@ async function saveWithExtras() {
 
   const status = document.getElementById('modalStatusSel').value;
   try {
-    const data = await api.post('/api/saved', { job: { ..._modalJob, candidate_name: getCandidateName() }, status, extras, candidate_profile: _currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: getCandidateName() }, status, extras, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
-      savedJobs = data.jobs;
+      state.savedJobs = data.jobs;
       updateSavedBadge();
       const saveBtn = document.getElementById('modalSaveBtn');
       saveBtn.textContent = '✓ Saved'; saveBtn.classList.add('saved');
       const extrasBtn = document.getElementById('modalExtrasBtn');
       extrasBtn.textContent = '✓ extras'; extrasBtn.disabled = true;
       document.getElementById('saveExtrasPanel').style.display = 'none';
-      const tableBtn = document.getElementById(`save-${_modalJob.job_id}`);
+      const tableBtn = document.getElementById(`save-${state.modalJob.job_id}`);
       if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
       _miRefreshCurrent();
     }
@@ -5937,7 +5933,7 @@ async function updateNotes(jobId, notes) {
 async function removeJob(jobId) {
   await api.raw(`/api/saved/${jobId}`, { method: 'DELETE' });
   document.getElementById(`srow-${jobId}`)?.remove();
-  savedJobs = savedJobs.filter(j => j.job_id !== jobId);
+  state.savedJobs = state.savedJobs.filter(j => j.job_id !== jobId);
   updateSavedBadge();
   loadSaved();
 }
@@ -5952,12 +5948,11 @@ async function removeJob(jobId) {
 // ════════════════════════════════════════════════════════════
 //  Job detail modal
 // ════════════════════════════════════════════════════════════
-let _modalJob = null;
 
 function openJobModal(storeId) {
   const job = getStoredJob(storeId);
   if (!job) return;
-  _modalJob = job;
+  state.modalJob = job;
 
   const score = job.score != null ? (job.score <= 1 ? Math.round(job.score * 100) : Math.round(job.score)) : null;
   const g     = job.grade || (score == null ? 'C' : score >= 70 ? 'A' : score >= 50 ? 'B' : 'C');
@@ -6056,7 +6051,7 @@ function openJobModal(storeId) {
   }
 
   // Analysis panels — lazy, reset state
-  _analysisBatchJobs = lastResults;
+  _analysisBatchJobs = state.lastResults;
   _analysisLoaded = { salary: false, quality: false, strength: false };
   _analysisOpen   = { salary: false, quality: false, strength: false };
   _strengthData   = null;
@@ -6087,7 +6082,7 @@ function openJobModal(storeId) {
 
   // Save button state
   const saveBtn = document.getElementById('modalSaveBtn');
-  const alreadySaved = savedJobs.some(j => String(j.job_id) === String(job.job_id));
+  const alreadySaved = state.savedJobs.some(j => String(j.job_id) === String(job.job_id));
   saveBtn.textContent = alreadySaved ? '✓ Saved' : '+ Save to pipeline';
   saveBtn.classList.toggle('saved', alreadySaved);
 
@@ -6206,8 +6201,8 @@ async function loadSalaryAnalysis(job, batchJobs) {
     const pctBelow = jobSalary ? Math.round((data.salaries.filter(s => s < jobSalary).length / data.count) * 100) : null;
     const diffMean = jobSalary ? Math.round(jobSalary - data.mean) : null;
     // Store salary stats on the modal job so they can be saved as extras
-    if (_modalJob) {
-      _modalJob._salaryStats = {
+    if (state.modalJob) {
+      state.modalJob._salaryStats = {
         occ_group: job.occ_group || '',
         count: data.count,
         mean: Math.round(data.mean),
@@ -6250,7 +6245,7 @@ async function loadQualityAssessment(job) {
     const groupStats  = data.group_stats || {};
 
     // Persist quality onto the stored job so re-opening is instant
-    const storedJob = _modalJob;
+    const storedJob = state.modalJob;
     if (storedJob) Object.assign(storedJob, {
       quality: enriched.quality, quality_score: enriched.quality_score,
       quality_verdict: enriched.quality_verdict, quality_fit: enriched.quality_fit,
@@ -6329,7 +6324,7 @@ function _salaryBarPos(salary, stats) {
 
 function closeJobModal() {
   document.getElementById('jobModal').classList.add('hidden');
-  _modalJob = null;
+  state.modalJob = null;
   if (jobChatSessionId) {
     api.raw('/api/job_chat/reset', { method: 'POST', body: { session_id: jobChatSessionId } });
     jobChatSessionId   = null;
@@ -6355,7 +6350,7 @@ function setJobChatLang(lang) {
 _ACTIONS['job-chat-lang'] = (el) => setJobChatLang(el.dataset.lang);
 
 async function sendJobChat() {
-  if (!jobChatSessionId || !_modalJob) return;
+  if (!jobChatSessionId || !state.modalJob) return;
   const input = document.getElementById('jobChatInput');
   const text  = input.value.trim();
   if (!text) return;
@@ -6382,17 +6377,17 @@ async function sendJobChat() {
       lang:           jobChatLang,
       candidate_text: _lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
       job_context: {
-        job_id:              _modalJob.job_id,
-        title:               _modalJob.title,
-        company:             _modalJob.company,
-        city:                _modalJob.city,
-        state:               _modalJob.state,
-        salary:              _modalJob.salary,
-        occ_group:           _modalJob.occ_group,
-        skills_en:           _modalJob.skills_en,
-        skills:              _modalJob.skills,
-        description:         _modalJob.description,
-        description_snippet: _modalJob.description_snippet,
+        job_id:              state.modalJob.job_id,
+        title:               state.modalJob.title,
+        company:             state.modalJob.company,
+        city:                state.modalJob.city,
+        state:               state.modalJob.state,
+        salary:              state.modalJob.salary,
+        occ_group:           state.modalJob.occ_group,
+        skills_en:           state.modalJob.skills_en,
+        skills:              state.modalJob.skills,
+        description:         state.modalJob.description,
+        description_snippet: state.modalJob.description_snippet,
       },
     });
     document.getElementById('jcTyping')?.remove();
@@ -6425,9 +6420,9 @@ function scrollJobChat() {
 }
 
 async function addLastAnswerToNotes() {
-  if (!_jobChatLastAnswer || !_modalJob) return;
-  const jobId = _modalJob.job_id;
-  const existing = savedJobs.find(j => String(j.job_id) === String(jobId));
+  if (!_jobChatLastAnswer || !state.modalJob) return;
+  const jobId = state.modalJob.job_id;
+  const existing = state.savedJobs.find(j => String(j.job_id) === String(jobId));
   const newNote = existing
     ? (existing.notes ? existing.notes + '\n' + _jobChatLastAnswer : _jobChatLastAnswer)
     : _jobChatLastAnswer;
@@ -6534,17 +6529,17 @@ Object.assign(_ACTIONS, {
 
 async function saveFromModal() {
   const saveBtn = document.getElementById('modalSaveBtn');
-  if (!_modalJob || saveBtn.classList.contains('saved')) return;
+  if (!state.modalJob || saveBtn.classList.contains('saved')) return;
   const status = document.getElementById('modalStatusSel').value;
   try {
-    const data = await api.post('/api/saved', { job: { ..._modalJob, candidate_name: getCandidateName() }, status, candidate_profile: _currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: getCandidateName() }, status, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
       saveBtn.textContent = '✓ Saved';
       saveBtn.classList.add('saved');
-      savedJobs = data.jobs;
+      state.savedJobs = data.jobs;
       updateSavedBadge();
       // Sync the results-table save button if present
-      const tableBtn = document.getElementById(`save-${_modalJob.job_id}`);
+      const tableBtn = document.getElementById(`save-${state.modalJob.job_id}`);
       if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
     }
   } catch(e) { alert('Save failed: ' + e.message); }
@@ -6654,12 +6649,12 @@ async function toggleAnalysisPanel(type) {
   _analysisLoaded[type] = true;
 
   if (type === 'salary') {
-    document.getElementById('modalAnalysisGroup').textContent = _modalJob.occ_group || '';
+    document.getElementById('modalAnalysisGroup').textContent = state.modalJob.occ_group || '';
     document.getElementById('modalAnalysisChart').innerHTML =
       '<div style="color:#bbb;font-size:12px;padding:30px 0;text-align:center">Loading salary data…</div>';
     document.getElementById('modalAnalysisStats').innerHTML = '';
-    if (_modalJob.occ_group) {
-      await loadSalaryAnalysis(_modalJob, _analysisBatchJobs);
+    if (state.modalJob.occ_group) {
+      await loadSalaryAnalysis(state.modalJob, _analysisBatchJobs);
     } else {
       document.getElementById('modalAnalysisChart').innerHTML =
         '<div style="color:#bbb;font-size:12px;padding:30px 0;text-align:center">No occupational group — salary data unavailable.</div>';
@@ -6668,7 +6663,7 @@ async function toggleAnalysisPanel(type) {
   } else if (type === 'quality') {
     document.getElementById('modalQualityContent').innerHTML =
       '<div class="quality-loading">Analysing responsibilities and compensation…</div>';
-    await loadQualityAssessment(_modalJob);
+    await loadQualityAssessment(state.modalJob);
 
   } else if (type === 'strength') {
     if (!_lastParsedText) {
@@ -6680,7 +6675,7 @@ async function toggleAnalysisPanel(type) {
     }
     document.getElementById('modalStrengthDetails').innerHTML =
       '<div class="quality-loading">Analysing candidate fit…</div>';
-    await loadStrengthAnalysis(_modalJob, _lastParsedText);
+    await loadStrengthAnalysis(state.modalJob, _lastParsedText);
   }
 }
 
@@ -6955,7 +6950,7 @@ function _interviewRestore(jobId) {
   // Same job_id can be saved under more than one candidate — prefer the row for the
   // candidate currently open in the modal, else fall back to the first match.
   const cand = (typeof getCandidateName === 'function') ? getCandidateName() : null;
-  const matches = (savedJobs || []).filter(j => String(j.job_id) === String(jobId));
+  const matches = (state.savedJobs || []).filter(j => String(j.job_id) === String(jobId));
   const saved = (cand && matches.find(j => j.candidate_name === cand)) || matches[0];
   const iv = saved && saved.extras && saved.extras.interview;
   if (iv && typeof iv === 'object') {
@@ -6974,7 +6969,7 @@ function _interviewRestore(jobId) {
 
 // Job context sent to the interview endpoints.
 function _ivJob() {
-  const j = _modalJob || {};
+  const j = state.modalJob || {};
   return { title: j.title, company: j.company,
            salary: j.salary || '',
            location: [j.city, j.state].filter(Boolean).join(', '),
@@ -7013,7 +7008,7 @@ function _ivLang() {
 
 // The recruiter's structured profile / AI summary, fed to the helper as prior analysis.
 function _ivProfile() {
-  const p = _currentCandidateProfile;
+  const p = state.currentCandidateProfile;
   if (!p || typeof p !== 'object') return null;
   const slim = {};
   ['name','title','seniority','experience_years','years_experience','location','languages',
@@ -7727,19 +7722,19 @@ async function summarizeInterview() {
 // Persist the interview into the saved job's extras.interview. Auto-saves the job
 // to the pipeline on first analyze so the interview survives reopening.
 async function _persistInterview() {
-  if (!_modalJob) return;
-  const jobId  = _modalJob.job_id;
-  const isSaved = (savedJobs || []).some(j => String(j.job_id) === String(jobId));
+  if (!state.modalJob) return;
+  const jobId  = state.modalJob.job_id;
+  const isSaved = (state.savedJobs || []).some(j => String(j.job_id) === String(jobId));
   try {
     if (isSaved) {
       await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: _interview } } });
     } else {
       const status = document.getElementById('modalStatusSel')?.value || 'New';
-      const data = await api.post('/api/saved', { job: { ..._modalJob, candidate_name: getCandidateName() },
+      const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: getCandidateName() },
                                                   status, extras: { interview: _interview },
-                                                  candidate_profile: _currentCandidateProfile || null });
+                                                  candidate_profile: state.currentCandidateProfile || null });
       if (data.ok) {
-        savedJobs = data.jobs;
+        state.savedJobs = data.jobs;
         updateSavedBadge();
         const saveBtn = document.getElementById('modalSaveBtn');
         if (saveBtn) { saveBtn.textContent = '✓ Saved'; saveBtn.classList.add('saved'); }
@@ -7829,11 +7824,11 @@ async function descToggleOutreach() {
       const candidateName = document.getElementById('candidateName')?.value || '';
       const data = await api.post('/api/desc_outreach', {
         job: {
-          title:    _modalJob.title,
-          company:  _modalJob.company,
-          location: [_modalJob.city, _modalJob.state].filter(Boolean).join(', '),
-          salary:   _modalJob.salary,
-          skills:   _modalJob.skills_en || _modalJob.skills,
+          title:    state.modalJob.title,
+          company:  state.modalJob.company,
+          location: [state.modalJob.city, state.modalJob.state].filter(Boolean).join(', '),
+          salary:   state.modalJob.salary,
+          skills:   state.modalJob.skills_en || state.modalJob.skills,
           description: _descOriginal.slice(0, 1500),
         },
         candidate_name: candidateName,

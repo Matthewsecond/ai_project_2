@@ -9,7 +9,21 @@
 // Filter dropdown options (states / occ_groups / portals), loaded once from the
 // API and read by the search filters, the guided builder, and the radar AI filter.
 export const state = {
+  // Filter dropdown options (states / occ_groups / portals), loaded once from the
+  // API and read by the search filters, the guided builder, and the radar AI filter.
   filterOpts: { states: [], occ_groups: [], portals: [] },
+  // The current search result set — produced by search, read by map/export/sort/
+  // candidate-assistant. (search owns it; others read via state.)
+  lastResults: [],
+  // The saved pipeline (jobs saved against candidates) — saved panel + export + modal.
+  savedJobs: [],
+  // The active candidate's parsed profile — set by candidate input, read by search /
+  // modal / guided / saved when saving or scoring.
+  currentCandidateProfile: null,
+  // Current input mode ('cv' | 'linkedin' | 'guided' | 'multiple') — mode/tab switching.
+  activeMode: 'cv',
+  // The job currently open in the detail modal — modal + quality/analysis/interview + saved.
+  modalJob: null,
 };
 
 // The delegated-action registry (data-action → handler). Lives here so any feature
