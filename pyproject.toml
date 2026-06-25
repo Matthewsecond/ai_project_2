@@ -39,4 +39,5 @@ testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 markers = [
     "smoke: live integration tests that hit the real OpenAI API + MySQL (slow)",
+    "e2e: Playwright real-browser end-to-end tests (need `playwright install chromium`)",
 ]
