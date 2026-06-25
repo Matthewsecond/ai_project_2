@@ -432,6 +432,9 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     `data-input-action` / `data-keydown-action`); converted the whole Multiple-CV cluster feature
     (23 handlers — covers dynamic args, two-arg, `this`, and inline-JS cases). 0 inline handlers left
     in that section. Nesting (seg-check inside seg-card) handled by `closest()` picking the innermost.
+  - ✅ part 3: added a delegated `change` listener (`data-change-action`); converted the Radar/Analytics
+    static markup (AI filter panel, sub-nav, trend tab-chat, quick-finder selects, report + summary chat
+    — ~25 handlers, 12 actions). ~51 of 226 handlers done.
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.

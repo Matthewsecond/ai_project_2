@@ -537,15 +537,15 @@
 
       <!-- AI Filter Assistant -->
       <div class="radar-ai-assist" id="radarAIAssist">
-        <button class="raifp-toggle" id="raifpToggleBtn" onclick="toggleAIFilter()">
+        <button class="raifp-toggle" id="raifpToggleBtn" data-action="ai-filter-toggle">
           <span>✦</span> AI Filter Assistant
         </button>
         <div class="raifp-panel" id="raifpPanel" style="display:none">
           <div class="raifp-input-row">
             <input id="raifpQuery" class="raifp-input" type="text"
               placeholder="Describe what you want to analyse… e.g. &quot;tech roles using maths, AI and engineering certs&quot;"
-              onkeydown="if(event.key==='Enter')runAIFilterSuggest()">
-            <button class="raifp-suggest-btn" id="raifpSuggestBtn" onclick="runAIFilterSuggest()">
+              data-keydown-action="ai-filter-enter">
+            <button class="raifp-suggest-btn" id="raifpSuggestBtn" data-action="ai-filter-suggest">
               <span class="radar-spinner hidden" id="raifpSpinner"></span>
               <span id="raifpSuggestLabel">Suggest filters</span>
             </button>
@@ -555,8 +555,8 @@
             <div id="raifpCountHint"></div>
             <div id="raifpCategories" class="raifp-categories"></div>
             <div class="raifp-actions">
-              <button class="raifp-apply-btn" onclick="applyAIFilters()">Apply &amp; Generate Briefing</button>
-              <button class="raifp-clear-btn" onclick="clearAIFilters()">Clear</button>
+              <button class="raifp-apply-btn" data-action="ai-filter-apply">Apply &amp; Generate Briefing</button>
+              <button class="raifp-clear-btn" data-action="ai-filter-clear">Clear</button>
             </div>
           </div>
         </div>
@@ -576,13 +576,13 @@
 
       <!-- Sub-navigation -->
       <div class="radar-subnav">
-        <button class="radar-sub-btn active" data-rsub="overview"      onclick="radarSub(this,'overview')">Overview</button>
-        <button class="radar-sub-btn"         data-rsub="opportunities" onclick="radarSub(this,'opportunities')">Top Opportunities</button>
-        <button class="radar-sub-btn"         data-rsub="underserved"  onclick="radarSub(this,'underserved')">Underserved</button>
-        <button class="radar-sub-btn"         data-rsub="urgency"      onclick="radarSub(this,'urgency')">Urgency Alerts</button>
-        <button class="radar-sub-btn"         data-rsub="trend"        onclick="radarSub(this,'trend')">Volume Trend</button>
-        <button class="radar-sub-btn"         data-rsub="analytics"    onclick="radarSub(this,'analytics')">Analytics</button>
-        <button class="radar-sub-btn"         data-rsub="finder"       onclick="radarSub(this,'finder')">Quick Finder</button>
+        <button class="radar-sub-btn active" data-rsub="overview"      data-action="radar-sub">Overview</button>
+        <button class="radar-sub-btn"         data-rsub="opportunities" data-action="radar-sub">Top Opportunities</button>
+        <button class="radar-sub-btn"         data-rsub="underserved"  data-action="radar-sub">Underserved</button>
+        <button class="radar-sub-btn"         data-rsub="urgency"      data-action="radar-sub">Urgency Alerts</button>
+        <button class="radar-sub-btn"         data-rsub="trend"        data-action="radar-sub">Volume Trend</button>
+        <button class="radar-sub-btn"         data-rsub="analytics"    data-action="radar-sub">Analytics</button>
+        <button class="radar-sub-btn"         data-rsub="finder"       data-action="radar-sub">Quick Finder</button>
       </div>
 
       <!-- ── OVERVIEW subview ── -->
@@ -708,9 +708,9 @@
             </div>
           </div>
           <div id="trendBtnRow" class="radar-rec-actions" style="margin-top:14px;padding-left:0;display:none">
-            <button class="radar-rec-action-btn" onclick="triggerTabChat('trend',0,'driving')">What's Driving This?</button>
-            <button class="radar-rec-action-btn" onclick="triggerTabChat('trend',0,'forecast')">4-Week Forecast</button>
-            <button class="radar-rec-action-btn" onclick="triggerTabChat('trend',0,'sectors')">Which Sectors Lead?</button>
+            <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="trend" data-idx="0" data-act="driving">What's Driving This?</button>
+            <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="trend" data-idx="0" data-act="forecast">4-Week Forecast</button>
+            <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="trend" data-idx="0" data-act="sectors">Which Sectors Lead?</button>
           </div>
         </div>
         <div id="trendChatPanel" class="opp-chat-panel" style="display:none;margin-top:16px">
@@ -749,14 +749,14 @@
       <!-- ── QUICK FINDER subview ── -->
       <div id="rsub-finder" class="radar-subview" style="display:none">
         <div class="radar-finder-bar">
-          <select id="rfMode" onchange="loadFinderJobs()">
+          <select id="rfMode" data-change-action="finder-reload">
             <option value="stale">Stale jobs (slow movers)</option>
             <option value="urgent">Urgent deadlines</option>
           </select>
-          <select id="rfOccGroup" onchange="loadFinderJobs()"><option value="">All sectors</option></select>
-          <select id="rfState"    onchange="loadFinderJobs()"><option value="">All states</option></select>
-          <select id="rfPortal"   onchange="loadFinderJobs()"><option value="">All portals</option></select>
-          <select id="rfMinDays"  onchange="loadFinderJobs()">
+          <select id="rfOccGroup" data-change-action="finder-reload"><option value="">All sectors</option></select>
+          <select id="rfState"    data-change-action="finder-reload"><option value="">All states</option></select>
+          <select id="rfPortal"   data-change-action="finder-reload"><option value="">All portals</option></select>
+          <select id="rfMinDays"  data-change-action="finder-reload">
             <option value="30">30+ days old</option>
             <option value="45" selected>45+ days old</option>
             <option value="60">60+ days old</option>
@@ -778,11 +778,11 @@
           <p>Save insights from the Opportunities Radar to build your session report</p>
         </div>
         <div class="summary-btn-row">
-          <button id="summaryGenCompactBtn" class="summary-generate-btn" onclick="generateReport(false)" disabled>
+          <button id="summaryGenCompactBtn" class="summary-generate-btn" data-action="generate-report" data-charts="0" disabled>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Compact Report
           </button>
-          <button id="summaryGenChartsBtn" class="summary-generate-btn summary-generate-btn-charts" onclick="generateReport(true)" disabled>
+          <button id="summaryGenChartsBtn" class="summary-generate-btn summary-generate-btn-charts" data-action="generate-report" data-charts="1" disabled>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="3 9 9 9 9 3"/><line x1="9" y1="9" x2="15" y2="3"/><polyline points="21 15 15 15 15 21"/><line x1="15" y1="15" x2="9" y2="21"/></svg>
             Report with Charts
           </button>
@@ -804,17 +804,17 @@
           </div>
         </div>
         <div class="summary-chat-quick-btns">
-          <button class="summary-qbtn" onclick="triggerSummaryChat('What should I emphasize most in the report?')">What to emphasize?</button>
-          <button class="summary-qbtn" onclick="triggerSummaryChat('Suggest a good order for the sections and explain why.')">Suggest order</button>
-          <button class="summary-qbtn" onclick="triggerSummaryChat('What important topics might be missing from this report?')">What\'s missing?</button>
-          <button class="summary-qbtn" onclick="triggerSummaryChat('Summarize the key themes across all saved insights in 3 sentences.')">Key themes</button>
+          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="What should I emphasize most in the report?">What to emphasize?</button>
+          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="Suggest a good order for the sections and explain why.">Suggest order</button>
+          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="What important topics might be missing from this report?">What\'s missing?</button>
+          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="Summarize the key themes across all saved insights in 3 sentences.">Key themes</button>
         </div>
         <div class="summary-chat-thread" id="summaryChatThread">
           <div style="text-align:center;padding:20px;color:#bbb;font-size:12px">Ask the assistant to help shape your report</div>
         </div>
         <div class="summary-chat-input-row">
-          <input class="summary-chat-input" id="summaryChatInput" placeholder="e.g. Which finding is most urgent to highlight?" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendSummaryChat()}"/>
-          <button class="summary-chat-send" id="summaryChatSend" onclick="sendSummaryChat()">Send</button>
+          <input class="summary-chat-input" id="summaryChatInput" placeholder="e.g. Which finding is most urgent to highlight?" data-keydown-action="summary-chat-enter"/>
+          <button class="summary-chat-send" id="summaryChatSend" data-action="summary-chat-send">Send</button>
         </div>
       </div>
     </div>
@@ -6669,6 +6669,12 @@ document.addEventListener('input', function(e) {
   const handler = _ACTIONS[el.dataset.inputAction];
   if (handler) handler(el, e);
 });
+document.addEventListener('change', function(e) {
+  const el = e.target.closest('[data-change-action]');
+  if (!el) return;
+  const handler = _ACTIONS[el.dataset.changeAction];
+  if (handler) handler(el, e);
+});
 document.addEventListener('keydown', function(e) {
   const el = e.target.closest('[data-keydown-action]');
   if (!el) return;
@@ -6713,6 +6719,23 @@ let _aiFiltersApplied = null;   // what was last applied (for active bar)
 // ════════════════════════════════════════════════════════════
 //  AI Filter Assistant
 // ════════════════════════════════════════════════════════════
+
+// Action registry for the Radar / Analytics static markup (AI filter panel,
+// sub-nav, trend tab-chat, quick-finder selects, report + summary chat).
+Object.assign(_ACTIONS, {
+  'ai-filter-toggle':   ()      => toggleAIFilter(),
+  'ai-filter-enter':    (el, e) => { if (e.key === 'Enter') runAIFilterSuggest(); },
+  'ai-filter-suggest':  ()      => runAIFilterSuggest(),
+  'ai-filter-apply':    ()      => applyAIFilters(),
+  'ai-filter-clear':    ()      => clearAIFilters(),
+  'radar-sub':          (el)    => radarSub(el, el.dataset.rsub),
+  'tab-chat':           (el)    => triggerTabChat(el.dataset.tab, +el.dataset.idx, el.dataset.act),
+  'finder-reload':      ()      => loadFinderJobs(),
+  'generate-report':    (el)    => generateReport(el.dataset.charts === '1'),
+  'summary-chat-quick': (el)    => triggerSummaryChat(el.dataset.msg),
+  'summary-chat-send':  ()      => sendSummaryChat(),
+  'summary-chat-enter': (el, e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSummaryChat(); } },
+});
 
 function toggleAIFilter() {
   const panel = document.getElementById('raifpPanel');
