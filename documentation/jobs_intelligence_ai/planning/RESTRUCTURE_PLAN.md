@@ -213,7 +213,10 @@ report_generator/quality_classifier/seniority_classifier/saved/job_detail/search
 - 2.1a ✅ `shared/llm.py` ← `get_client`; `chat.py` re-exports it (`_get_client` alias kept);
   `search/orchestrator` now calls it (2nd client path gone). Test `test_5_llm` added.
   Gate: ✅ import-smoke + `pytest -m "not smoke"` = **28 passed, 1 deselected**.
-- 2.1b **Adopt Structured Outputs** — the standard for EVERY JSON-returning model call
+- 2.1b ✅ **DONE** (grader pilot + all conversions folded into 2.2–2.4, now COMPLETE). One
+  documented residual: `embedding_search.search()` keeps `utils.parse_json` because its `file_search`
+  tool response returns citation-marked `output_text` that can't go through `responses.parse`.
+  **Adopt Structured Outputs** — the standard for EVERY JSON-returning model call
   (replaces the planned `shared/json.py` merge): `client.responses.parse(text_format=Pydantic)`
   → validated `output_parsed`; delete the parser + the "respond with ONLY JSON" prompt
   boilerplate; add the two test layers (§10). Verified vs official docs + live SDK 2.30.0.
