@@ -1049,6 +1049,7 @@
 
 <script type="module">
 // ── 2.6c per-feature modules (extracted from this script, one at a time) ──
+import { state, _ACTIONS } from "{{ url_for('static', filename='js/state.js') }}";
 import { esc, mdToHtml, storeJob, getStoredJob } from "{{ url_for('static', filename='js/util.js') }}";
 import { initMap, updateMapStats } from "{{ url_for('static', filename='js/map.js') }}";
 import { exportResults, exportSaved, generateSavedReport } from "{{ url_for('static', filename='js/export.js') }}";
@@ -1056,11 +1057,8 @@ import { exportResults, exportSaved, generateSavedReport } from "{{ url_for('sta
 // ════════════════════════════════════════════════════════════
 //  State
 // ════════════════════════════════════════════════════════════
-// Action registry for the delegated data-action dispatcher (defined further down,
-// near "Action dispatch"). Declared up here because feature modules register their
-// handlers via Object.assign(_ACTIONS, …) blocks that run during load BEFORE the
-// dispatcher section — a `const` down there would be in its temporal dead zone.
-const _ACTIONS = {};
+// _ACTIONS (the delegated-action registry) is imported from state.js so feature
+// modules can register their handlers next to their own code.
 let lastResults      = [];
 let savedJobs        = [];
 let currentCandidate = '';   // name entered in the candidate bar
@@ -1866,7 +1864,7 @@ function getChipVal(group) {
 // ════════════════════════════════════════════════════════════
 //  Load filter dropdowns from API
 // ════════════════════════════════════════════════════════════
-let _filterOpts = {states: [], occ_groups: [], portals: []};  // for AI filter assist
+// _filterOpts moved to state.filterOpts (state.js) — shared with guided + radar.
 
 async function loadFilters() {
   try {
@@ -1876,7 +1874,7 @@ async function loadFilters() {
     const portals   = data.data.portals    || [];
 
     // Cache for AI filter assist
-    _filterOpts = {states, occ_groups: occGroups, portals};
+    state.filterOpts = {states, occ_groups: occGroups, portals};
 
     // Search filters
     populateSelect('filterState',    states,    'All states');
@@ -3683,7 +3681,7 @@ const GB_FIELDS = [
   { key:'roles',      label:'Target role',    type:'free', ph:'role + Enter' },
   { key:'skills',     label:'Key skills',     type:'free', ph:'skill + Enter' },
   { key:'levels',     label:'Seniority',      type:'opts', opts:() => GB_LEVELS },
-  { key:'states',     label:'States',         type:'opts', opts:() => _filterOpts.states },
+  { key:'states',     label:'States',         type:'opts', opts:() => state.filterOpts.states },
   { key:'languages',  label:'Languages',      type:'free', ph:'e.g. German C1 + Enter' },
   { key:'certs',      label:'Certifications', type:'free', ph:'cert + Enter' },
   { key:'salary',     label:'Salary',         type:'text', ph:'e.g. €2,200+ or 4500–5500' },
@@ -6703,9 +6701,9 @@ async function runAIFilterSuggest() {
   try {
     const data = await api.post('/api/opportunity/filter-assist', {
       query,
-      sectors: _filterOpts.occ_groups || [],
-      states:  _filterOpts.states     || [],
-      portals: _filterOpts.portals    || [],
+      sectors: state.filterOpts.occ_groups || [],
+      states:  state.filterOpts.states     || [],
+      portals: state.filterOpts.portals    || [],
     });
     _aiSuggestion = data;
     _renderAISuggestion(data);
