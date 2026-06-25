@@ -399,26 +399,26 @@
     <div id="savedDash">
       <div class="saved-topbar">
         <div class="sv-toggle">
-          <button class="sv-tab active" id="svTabTable" onclick="setSavedView('table')">Table</button>
-          <button class="sv-tab" id="svTabDash" onclick="setSavedView('dash')">Dashboard</button>
+          <button class="sv-tab active" id="svTabTable" data-action="set-saved-view" data-view="table">Table</button>
+          <button class="sv-tab" id="svTabDash" data-action="set-saved-view" data-view="dash">Dashboard</button>
         </div>
         <div class="sv-toggle sv-kind" id="svKindToggle" style="display:none" title="Switch between real (CV) candidates and template candidates built in the guided builder">
-          <button class="sv-tab active" id="svKindReal" onclick="setSavedKind('real')">Candidates</button>
-          <button class="sv-tab" id="svKindTpl" onclick="setSavedKind('template')">Templates</button>
+          <button class="sv-tab active" id="svKindReal" data-action="set-saved-kind" data-kind="real">Candidates</button>
+          <button class="sv-tab" id="svKindTpl" data-action="set-saved-kind" data-kind="template">Templates</button>
         </div>
         <div class="sv-toggle sv-source" id="svSourceToggle" style="display:none" title="Switch between candidates saved in the database and session candidates not yet saved">
-          <button class="sv-tab active" id="svSrcDb" onclick="setSavedSource('db')">Database</button>
-          <button class="sv-tab" id="svSrcLocal" onclick="setSavedSource('local')">Local<span class="sv-srcnum" id="svLocalCount"></span></button>
+          <button class="sv-tab active" id="svSrcDb" data-action="set-saved-source" data-source="db">Database</button>
+          <button class="sv-tab" id="svSrcLocal" data-action="set-saved-source" data-source="local">Local<span class="sv-srcnum" id="svLocalCount"></span></button>
         </div>
         <span class="sv-spacer"></span>
         <span id="savedLoadStatus" class="sv-status"></span>
-        <button class="cs-pdf sv-saveall-btn" id="svSaveAllBtn" onclick="saveAllLocalCandidates()" title="Save all local (session) candidates to the database" style="display:none;background:#1a7a2e">
+        <button class="cs-pdf sv-saveall-btn" id="svSaveAllBtn" data-action="save-all-local-candidates" title="Save all local (session) candidates to the database" style="display:none;background:#1a7a2e">
           <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"></path></svg> Save all to database
         </button>
-        <button class="cs-pdf sv-cols-btn" id="svColsBtn" onclick="toggleColChooser(event)" title="Choose which columns to show" style="display:none;background:#5a5a52">
+        <button class="cs-pdf sv-cols-btn" id="svColsBtn" data-action="toggle-col-chooser" title="Choose which columns to show" style="display:none;background:#5a5a52">
           <svg viewBox="0 0 24 24"><path d="M3 4h18M3 12h18M3 20h18"></path></svg> Columns
         </button>
-        <button class="cs-pdf" id="savedReloadBtn" onclick="reloadSavedFromDb()" title="Load saved candidates and jobs from the database (including previous sessions)">
+        <button class="cs-pdf" id="savedReloadBtn" data-action="reload-saved-from-db" title="Load saved candidates and jobs from the database (including previous sessions)">
           <svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M5.5 9a7 7 0 0 1 12.4-2.3M18.5 15a7 7 0 0 1-12.4 2.3"></path></svg> Load from database
         </button>
       </div>
@@ -427,13 +427,13 @@
         <div class="cs-list" id="csList"></div>
         <button class="cs-arrow" id="csNext" title="Next candidate (→)">›</button>
         <span class="cs-count" id="csCount"></span>
-        <button class="cs-pdf cs-xls" id="csXls" onclick="exportSaved()" title="Export pipeline to Excel">
+        <button class="cs-pdf cs-xls" id="csXls" data-action="export-saved" title="Export pipeline to Excel">
           <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"></path></svg> Excel
         </button>
-        <button class="cs-pdf" id="csPdf" onclick="generateSavedReport()" title="Export this candidate's insights to PDF">
+        <button class="cs-pdf" id="csPdf" data-action="generate-saved-report" title="Export this candidate's insights to PDF">
           <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"></path></svg> <span id="csPdfLabel">Export PDF</span>
         </button>
-        <button class="ic-open-btn" id="icOpenBtn" onclick="_icToggle()" title="Interview notes — update candidate profile from interview observations">
+        <button class="ic-open-btn" id="icOpenBtn" data-action="ic-toggle" title="Interview notes — update candidate profile from interview observations">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span class="ic-dot"></span> Interview
         </button>
@@ -441,7 +441,7 @@
 
       <!-- Interview chat panel -->
       <div class="ic-panel" id="icPanel">
-        <div class="ic-header" onclick="_icToggleBody()">
+        <div class="ic-header" data-action="ic-toggle-body">
           <div class="ic-header-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
           <span class="ic-header-title">Interview notes</span>
           <span class="ic-header-hint">Share observations — the dashboard updates in real time</span>
@@ -453,7 +453,7 @@
           </div>
           <div class="ic-input-bar">
             <input class="ic-input" id="icInput" type="text" placeholder="Add an interview observation…" autocomplete="off"/>
-            <button type="button" class="ic-send" id="icSend" onclick="_icSend()">Send</button>
+            <button type="button" class="ic-send" id="icSend" data-action="ic-send">Send</button>
           </div>
         </div>
       </div>
@@ -490,7 +490,7 @@
       </div>
       <div class="saved-empty" id="savedEmpty">
         No saved candidates yet — run a search and save matches, or
-        <a href="#" onclick="reloadSavedFromDb();return false;" style="color:#1a3864;font-weight:600">load from the database</a>.
+        <a href="#" data-action="reload-saved-from-db-link" style="color:#1a3864;font-weight:600">load from the database</a>.
       </div>
     </div>
   </div>
@@ -502,11 +502,11 @@
       <!-- Header: actions -->
       <div class="radar-header-bar">
         <div class="radar-header-left">
-          <button class="radar-briefing-btn" id="radarBriefingBtn" onclick="generateBriefing()">
+          <button class="radar-briefing-btn" id="radarBriefingBtn" data-action="generate-briefing">
             <span class="radar-spinner hidden" id="radarSpinner"></span>
             <span id="radarBriefingBtnLabel">✦ Generate Briefing</span>
           </button>
-          <button class="radar-refresh-btn" onclick="loadRadar(true)" title="Refresh data">↺ Refresh</button>
+          <button class="radar-refresh-btn" data-action="radar-refresh" title="Refresh data">↺ Refresh</button>
           <span id="radarLastUpdate" style="font-size:11px;color:#bbb"></span>
         </div>
       </div>
@@ -514,16 +514,16 @@
       <!-- Scope filter bar -->
       <div class="radar-filter-bar" id="radarFilterBar">
         <span class="radar-filter-label">Scope</span>
-        <select id="rfSector" class="radar-filter-sel" onchange="onRadarFilterChange()" title="Occupational group">
+        <select id="rfSector" class="radar-filter-sel" data-change-action="radar-filter-change" title="Occupational group">
           <option value="">All sectors</option>
         </select>
-        <select id="rfStateF" class="radar-filter-sel" onchange="onRadarFilterChange()" title="State">
+        <select id="rfStateF" class="radar-filter-sel" data-change-action="radar-filter-change" title="State">
           <option value="">All states</option>
         </select>
-        <select id="rfPortalF" class="radar-filter-sel" onchange="onRadarFilterChange()" title="Portal">
+        <select id="rfPortalF" class="radar-filter-sel" data-change-action="radar-filter-change" title="Portal">
           <option value="">All portals</option>
         </select>
-        <select id="rfMinSalary" class="radar-filter-sel" onchange="onRadarFilterChange()" title="Minimum salary">
+        <select id="rfMinSalary" class="radar-filter-sel" data-change-action="radar-filter-change" title="Minimum salary">
           <option value="">Any salary</option>
           <option value="1000">€1,000+</option>
           <option value="2000">€2,000+</option>
@@ -531,7 +531,7 @@
           <option value="3000">€3,000+</option>
           <option value="4000">€4,000+</option>
         </select>
-        <button class="radar-filter-clear hidden" id="radarFilterClear" onclick="clearRadarFilters()">✕ Clear</button>
+        <button class="radar-filter-clear hidden" id="radarFilterClear" data-action="clear-radar-filters">✕ Clear</button>
         <span class="radar-filter-badge hidden" id="radarFilterBadge"></span>
       </div>
 
@@ -4822,6 +4822,23 @@ async function loadSaved() {
 // Switch between the insights dashboard and the candidate table view.
 function setSavedView(v){ _savedView = v; _applySavedView(); }
 
+// Action registry for the SAVED tab static markup — view/kind/source toggles,
+// save-all, column chooser, reload, Excel/PDF export, interview-notes panel.
+Object.assign(_ACTIONS, {
+  'set-saved-view':            (el)    => setSavedView(el.dataset.view),
+  'set-saved-kind':            (el)    => setSavedKind(el.dataset.kind),
+  'set-saved-source':          (el)    => setSavedSource(el.dataset.source),
+  'save-all-local-candidates': ()      => saveAllLocalCandidates(),
+  'toggle-col-chooser':        (el, e) => toggleColChooser(e),
+  'reload-saved-from-db':      ()      => reloadSavedFromDb(),
+  'reload-saved-from-db-link': (el, e) => { e.preventDefault(); reloadSavedFromDb(); },
+  'export-saved':              ()      => exportSaved(),
+  'generate-saved-report':     ()      => generateSavedReport(),
+  'ic-toggle':                 ()      => _icToggle(),
+  'ic-toggle-body':            ()      => _icToggleBody(),
+  'ic-send':                   ()      => _icSend(),
+});
+
 // "Save all to database" only applies to a non-empty Local table.
 function _updateSaveAllBtn(){
   const b = document.getElementById('svSaveAllBtn');
@@ -6836,6 +6853,11 @@ Object.assign(_ACTIONS, {
   'summary-chat-quick': (el)    => triggerSummaryChat(el.dataset.msg),
   'summary-chat-send':  ()      => sendSummaryChat(),
   'summary-chat-enter': (el, e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSummaryChat(); } },
+  // radar header + scope filter bar
+  'generate-briefing':  ()      => generateBriefing(),
+  'radar-refresh':      ()      => loadRadar(true),
+  'radar-filter-change': ()     => onRadarFilterChange(),
+  'clear-radar-filters': ()     => clearRadarFilters(),
 });
 
 function toggleAIFilter() {
