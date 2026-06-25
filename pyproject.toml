@@ -23,6 +23,14 @@ dependencies = [
     "scikit-learn",
 ]
 
+[project.optional-dependencies]
+# Test tooling. After install run `playwright install chromium` once to fetch the
+# browser binary the e2e suite drives. Offline gate: pytest -m "not smoke and not e2e".
+test = [
+    "pytest",
+    "pytest-playwright",
+]
+
 [project.scripts]
 jobs-intelligence-ai = "jobs_intelligence_ai.frontend.app:main"
 

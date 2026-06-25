@@ -442,7 +442,20 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     batch region, every `data-*action` cross-checked to an `_ACTIONS` key, `node --check` on rendered
     inline JS, Jinja compile, `create_app` boot (GET / → 302). NOTE: verification was static-only
     (`/` redirects to login) — an interactive pass (login + click each tab) is still worth doing.
-- 2.6e **Frontend test harness FIRST — Playwright E2E smoke** *(new prerequisite, runs before 2.6c)*.
+- 2.6e ✅ **DONE — Frontend test harness — Playwright E2E smoke** *(prerequisite for 2.6c)*.
+  Built `tests/jobs_intelligence_ai/frontend/e2e/` (`conftest.py` + `test_tabs_smoke.py`): live
+  in-process Werkzeug server with auth stubbed (no MySQL — real form login vs. a fake admin) and all
+  country flags forced on; logs in once, drives the real nav (Candidate/Analytics mode toggle →
+  search/saved + radar/map/analytics-summary), asserts each tab goes `active` and `pageerror` stays
+  empty. `e2e` marker registered; opt-in via `-m e2e`; offline gate is now
+  `pytest -m "not smoke and not e2e"`; deps in the `test` extra (`pip install -e .[test]` +
+  `playwright install chromium`). **Confirmed: chromium launches headless in the dev sandbox**, so the
+  split is verifiable here, not just in CI. **On first run it caught a real latent bug** — `_ACTIONS`
+  declared in its temporal dead zone (registration blocks ran before the `const`), which had silently
+  broken the whole script since 2.6d part 2 and passed all 8 static-only gates. Fixed (hoisted the
+  declaration). This is the exact class of failure 2.6c risks — now caught automatically.
+
+  Original rationale (kept for context):
   **Why:** today's `frontend/integration_tests/` use Flask `test_client`, which **never executes the
   client JS** — it only checks server responses. So nothing tests the actual 8,300-line script; a broken
   cross-module `import` in 2.6c would be invisible to `node --check` + boot-302 and only surface when a
