@@ -2595,7 +2595,7 @@ function _renderCompanyPanel(d) {
       const loc  = [j.city, j.state].filter(Boolean).join(', ') || '—';
       const salTag = j.salary ? `<span class="co-job-meta-sal">€${esc(String(j.salary))}</span>` : '';
       const dateTag = j.posted ? `<span>${j.posted}</span>` : '';
-      const attrs = j.url ? `href="${esc(j.url)}" target="_blank"` : `href="#" onclick="return false"`;
+      const attrs = j.url ? `href="${esc(j.url)}" target="_blank"` : '';
       html += `<a class="co-job-row" ${attrs}>
         <div class="co-job-row-title">${esc(j.title || '—')}</div>
         <div class="co-job-row-meta">
@@ -6961,7 +6961,7 @@ function _renderAISuggestion(s) {
     groups.forEach((g, i) => {
       html += `<span class="raifp-chip">
         ${esc(g)}
-        <span class="raifp-chip-x" onclick="_removeAIChip('occ_groups',${i})" title="Remove">×</span>
+        <span class="raifp-chip-x" data-action="remove-ai-chip" data-field="occ_groups" data-i="${i}" title="Remove">×</span>
       </span>`;
     });
     html += '</div></div>';
@@ -6974,7 +6974,7 @@ function _renderAISuggestion(s) {
     selStates.forEach((st, i) => {
       html += `<span class="raifp-chip state-chip">
         ${esc(st)}
-        <span class="raifp-chip-x" onclick="_removeAIChip('states',${i})" title="Remove">×</span>
+        <span class="raifp-chip-x" data-action="remove-ai-chip" data-field="states" data-i="${i}" title="Remove">×</span>
       </span>`;
     });
     html += '</div></div>';
@@ -6984,7 +6984,7 @@ function _renderAISuggestion(s) {
     html += `<div><div class="raifp-cat-label">Min salary</div>
       <div class="raifp-chips">
         <span class="raifp-chip salary-chip">€${Number(s.min_salary).toLocaleString('de-AT')}+
-          <span class="raifp-chip-x" onclick="_removeAISalary()" title="Remove">×</span>
+          <span class="raifp-chip-x" data-action="remove-ai-salary" title="Remove">×</span>
         </span>
       </div></div>`;
   }
@@ -7037,19 +7037,19 @@ function _renderActiveAIBar() {
   let html = '<span class="raifp-active-label">AI scope:</span>';
   groups.slice(0, 5).forEach((g, i) => {
     html += `<span class="raifp-active-chip">${esc(g)}
-      <span class="raifp-active-chip-x" onclick="_removeAppliedChip('occ_groups',${i})">×</span>
+      <span class="raifp-active-chip-x" data-action="remove-applied-chip" data-field="occ_groups" data-i="${i}">×</span>
     </span>`;
   });
   if (groups.length > 5) html += `<span class="raifp-active-chip">+${groups.length - 5} more</span>`;
   states.forEach((s, i) => {
     html += `<span class="raifp-active-chip state-chip">${esc(s)}
-      <span class="raifp-active-chip-x" onclick="_removeAppliedChip('states',${i})">×</span>
+      <span class="raifp-active-chip-x" data-action="remove-applied-chip" data-field="states" data-i="${i}">×</span>
     </span>`;
   });
   if (_aiFiltersApplied.min_salary) {
     html += `<span class="raifp-active-chip salary-chip">€${Number(_aiFiltersApplied.min_salary).toLocaleString('de-AT')}+</span>`;
   }
-  html += '<button class="raifp-clear-btn" style="padding:2px 10px;font-size:11px;margin-left:4px" onclick="clearAIFilters()">Clear AI filters</button>';
+  html += '<button class="raifp-clear-btn" style="padding:2px 10px;font-size:11px;margin-left:4px" data-action="ai-filter-clear">Clear AI filters</button>';
 
   bar.innerHTML = html;
   bar.style.display = '';
@@ -7261,10 +7261,10 @@ function renderBriefing(b) {
           <span>${esc(r)}</span>
         </div>
         <div class="radar-rec-actions">
-          <button class="radar-rec-action-btn" onclick="triggerOppChat(${i},'details')">Provide Details</button>
-          <button class="radar-rec-action-btn" onclick="triggerOppChat(${i},'trend')">Explain the Trend</button>
-          <button class="radar-rec-action-btn" onclick="triggerOppChat(${i},'data')">Show Data</button>
-          <button class="add-summary-btn" onclick="addToSummaryCard('rec_${i}',this)">+ Add to Summary</button>
+          <button class="radar-rec-action-btn" data-action="trigger-opp-chat" data-i="${i}" data-act="details">Provide Details</button>
+          <button class="radar-rec-action-btn" data-action="trigger-opp-chat" data-i="${i}" data-act="trend">Explain the Trend</button>
+          <button class="radar-rec-action-btn" data-action="trigger-opp-chat" data-i="${i}" data-act="data">Show Data</button>
+          <button class="add-summary-btn" data-action="add-to-summary-card" data-card="rec_${i}">+ Add to Summary</button>
         </div>
       </li>`;
     });
@@ -7290,10 +7290,10 @@ function renderBriefing(b) {
         </div>
         <div class="radar-opp-card-reason">${esc(o.reason)}</div>
         <div class="radar-rec-actions" style="margin-top:10px;padding-left:0">
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('opps',${i},'strategy')">Sourcing Strategy</button>
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('opps',${i},'salary')">Salary Benchmark</button>
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('opps',${i},'signal')">Why ${sig}?</button>
-          <button class="add-summary-btn" onclick="addToSummaryCard('opp_${i}',this)">+ Add to Summary</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="opps" data-idx="${i}" data-act="strategy">Sourcing Strategy</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="opps" data-idx="${i}" data-act="salary">Salary Benchmark</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="opps" data-idx="${i}" data-act="signal">Why ${sig}?</button>
+          <button class="add-summary-btn" data-action="add-to-summary-card" data-card="opp_${i}">+ Add to Summary</button>
         </div>
       </div>`;
     });
@@ -7319,10 +7319,10 @@ function renderBriefing(b) {
         </div>
         <div class="radar-under-card-reason">${esc(u.reason)}</div>
         <div class="radar-rec-actions" style="margin-top:10px;padding-left:0">
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('under',${i},'why')">Why Hard to Fill?</button>
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('under',${i},'improve')">Improve Inflow</button>
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('under',${i},'compare')">Compare to Market</button>
-          <button class="add-summary-btn" onclick="addToSummaryCard('under_${i}',this)">+ Add to Summary</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="under" data-idx="${i}" data-act="why">Why Hard to Fill?</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="under" data-idx="${i}" data-act="improve">Improve Inflow</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="under" data-idx="${i}" data-act="compare">Compare to Market</button>
+          <button class="add-summary-btn" data-action="add-to-summary-card" data-card="under_${i}">+ Add to Summary</button>
         </div>
       </div>`;
     });
@@ -7351,10 +7351,10 @@ function renderBriefing(b) {
           </div>
         </div>
         <div class="radar-rec-actions" style="padding-left:0">
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('urgency',${i},'plan')">Fast-track Plan</button>
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('urgency',${i},'priority')">Who to Prioritize</button>
-          <button class="radar-rec-action-btn" onclick="triggerTabChat('urgency',${i},'risk')">Risk of Inaction</button>
-          <button class="add-summary-btn" onclick="addToSummaryCard('urgency_${i}',this)">+ Add to Summary</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="urgency" data-idx="${i}" data-act="plan">Fast-track Plan</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="urgency" data-idx="${i}" data-act="priority">Who to Prioritize</button>
+          <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="urgency" data-idx="${i}" data-act="risk">Risk of Inaction</button>
+          <button class="add-summary-btn" data-action="add-to-summary-card" data-card="urgency_${i}">+ Add to Summary</button>
         </div>
       </div>`;
     });
@@ -7371,7 +7371,7 @@ function renderBriefing(b) {
     _summaryCardData['trend_0'] = {type: 'trend', label: 'Volume Trend Insight', content: b.trend_summary};
     document.getElementById('radarTrendAI').innerHTML =
       `<p class="radar-trend-summary">${esc(b.trend_summary)}</p>
-       <div style="margin-top:12px"><button class="add-summary-btn" onclick="addToSummaryCard('trend_0',this)">+ Add to Summary</button></div>`;
+       <div style="margin-top:12px"><button class="add-summary-btn" data-action="add-to-summary-card" data-card="trend_0">+ Add to Summary</button></div>`;
     const tBtnRow = document.getElementById('trendBtnRow');
     if (tBtnRow) tBtnRow.style.display = '';
     const tPanel = document.getElementById('trendChatPanel');
@@ -7651,7 +7651,7 @@ async function sendTabChat(tab, text) {
     thread.insertAdjacentHTML('beforeend',
       `<div class="opp-chat-msg ai">
         <div class="opp-chat-bubble">${mdToHtml(answer)}</div>
-        <button class="opp-chat-save-btn" onclick="addToSummary('chat','Chat Insight',_chatAnswers[${_caIdx}],this)">+ Save to Summary</button>
+        <button class="opp-chat-save-btn" data-action="add-to-summary-chat" data-idx="${_caIdx}">+ Save to Summary</button>
       </div>`);
     cfg.history.push({role: 'user',      content: msg});
     cfg.history.push({role: 'assistant', content: answer});
@@ -7771,7 +7771,7 @@ async function sendOppChat(text) {
     thread.insertAdjacentHTML('beforeend',
       `<div class="opp-chat-msg ai">
         <div class="opp-chat-bubble">${mdToHtml(answer)}</div>
-        <button class="opp-chat-save-btn" onclick="addToSummary('chat','Chat Insight',_chatAnswers[${_caIdx}],this)">+ Save to Summary</button>
+        <button class="opp-chat-save-btn" data-action="add-to-summary-chat" data-idx="${_caIdx}">+ Save to Summary</button>
       </div>`);
 
     _oppChatHistory.push({role: 'user',      content: msg});
@@ -7830,6 +7830,19 @@ function removeFromSummary(id) {
   _updateSummaryBadge();
 }
 
+// Action registry for the radar/analytics dynamic markup — AI-filter chips
+// (suggested + applied), opportunity/underserved/urgency cards, summary save
+// buttons. (tab-chat + ai-filter-clear are registered in the radar block above.)
+Object.assign(_ACTIONS, {
+  'remove-ai-chip':      (el) => _removeAIChip(el.dataset.field, +el.dataset.i),
+  'remove-ai-salary':    ()   => _removeAISalary(),
+  'remove-applied-chip': (el) => _removeAppliedChip(el.dataset.field, +el.dataset.i),
+  'trigger-opp-chat':    (el) => triggerOppChat(+el.dataset.i, el.dataset.act),
+  'add-to-summary-card': (el) => addToSummaryCard(el.dataset.card, el),
+  'add-to-summary-chat': (el) => addToSummary('chat', 'Chat Insight', _chatAnswers[+el.dataset.idx], el),
+  'remove-from-summary': (el) => removeFromSummary(el.dataset.id),
+});
+
 function _updateSummaryBadge() {
   const badge = document.getElementById('summaryBadgeNav');
   const n = _summaryItems.length;
@@ -7885,7 +7898,7 @@ function renderSummaryList() {
           <span class="summary-item-num">#${globalNum}</span>
           <span class="summary-type-badge ${_TYPE_BADGE_CLASS[s.type] || 'stb-chat'}">${_TYPE_LABEL[s.type] || s.type}</span>
           <span class="summary-item-label" title="${esc(s.label)}">${esc(s.label)}</span>
-          <button class="summary-item-remove" onclick="removeFromSummary('${s.id}')" title="Remove">×</button>
+          <button class="summary-item-remove" data-action="remove-from-summary" data-id="${s.id}" title="Remove">×</button>
         </div>
         <div class="summary-item-content">${esc(preview)}</div>
       </div>`;
@@ -8034,7 +8047,7 @@ async function sendSummaryChat(overrideText) {
     const typing = document.getElementById('summaryChatTyping');
     if (typing) typing.outerHTML = `<div class="summary-chat-bubble-ai">
       ${mdToHtml(answer)}
-      <button class="summary-chat-save-btn" onclick="addToSummary('chat','Chat Insight',_chatAnswers[${_scIdx}],this)">+ Save to Summary</button>
+      <button class="summary-chat-save-btn" data-action="add-to-summary-chat" data-idx="${_scIdx}">+ Save to Summary</button>
     </div>`;
   } catch(e) {
     const typing = document.getElementById('summaryChatTyping');
@@ -8570,7 +8583,7 @@ function _renderInterviewOverall() {
   el.className = ov ? 'iv-overall' : '';
   el.innerHTML = `
     <div class="iv-overall-row">
-      <button class="desc-action-btn" onclick="summarizeInterview()">${ov ? 'Re-summarize' : 'Summarize interview'}</button>
+      <button class="desc-action-btn" data-action="summarize-interview">${ov ? 'Re-summarize' : 'Summarize interview'}</button>
       ${ov ? `<span class="iv-score ${_ivScoreClass(ov.score)}">${ov.score}%</span>
               <span class="iv-reco">${esc(ov.recommendation || '')}</span>` : ''}
     </div>
@@ -8617,7 +8630,7 @@ function _renderOpportunities() {
   el.className = 'iv-candidate-only iv-overall';
   const opp = _interview.opportunities;
   const head = `<div class="iv-overall-row">
-      <button class="desc-action-btn" onclick="loadOpportunities()">${opp ? '↻ Refresh opportunities' : '✨ Show my biggest opportunities'}</button>
+      <button class="desc-action-btn" data-action="load-opportunities">${opp ? '↻ Refresh opportunities' : '✨ Show my biggest opportunities'}</button>
     </div>`;
   let body = '';
   if (opp) {
@@ -8692,6 +8705,23 @@ function setIvPerspective(p) {
   _renderInterview();
 }
 
+// Action registry for the interview scorecard dynamic markup — editable
+// questions, per-answer analyze/score/reveal/follow-up controls, summary +
+// opportunities buttons. Question ids are numeric (coerced with +).
+Object.assign(_ACTIONS, {
+  'iv-edit-question':        (el) => _ivEditQuestion(+el.dataset.id, el.value),
+  'persist-interview':       ()   => _persistInterview(),
+  'remove-interview-question': (el) => removeInterviewQuestion(+el.dataset.id),
+  'suggest-followup':        (el) => suggestFollowup(+el.dataset.id),
+  'analyze-interview-answer':(el) => analyzeInterviewAnswer(+el.dataset.id, el.dataset.asis === '1'),
+  'reveal-model-answer':     (el) => revealModelAnswer(+el.dataset.id),
+  'iv-on-input':             (el) => _ivOnInput(+el.dataset.id, el.value),
+  'add-followup':            (el) => addFollowup(+el.dataset.parentId),
+  'dismiss-followup':        (el) => dismissFollowup(+el.dataset.parentId),
+  'summarize-interview':     ()   => summarizeInterview(),
+  'load-opportunities':      ()   => loadOpportunities(),
+});
+
 // Render one question and (recursively) its follow-ups nested beneath it.
 function _ivRenderNode(item, byParent) {
   const a = _interview.answers[item.id] || {};
@@ -8705,9 +8735,9 @@ function _ivRenderNode(item, byParent) {
     : `<span class="iv-q-num${editable ? ' custom' : ''}">${item.id}</span>`;
   const textPart = editable
     ? `<input class="iv-q-edit" value="${esc(item.question)}" placeholder="Type your question…"
-              oninput="_ivEditQuestion(${item.id}, this.value)" onchange="_persistInterview()">`
+              data-input-action="iv-edit-question" data-id="${item.id}" data-change-action="persist-interview">`
     : `<div class="iv-q-text">${esc(item.question)}${item.note ? `<span class="iv-q-note">${esc(item.note)}</span>` : ''}</div>`;
-  const head = `${badge}${textPart}<button class="iv-q-del" title="Remove this question" onclick="removeInterviewQuestion(${item.id})">✕</button>`;
+  const head = `${badge}${textPart}<button class="iv-q-del" title="Remove this question" data-action="remove-interview-question" data-id="${item.id}">✕</button>`;
 
   const hasAnswer = (a.answer || '').trim();
   const complete = _ivAnswerComplete(a);
@@ -8717,12 +8747,12 @@ function _ivRenderNode(item, byParent) {
   if (a.followupExhausted) {
     fuBtn = `<span class="iv-followup-done" title="${esc(a.followupReason || 'No further follow-up needed')}">✓ Enough context</span>`;
   } else if (complete) {
-    fuBtn = `<button class="desc-action-btn iv-followup-btn" onclick="suggestFollowup(${item.id})">💡 Suggest follow-up</button>`;
+    fuBtn = `<button class="desc-action-btn iv-followup-btn" data-action="suggest-followup" data-id="${item.id}">💡 Suggest follow-up</button>`;
   }
   // While the exchange is still open (answer present but not complete), offer the
   // manual override to score it as-is.
   const scoreNowBtn = (hasAnswer && !complete)
-    ? `<button class="desc-action-btn iv-score-now" onclick="analyzeInterviewAnswer(${item.id}, true)" title="Score the answer as it stands, even mid-exchange">⏎ Score now</button>`
+    ? `<button class="desc-action-btn iv-score-now" data-action="analyze-interview-answer" data-id="${item.id}" data-asis="1" title="Score the answer as it stands, even mid-exchange">⏎ Score now</button>`
     : '';
 
   const pend = _ivPendingFollowup[item.id];
@@ -8742,16 +8772,16 @@ function _ivRenderNode(item, byParent) {
         ${covers ? `<ul class="iv-model-covers">${covers}</ul>` : ''}
       </div>`;
   } else {
-    modelInner = `<button class="desc-action-btn" id="ivModelBtn-${item.id}" onclick="revealModelAnswer(${item.id})">★ Reveal model answer</button>`;
+    modelInner = `<button class="desc-action-btn" id="ivModelBtn-${item.id}" data-action="reveal-model-answer" data-id="${item.id}">★ Reveal model answer</button>`;
   }
   const modelHtml = `<div class="iv-candidate-only iv-model-wrap">${modelInner}</div>`;
 
   return `<div class="iv-q${isFollowup ? ' followup' : ''}" data-qid="${item.id}">
       <div class="iv-q-head">${head}</div>
       <textarea class="iv-answer" rows="2" placeholder="What the candidate said — capture the back-and-forth too (their clarifying questions, your replies, their answer)…"
-                oninput="_ivOnInput(${item.id}, this.value)">${esc(a.answer || '')}</textarea>
+                data-input-action="iv-on-input" data-id="${item.id}">${esc(a.answer || '')}</textarea>
       <div class="iv-q-actions">
-        <button class="desc-action-btn iv-analyze" onclick="analyzeInterviewAnswer(${item.id})">${scored ? 'Re-analyze' : 'Analyze'}</button>
+        <button class="desc-action-btn iv-analyze" data-action="analyze-interview-answer" data-id="${item.id}">${scored ? 'Re-analyze' : 'Analyze'}</button>
         ${scoreNowBtn}
         ${fuBtn}
       </div>
@@ -8767,8 +8797,8 @@ function _ivSuggestHtml(parentId, question, note) {
       <div class="iv-suggest-text">${esc(question)}</div>
       ${note ? `<div class="iv-q-note">${esc(note)}</div>` : ''}
       <div class="iv-suggest-actions">
-        <button class="desc-action-btn" onclick="addFollowup(${parentId})">➕ Add</button>
-        <button class="desc-action-btn" onclick="dismissFollowup(${parentId})">✕</button>
+        <button class="desc-action-btn" data-action="add-followup" data-parent-id="${parentId}">➕ Add</button>
+        <button class="desc-action-btn" data-action="dismiss-followup" data-parent-id="${parentId}">✕</button>
       </div>
     </div>`;
 }
@@ -8834,7 +8864,7 @@ function _ivSyncFollowupBtn(id) {
   const want = _ivAnswerComplete(a);   // follow-ups only after a complete answer
   if (want && !btn) {
     actions.insertAdjacentHTML('beforeend',
-      `<button class="desc-action-btn iv-followup-btn" onclick="suggestFollowup(${id})">💡 Suggest follow-up</button>`);
+      `<button class="desc-action-btn iv-followup-btn" data-action="suggest-followup" data-id="${id}">💡 Suggest follow-up</button>`);
   } else if (!want && btn) {
     btn.remove();
   }
@@ -9277,6 +9307,13 @@ function openFeedback(){
   setTimeout(() => document.getElementById('fbText').focus(), 50);
 }
 function closeFeedback(){ document.getElementById('fbOverlay').classList.remove('show'); }
+// Action registry for the feedback widget (markup lives after </script>).
+Object.assign(_ACTIONS, {
+  'open-feedback':     ()      => openFeedback(),
+  'feedback-backdrop': (el, e) => { if (e.target === el) closeFeedback(); },
+  'close-feedback':    ()      => closeFeedback(),
+  'send-feedback':     ()      => sendFeedback(),
+});
 async function sendFeedback(){
   const ta  = document.getElementById('fbText');
   const msg = document.getElementById('fbMsg');
@@ -9300,18 +9337,18 @@ document.addEventListener('DOMContentLoaded', loadFilters);
 </script>
 
 <!-- ═══ FEEDBACK WIDGET ═══ -->
-<button id="fbBtn" onclick="openFeedback()" title="Send feedback — things to improve or fix">
+<button id="fbBtn" data-action="open-feedback" title="Send feedback — things to improve or fix">
   <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Feedback
 </button>
-<div id="fbOverlay" onclick="if(event.target===this)closeFeedback()">
+<div id="fbOverlay" data-action="feedback-backdrop">
   <div id="fbCard">
     <h3>Send feedback</h3>
     <p>Anything to improve or fix? Your note is saved for the team.</p>
     <textarea id="fbText" placeholder="What should we improve or fix?"></textarea>
     <div class="fb-row">
       <span class="fb-msg" id="fbMsg"></span>
-      <button class="fb-btn fb-cancel" onclick="closeFeedback()">Cancel</button>
-      <button class="fb-btn fb-send" id="fbSend" onclick="sendFeedback()">Send</button>
+      <button class="fb-btn fb-cancel" data-action="close-feedback">Cancel</button>
+      <button class="fb-btn fb-send" id="fbSend" data-action="send-feedback">Send</button>
     </div>
   </div>
 </div>
