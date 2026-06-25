@@ -485,9 +485,20 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     (3) a cross-module data read becomes a **handoff** — pass it as an arg (e.g. `initMap(lastResults)`),
     don't import a shared global; (4) gate: e2e smoke (clicks the tab → loads the module) + module-aware
     `node --check` (write extracted inline JS to a `.mjs`, since top-level `import` needs ESM) + boot-302
-    + offline suite. One module per commit, smallest→largest.
-  - ⬜ remaining 12: export(155), guided(290), assistant(395), clustering(650), interview(930),
-    modal(970), saved(1240), radar(1220), candidate(1300) + the shared util(110)/state(40) + boot(120).
+    + offline suite. One module per commit.
+  - ✅ module 2/13 `export.js` (`7f7c761`): CSV/XLSX/PDF. `XLSX` = CDN global; `api` now imported
+    explicitly (`import api from "./api.js"`) — the direction new modules go (window.api bridge retires
+    once the page module stops using bare `api`). Handoffs: results / savedJobs / `_miCandidates[_miIdx]`.
+  - ✅ module 3/13 `util.js` (`eefecb3`): **shared layer, pulled forward out of size order** — feature
+    modules call `esc` (used 204×) / `mdToHtml`, and a static module can't import from the inline page
+    script, so the shared helpers must exist first. Also owns the job store (`storeJob` + new
+    `getStoredJob`; `_jobStore` Map private). **Registration pattern decided:** `_ACTIONS` stays in the
+    page module; feature modules just `export` their handler functions and the existing `Object.assign`
+    blocks reference the imported bindings — so `_ACTIONS` never needs to move (consolidates into boot last).
+  - ⬜ remaining 10 (now unblocked by util): guided(290), assistant(395), clustering(650), interview(930),
+    modal(970), radar(1220), saved(1240), candidate(1300) + state(40) + boot(120). Note: bigger feature
+    modules have denser cross-refs (shared mutable state like `lastResults`/`savedJobs`/`_modalJob`/
+    `_interview`/`_miCandidates`) — each needs the per-symbol handoff-vs-getter analysis before moving.
   Cut the one inline `<script>` into the files below (sizes = real line counts from the split), add
   `import`/`export` only for cross-file refs, and replace the inline block with
   `<script type="module" src="…/boot.js">`. **No logic changes** — a missed reuse/cleanup waits for 2.6f.
