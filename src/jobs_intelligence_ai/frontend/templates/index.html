@@ -2306,12 +2306,7 @@ async function parseCandidate(text) {
   if (content) content.style.display  = 'none';
 
   try {
-    const res  = await fetch('/api/candidate/parse-profile', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ text }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'parse failed');
+    const data = await api.post('/api/candidate/parse-profile', { text });
     _renderCandidateProfile(data);
   } catch(e) {
     if (parsing) parsing.style.display = 'none';
@@ -2351,11 +2346,7 @@ async function ensureLinkedInScraped() {
   status.className = 'li-status';
   status.innerHTML = `<span class="spinner"></span> Scraping profile${urls.length!==1?'s':''}…`;
   try {
-    const res  = await fetch('/api/candidate/enrich-linkedin', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ urls }) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'enrichment failed');
+    const data = await api.post('/api/candidate/enrich-linkedin', { urls });
     const profiles = (data.profiles || []).filter(p => p && p.profile);
     if (!profiles.length) throw new Error('No profiles returned');
 
@@ -2443,9 +2434,7 @@ async function openCompanyPanel(companyName) {
   }
 
   try {
-    const res  = await fetch('/api/company?name=' + encodeURIComponent(companyName));
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Failed');
+    const data = await api.get('/api/company?name=' + encodeURIComponent(companyName));
     _coCache[companyName] = data;
     _renderCompanyPanel(data);
   } catch(e) {
@@ -3800,12 +3789,7 @@ async function gbSend() {
   gbRenderThread();
 
   try {
-    const res = await fetch('/api/guided/chat', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ message: msg, draft: gbDraft, user_edits: edits, last_offer: gbLastOffer, lang: jobChatLang, last_question: lastQuestion, last_field: gbLastField }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.post('/api/guided/chat', { message: msg, draft: gbDraft, user_edits: edits, last_offer: gbLastOffer, lang: jobChatLang, last_question: lastQuestion, last_field: gbLastField });
     const changed = gbApplyDraft(data.draft, data.field_updates);
     const chips = gbBuildChips(data.options, data.suggestions, !!data.next_question);
     // Both data-option chips (sector/role/region) and free-text suggestions
@@ -7037,9 +7021,7 @@ async function loadRadar(force = false) {
   try {
     const params = _radarFilterParams();
     params.set('briefing', '0');
-    const res  = await fetch('/api/opportunity?' + params.toString());
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.get('/api/opportunity?' + params.toString());
     _radarData   = data;
     _radarLoaded = true;
 
@@ -7082,9 +7064,7 @@ async function generateBriefing() {
   try {
     const params = _radarFilterParams();
     params.set('briefing', '1');
-    const res  = await fetch('/api/opportunity?' + params.toString());
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.get('/api/opportunity?' + params.toString());
 
     _radarData   = data;
     _radarLoaded = true;
@@ -7409,9 +7389,7 @@ async function loadFinderJobs() {
     if (portal)    url += `&portal=${encodeURIComponent(portal)}`;
     if (mode === 'stale') url += `&min_days=${minDays}`;
 
-    const res  = await fetch(url);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const data = await api.get(url);
 
     document.getElementById('rfCount').textContent = `${data.count} jobs`;
     renderFinderList(data.jobs, mode);
@@ -7928,13 +7906,7 @@ async function sendSummaryChat(overrideText) {
   _summaryChatHistory.push({ role: 'user', content: text });
 
   try {
-    const res = await fetch('/api/analytics/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: _summaryChatHistory, items: _summaryItems }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Unknown error');
+    const data = await api.post('/api/analytics/chat', { history: _summaryChatHistory, items: _summaryItems });
     const answer = data.answer || '';
     _summaryChatHistory.push({ role: 'assistant', content: answer });
 
@@ -8155,12 +8127,7 @@ async function setModalLang(lang) {
     if (!_descTranslated) {
       if (tb) { tb.disabled = true; tb.textContent = '…'; }
       try {
-        const res  = await fetch('/api/desc_translate', {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ description: _descOriginal })
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'failed');
+        const data = await api.post('/api/desc_translate', { description: _descOriginal });
         _descTranslated = data.text;
       } catch(e) {
         if (tb) { tb.disabled = false; tb.textContent = 'Translate'; }
@@ -8214,12 +8181,7 @@ async function _fetchAndShowCompact(useTranslated) {
   if (cb) { cb.disabled = true; }
   const source = useTranslated ? (_descTranslated || _descOriginal) : _descOriginal;
   try {
-    const res  = await fetch('/api/desc_compact', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ description: source, lang: _modalLang })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
+    const data = await api.post('/api/desc_compact', { description: source, lang: _modalLang });
     if (useTranslated) _descCompact_trans = data.text;
     else               _descCompact_orig  = data.text;
     document.getElementById('modalDescCompactText').textContent = data.text;
@@ -8977,12 +8939,8 @@ async function importInterviewQuestions() {
   if (!text) { msg.textContent = 'Paste or load some text first.'; return; }
   msg.textContent = 'Parsing…';
   try {
-    const res  = await fetch('/api/interview/parse', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ text }),
-    });
-    const data = await res.json();
-    if (!data.ok || !Array.isArray(data.questions) || !data.questions.length)
+    const data = await api.post('/api/interview/parse', { text });
+    if (!Array.isArray(data.questions) || !data.questions.length)
       throw new Error(data.error || 'no questions found');
     _interview.questions = _interview.questions || [];
     const ids = _interview.questions.map(q => q.id).filter(n => typeof n === 'number');
@@ -9074,12 +9032,7 @@ async function summarizeInterview() {
   const btn = el.querySelector('button');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const res  = await fetch('/api/interview/summarize', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ records, job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
+    const data = await api.post('/api/interview/summarize', { records, job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() });
     _interview.overall = { score: data.score, recommendation: data.recommendation, summary: data.summary };
     _renderInterviewOverall();
     _persistInterview();
@@ -9168,12 +9121,7 @@ async function descToggleCvQuestions() {
   card.innerHTML = '<div class="iv-loading">Generating interview questions…</div>';
   btn.disabled = true;
   try {
-    const res  = await fetch('/api/interview/questions', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
+    const data = await api.post('/api/interview/questions', { job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() });
     _interview.questions = data.questions;
     _renderInterview();
     refreshAspects();   // baseline candidate assessment from CV + profile
@@ -9257,12 +9205,7 @@ async function sendFeedback(){
   if (!text){ msg.style.color='#b91c1c'; msg.textContent='Please type something first.'; ta.focus(); return; }
   btn.disabled = true; msg.style.color='#6b7280'; msg.textContent='Sending…';
   try {
-    const res  = await fetch('/api/feedback', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ message: text, context: _feedbackContext() })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'failed');
+    const data = await api.post('/api/feedback', { message: text, context: _feedbackContext() });
     msg.style.color='#1a7a2e'; msg.textContent='Thanks — feedback saved!';
     setTimeout(closeFeedback, 900);
   } catch(e){
