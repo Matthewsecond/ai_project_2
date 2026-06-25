@@ -1049,6 +1049,7 @@
 
 <script type="module">
 // ── 2.6c per-feature modules (extracted from this script, one at a time) ──
+import { esc, mdToHtml, storeJob, getStoredJob } from "{{ url_for('static', filename='js/util.js') }}";
 import { initMap, updateMapStats } from "{{ url_for('static', filename='js/map.js') }}";
 import { exportResults, exportSaved, generateSavedReport } from "{{ url_for('static', filename='js/export.js') }}";
 
@@ -4604,7 +4605,7 @@ _ACTIONS['toggle-ep-opt'] = (el) => toggleEpOpt(el.dataset.key);
 
 async function doSaveWithExtras() {
   const saveBtn = document.getElementById('extrasPickerSaveBtn');
-  const job     = _jobStore.get(_epSid);
+  const job     = getStoredJob(_epSid);
   if (!job) return;
 
   saveBtn.textContent = 'Fetching…';
@@ -5946,39 +5947,8 @@ async function removeJob(jobId) {
 
 // (Map tab — updateMapStats / initMap — moved to static/js/map.js in 2.6c.)
 
-// ════════════════════════════════════════════════════════════
-//  Utils
-// ════════════════════════════════════════════════════════════
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function mdToHtml(text) {
-  let s = esc(text);
-  // Bold then italic (order matters — do ** before *)
-  s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  // Bullet lists: lines starting with "- " or "• "
-  s = s.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
-  s = s.replace(/(<li>.*<\/li>(\n|$))+/g, m => '<ul>' + m + '</ul>');
-  // Paragraphs: double newline
-  s = s.replace(/\n{2,}/g, '</p><p>');
-  // Remaining single newlines
-  s = s.replace(/\n/g, '<br>');
-  return '<p>' + s + '</p>';
-}
-
-// ════════════════════════════════════════════════════════════
-//  Job store — lets cards/rows pass job data to the modal
-// ════════════════════════════════════════════════════════════
-const _jobStore = new Map();
-let _jobStoreSeq = 0;
-
-function storeJob(job) {
-  const id = 'jb' + (++_jobStoreSeq);
-  _jobStore.set(id, job);
-  return id;
-}
+// (Utils — esc / mdToHtml — and the Job store — storeJob / getStoredJob —
+//  moved to static/js/util.js in 2.6c.)
 
 // ════════════════════════════════════════════════════════════
 //  Job detail modal
@@ -5986,7 +5956,7 @@ function storeJob(job) {
 let _modalJob = null;
 
 function openJobModal(storeId) {
-  const job = _jobStore.get(storeId);
+  const job = getStoredJob(storeId);
   if (!job) return;
   _modalJob = job;
 
