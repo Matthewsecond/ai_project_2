@@ -821,20 +821,20 @@
   </div>
 
   <!-- ═══ JOB DETAIL MODAL ═══ -->
-  <div class="modal-overlay hidden" id="segModal" onclick="if(event.target===this)closeSegmentModal()">
+  <div class="modal-overlay hidden" id="segModal" data-action="seg-modal-backdrop">
     <div class="modal" id="segModalBox">
       <div class="modal-header">
         <div class="modal-title-block">
           <div class="modal-title" id="segModalTitle">—</div>
           <div class="modal-company" id="segModalSummary"></div>
         </div>
-        <button class="modal-close" onclick="closeSegmentModal()">×</button>
+        <button class="modal-close" data-action="close-segment-modal">×</button>
       </div>
       <div class="modal-body"><div id="segModalBody"></div></div>
     </div>
   </div>
 
-  <div class="modal-overlay hidden" id="jobModal" onclick="closeModalOnBackdrop(event)">
+  <div class="modal-overlay hidden" id="jobModal" data-action="job-modal-backdrop">
     <div class="modal" id="modalBox">
       <div class="modal-header">
         <div class="modal-title-block">
@@ -847,11 +847,11 @@
           <div class="modal-company" id="modalCompany"></div>
         </div>
         <div class="modal-lang-flags">
-          <button class="modal-lang-btn active" id="modalLangDE" onclick="setModalLang('de')">DE</button>
-          <button class="modal-lang-btn" id="modalLangEN" onclick="setModalLang('en')">EN</button>
+          <button class="modal-lang-btn active" id="modalLangDE" data-action="set-modal-lang" data-lang="de">DE</button>
+          <button class="modal-lang-btn" id="modalLangEN" data-action="set-modal-lang" data-lang="en">EN</button>
         </div>
-        <button id="jobModalLockBtn" onclick="toggleJobModalLock()" title="Lock the window so an accidental click outside won't close it" style="background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px 6px;opacity:.7;transition:transform .12s">🔓</button>
-        <button class="modal-close" onclick="closeJobModal()">×</button>
+        <button id="jobModalLockBtn" data-action="toggle-job-modal-lock" title="Lock the window so an accidental click outside won't close it" style="background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px 6px;opacity:.7;transition:transform .12s">🔓</button>
+        <button class="modal-close" data-action="close-job-modal">×</button>
       </div>
       <div class="modal-body">
         <div class="modal-meta-grid" id="modalMetaGrid"></div>
@@ -867,32 +867,32 @@
           <div class="desc-action-row">
             <span class="modal-section-label" style="margin:0">Description</span>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-              <button class="desc-action-btn" id="descTranslateBtn" onclick="descToggleTranslate()">Translate</button>
-              <button class="desc-action-btn" id="descOriginalBtn" onclick="descShowOriginal()">Original</button>
-              <button class="desc-action-btn" id="descCompactBtn" onclick="descToggleCompact()">Compact</button>
-              <button class="desc-action-btn" id="descCvQuestionsBtn" onclick="descToggleCvQuestions()" title="Interview scorecard — gap questions, answers, scoring, follow-ups">Interview</button>
-              <button class="desc-action-btn" id="descOutreachBtn" onclick="descToggleOutreach()">Outreach</button>
+              <button class="desc-action-btn" id="descTranslateBtn" data-action="desc-toggle-translate">Translate</button>
+              <button class="desc-action-btn" id="descOriginalBtn" data-action="desc-show-original">Original</button>
+              <button class="desc-action-btn" id="descCompactBtn" data-action="desc-toggle-compact">Compact</button>
+              <button class="desc-action-btn" id="descCvQuestionsBtn" data-action="desc-toggle-cv-questions" title="Interview scorecard — gap questions, answers, scoring, follow-ups">Interview</button>
+              <button class="desc-action-btn" id="descOutreachBtn" data-action="desc-toggle-outreach">Outreach</button>
             </div>
           </div>
           <div class="modal-desc-box" id="modalDesc" style="display:none"></div>
           <div id="modalDescCompactWrap" style="display:none">
             <div class="modal-desc-box" id="modalDescCompactText" style="background:#eef4ff;border-color:#c0d4f0;font-style:italic"></div>
-            <button class="desc-expand-link" onclick="descShowOriginal()">Show full description ↓</button>
+            <button class="desc-expand-link" data-action="desc-show-original">Show full description ↓</button>
           </div>
           <div id="modalDescCvQuestionsWrap" style="display:none">
             <div class="modal-section-label" style="margin-top:14px;margin-bottom:6px">Interview — scorecard</div>
             <div class="iv-persp-toggle">
               <span class="iv-persp-label">View as</span>
-              <button class="desc-action-btn active" id="ivPerspRecruiter" onclick="setIvPerspective('recruiter')" title="Scoring view — gap questions, scores, follow-ups">Recruiter</button>
-              <button class="desc-action-btn" id="ivPerspCandidate" onclick="setIvPerspective('candidate')" title="Coaching view — model answers and ways to improve your chances">Candidate</button>
+              <button class="desc-action-btn active" id="ivPerspRecruiter" data-action="set-iv-perspective" data-persp="recruiter" title="Scoring view — gap questions, scores, follow-ups">Recruiter</button>
+              <button class="desc-action-btn" id="ivPerspCandidate" data-action="set-iv-perspective" data-persp="candidate" title="Coaching view — model answers and ways to improve your chances">Candidate</button>
             </div>
             <div id="interviewControls" class="iv-recruiter-only" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-              <button class="desc-action-btn" id="ivFreezeBtn" onclick="toggleFreezeInterview()">🔒 Freeze questions</button>
-              <button class="desc-action-btn" id="ivRegenBtn" onclick="regenerateInterview()">↻ New questions</button>
-              <button class="desc-action-btn" id="ivAddBtn" onclick="addInterviewQuestion()" title="Add your own question that came up during the interview">➕ Add question</button>
-              <button class="desc-action-btn" id="ivImportBtn" onclick="toggleInterviewImport(true)" title="Import prepared questions (and answers) from a text/Word document">📥 Import</button>
-              <button class="desc-action-btn" id="ivAnalyzeAllBtn" style="display:none" onclick="analyzeAllInterview()" title="Score every answer that isn't scored yet">⚡ Analyze all</button>
-              <button class="desc-action-btn" id="ivContextBtn" onclick="toggleInterviewContext()" title="Show the briefing note the AI uses for this candidate">🔍 AI context</button>
+              <button class="desc-action-btn" id="ivFreezeBtn" data-action="toggle-freeze-interview">🔒 Freeze questions</button>
+              <button class="desc-action-btn" id="ivRegenBtn" data-action="regenerate-interview">↻ New questions</button>
+              <button class="desc-action-btn" id="ivAddBtn" data-action="add-interview-question" title="Add your own question that came up during the interview">➕ Add question</button>
+              <button class="desc-action-btn" id="ivImportBtn" data-action="interview-import-open" title="Import prepared questions (and answers) from a text/Word document">📥 Import</button>
+              <button class="desc-action-btn" id="ivAnalyzeAllBtn" style="display:none" data-action="analyze-all-interview" title="Score every answer that isn't scored yet">⚡ Analyze all</button>
+              <button class="desc-action-btn" id="ivContextBtn" data-action="toggle-interview-context" title="Show the briefing note the AI uses for this candidate">🔍 AI context</button>
               <span id="ivFrozenNote" style="display:none;font-size:11px;color:#1a7a2e;font-weight:600">🔒 Saved &amp; frozen</span>
             </div>
             <div id="interviewContext" class="iv-recruiter-only" style="display:none;margin-bottom:10px">
@@ -902,9 +902,9 @@
             <div id="interviewImport" class="iv-recruiter-only" style="display:none;margin-bottom:10px">
               <textarea id="ivImportText" rows="6" placeholder="Paste your prepared questions here (and answers too, if you have them). Q&A can just alternate — no special formatting needed.&#10;&#10;Or load a .docx, .pdf, or .txt file below." style="width:100%;resize:vertical;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;color:#333;outline:none;line-height:1.45"></textarea>
               <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
-                <input type="file" id="ivImportFile" accept=".txt,.md,.text,.docx,.pdf" onchange="_ivLoadImportFile(this)" style="font-size:11px">
-                <button class="desc-action-btn" onclick="importInterviewQuestions()">Parse &amp; import</button>
-                <button class="desc-action-btn" onclick="toggleInterviewImport(false)">Cancel</button>
+                <input type="file" id="ivImportFile" accept=".txt,.md,.text,.docx,.pdf" data-change-action="iv-load-import-file" style="font-size:11px">
+                <button class="desc-action-btn" data-action="import-interview-questions">Parse &amp; import</button>
+                <button class="desc-action-btn" data-action="interview-import-cancel">Cancel</button>
                 <span id="ivImportMsg" style="font-size:11px;color:#a08a3a"></span>
               </div>
             </div>
@@ -913,12 +913,12 @@
             <div id="interviewOpportunities" class="iv-candidate-only" style="display:none"></div>
             <div id="interviewScorecard"></div>
             <div class="modal-desc-box" id="interviewMsg" style="background:#fffbec;border-color:#e8d870;display:none"></div>
-            <button class="desc-expand-link" onclick="descToggleCvQuestions()">Hide ↑</button>
+            <button class="desc-expand-link" data-action="desc-toggle-cv-questions">Hide ↑</button>
           </div>
           <div id="modalDescOutreachWrap" style="display:none">
             <div class="modal-section-label" style="margin-top:14px;margin-bottom:6px">Outreach Draft</div>
             <div class="modal-desc-box" id="modalDescOutreachText" style="background:#f0faf0;border-color:#b0d8b0"></div>
-            <button class="desc-expand-link" onclick="descToggleOutreach()">Hide ↑</button>
+            <button class="desc-expand-link" data-action="desc-toggle-outreach">Hide ↑</button>
           </div>
         </div>
         <div class="modal-reason" id="modalReason" style="display:none"></div>
@@ -931,9 +931,9 @@
         <div id="modalAnalysisSection">
           <div class="modal-section-label">Analysis</div>
           <div class="analysis-btn-strip">
-            <button class="analysis-tab-btn" id="analysisBtnSalary"   onclick="toggleAnalysisPanel('salary')">Salary</button>
-            <button class="analysis-tab-btn" id="analysisBtnQuality"  onclick="toggleAnalysisPanel('quality')">Quality</button>
-            <button class="analysis-tab-btn" id="analysisBtnStrength" onclick="toggleAnalysisPanel('strength')">Candidate Strength</button>
+            <button class="analysis-tab-btn" id="analysisBtnSalary"   data-action="toggle-analysis-panel" data-panel="salary">Salary</button>
+            <button class="analysis-tab-btn" id="analysisBtnQuality"  data-action="toggle-analysis-panel" data-panel="quality">Quality</button>
+            <button class="analysis-tab-btn" id="analysisBtnStrength" data-action="toggle-analysis-panel" data-panel="strength">Candidate Strength</button>
           </div>
           <div id="analysisPanelSalary" style="display:none">
             <div style="font-size:10px;font-weight:700;color:#c0bfb8;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 6px">
@@ -956,9 +956,9 @@
           <div class="job-chat-thread" id="jobChatThread"></div>
           <div class="job-chat-input-row">
             <input type="text" id="jobChatInput" placeholder="e.g. Is this suitable for a junior? What skills are essential?">
-            <button class="job-chat-ask-btn" id="jobChatSendBtn" onclick="sendJobChat()">Ask</button>
+            <button class="job-chat-ask-btn" id="jobChatSendBtn" data-action="send-job-chat">Ask</button>
           </div>
-          <button class="job-chat-add-btn" id="jobChatAddBtn" style="display:none" onclick="addLastAnswerToNotes()">↓ Add last answer to notes</button>
+          <button class="job-chat-add-btn" id="jobChatAddBtn" style="display:none" data-action="add-last-answer-to-notes">↓ Add last answer to notes</button>
         </div>
       </div>
       <div id="saveExtrasPanel" style="display:none">
@@ -984,12 +984,12 @@
               <input type="checkbox" id="extrasChkOutreach"> Outreach draft
             </label>
           </div>
-          <button class="modal-save-btn" style="font-size:12px;padding:6px 16px" onclick="saveWithExtras()">Save selection</button>
+          <button class="modal-save-btn" style="font-size:12px;padding:6px 16px" data-action="save-with-extras">Save selection</button>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="modal-save-btn" id="modalSaveBtn" onclick="saveFromModal()">+ Save to pipeline</button>
-        <button class="modal-extras-btn" id="modalExtrasBtn" onclick="toggleExtrasPanel()">+ extras</button>
+        <button class="modal-save-btn" id="modalSaveBtn" data-action="save-from-modal">+ Save to pipeline</button>
+        <button class="modal-extras-btn" id="modalExtrasBtn" data-action="toggle-extras-panel">+ extras</button>
         <select class="modal-status-sel" id="modalStatusSel">
           <option>New</option>
           <option>Contacted</option>
@@ -1005,21 +1005,21 @@
   </div>
 
 <!-- CV preview drawer -->
-<div id="cvPreviewOverlay" class="cv-preview-overlay" onclick="if(event.target===this||event.target.classList.contains('cv-preview-backdrop'))closeCvPreview()">
+<div id="cvPreviewOverlay" class="cv-preview-overlay" data-action="cv-preview-backdrop">
   <div class="cv-preview-backdrop"></div>
   <div class="cv-preview-panel">
     <div class="cv-preview-header">
       <span class="cv-preview-header-icon">📄</span>
       <span class="cv-preview-title" id="cvPreviewName">CV Preview</span>
-      <button class="cv-preview-del" onclick="clearCandidateProfile();closeCvPreview()">Remove CV</button>
-      <button class="cv-preview-close" onclick="closeCvPreview()">×</button>
+      <button class="cv-preview-del" data-action="cv-preview-remove">Remove CV</button>
+      <button class="cv-preview-close" data-action="close-cv-preview">×</button>
     </div>
     <div class="cv-preview-body" id="cvPreviewBody"></div>
   </div>
 </div>
 
 <!-- Company info modal -->
-<div class="modal-overlay hidden" id="coModal" onclick="if(event.target===this)closeCompanyPanel()">
+<div class="modal-overlay hidden" id="coModal" data-action="co-modal-backdrop">
   <div class="co-modal">
     <div class="co-modal-header">
       <span class="co-modal-icon">🏢</span>
@@ -1027,7 +1027,7 @@
         <div class="co-modal-name" id="coPanelName">Company</div>
         <div class="co-modal-sub" id="coPanelSub"></div>
       </div>
-      <button class="co-modal-close" onclick="closeCompanyPanel()">×</button>
+      <button class="co-modal-close" data-action="close-company-panel">×</button>
     </div>
     <div class="co-body" id="coBody">
       <div class="co-loading-wrap">
@@ -1042,7 +1042,7 @@
 <div id="extrasPickerPopup" class="extras-picker-popup">
   <div class="extras-picker-title">Save with extras</div>
   <div class="extras-picker-options" id="extrasPickerOptions"></div>
-  <button class="extras-picker-save" id="extrasPickerSaveBtn" disabled onclick="doSaveWithExtras()">Save job + selected extras</button>
+  <button class="extras-picker-save" id="extrasPickerSaveBtn" disabled data-action="do-save-with-extras">Save job + selected extras</button>
 </div>
 
 </div><!-- /app -->
@@ -6604,6 +6604,54 @@ function closeModalOnBackdrop(e) {
   if (_jobModalLocked) { _flashJobModalLock(); return; }   // locked — ignore stray clicks
   closeJobModal();
 }
+
+// Action registry for the job-detail modal markup (segment modal, job modal
+// header/lang/lock/close, description toolbar, interview scorecard controls,
+// analysis panels, job sub-chat, save/extras footer, CV preview, company panel).
+// Backdrop closers re-check e.target === el themselves, since delegation routes
+// clicks on any descendant up to the overlay's data-action.
+Object.assign(_ACTIONS, {
+  // segment + job modal shell
+  'seg-modal-backdrop':    (el, e) => { if (e.target === el) closeSegmentModal(); },
+  'close-segment-modal':   ()      => closeSegmentModal(),
+  'job-modal-backdrop':    (el, e) => closeModalOnBackdrop(e),
+  'set-modal-lang':        (el)    => setModalLang(el.dataset.lang),
+  'toggle-job-modal-lock': ()      => toggleJobModalLock(),
+  'close-job-modal':       ()      => closeJobModal(),
+  // description toolbar
+  'desc-toggle-translate': ()      => descToggleTranslate(),
+  'desc-show-original':    ()      => descShowOriginal(),
+  'desc-toggle-compact':   ()      => descToggleCompact(),
+  'desc-toggle-cv-questions': ()   => descToggleCvQuestions(),
+  'desc-toggle-outreach':  ()      => descToggleOutreach(),
+  // interview scorecard controls
+  'set-iv-perspective':    (el)    => setIvPerspective(el.dataset.persp),
+  'toggle-freeze-interview': ()    => toggleFreezeInterview(),
+  'regenerate-interview':  ()      => regenerateInterview(),
+  'add-interview-question': ()     => addInterviewQuestion(),
+  'interview-import-open': ()      => toggleInterviewImport(true),
+  'interview-import-cancel': ()    => toggleInterviewImport(false),
+  'analyze-all-interview': ()      => analyzeAllInterview(),
+  'toggle-interview-context': ()   => toggleInterviewContext(),
+  'iv-load-import-file':   (el)    => _ivLoadImportFile(el),
+  'import-interview-questions': () => importInterviewQuestions(),
+  // analysis panels + job sub-chat
+  'toggle-analysis-panel': (el)    => toggleAnalysisPanel(el.dataset.panel),
+  'send-job-chat':         ()      => sendJobChat(),
+  'add-last-answer-to-notes': ()   => addLastAnswerToNotes(),
+  // save / extras footer
+  'save-with-extras':      ()      => saveWithExtras(),
+  'save-from-modal':       ()      => saveFromModal(),
+  'toggle-extras-panel':   ()      => toggleExtrasPanel(),
+  'do-save-with-extras':   ()      => doSaveWithExtras(),
+  // CV preview drawer
+  'cv-preview-backdrop':   (el, e) => { if (e.target === el || e.target.classList.contains('cv-preview-backdrop')) closeCvPreview(); },
+  'cv-preview-remove':     ()      => { clearCandidateProfile(); closeCvPreview(); },
+  'close-cv-preview':      ()      => closeCvPreview(),
+  // company info modal
+  'co-modal-backdrop':     (el, e) => { if (e.target === el) closeCompanyPanel(); },
+  'close-company-panel':   ()      => closeCompanyPanel(),
+});
 
 async function saveFromModal() {
   const saveBtn = document.getElementById('modalSaveBtn');
