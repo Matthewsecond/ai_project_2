@@ -78,25 +78,25 @@
       <div class="input-area">
         <!-- Shown after drilling from a cluster segment into one candidate. -->
         <div id="backToSegments" style="display:none;margin-bottom:10px">
-          <a onclick="_mcBackToSegments()" style="cursor:pointer;color:#1648a8;font-size:13px;font-weight:600">← Back to segments</a>
+          <a data-action="mc-back-to-segments" style="cursor:pointer;color:#1648a8;font-size:13px;font-weight:600">← Back to segments</a>
         </div>
         <div class="candidate-bar">
           <span class="candidate-label">Candidate</span>
           <div class="cand-detected">
             <div class="cand-name-tag" id="candNameTag" style="display:none">
               <span id="candNameDisplay"></span>
-              <button class="cand-edit-btn" onclick="startEditCandidateName()" title="Edit name">
+              <button class="cand-edit-btn" data-action="start-edit-candidate-name" title="Edit name">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
             </div>
             <div class="cand-edit-row" id="candEditRow" style="display:none">
-              <input class="cand-name-input" id="candidateName" placeholder="Candidate name…" onkeydown="if(event.key==='Enter')confirmCandidateName()" onblur="confirmCandidateName()">
-              <button class="cand-confirm-btn" onclick="confirmCandidateName()">Save</button>
+              <input class="cand-name-input" id="candidateName" placeholder="Candidate name…" data-keydown-action="candidate-name-enter" data-blur-action="confirm-candidate-name">
+              <button class="cand-confirm-btn" data-action="confirm-candidate-name">Save</button>
             </div>
             <span class="cand-hint" id="candHint">Name auto-detected from CV or text</span>
           </div>
           <div class="ex-dropdown" id="exDropdown">
-            <button type="button" class="ex-dropdown-trigger" onclick="_exToggle()">
+            <button type="button" class="ex-dropdown-trigger" data-action="ex-toggle">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Example candidates
               <span class="ex-dropdown-arrow">▾</span>
@@ -122,13 +122,13 @@
               <div class="cand-profile-body">
                 <div class="cand-profile-name">
                   <span class="cand-profile-name-text" id="candProfileName"></span>
-                  <button class="cand-edit-btn" onclick="startEditCandidateName()" title="Edit name">
+                  <button class="cand-edit-btn" data-action="start-edit-candidate-name" title="Edit name">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
                 </div>
                 <div class="cand-profile-sub" id="candProfileSub"></div>
               </div>
-              <button class="cand-profile-clear" onclick="clearCandidateProfile()" title="Clear profile">×</button>
+              <button class="cand-profile-clear" data-action="clear-candidate-profile" title="Clear profile">×</button>
             </div>
             <div class="cand-profile-skills" id="candProfileSkills"></div>
             <div class="cand-profile-meta" id="candProfileMeta"></div>
@@ -141,8 +141,8 @@
         <div class="scope-row">
           <span class="scope-label">Looking for</span>
           <div class="workflow-toggle">
-            <button class="wf-btn active" data-workflow="single" onclick="setWorkflow('single')">One candidate</button>
-            <button class="wf-btn" data-workflow="multiple" onclick="setWorkflow('multiple')">Multiple</button>
+            <button class="wf-btn active" data-workflow="single" data-action="set-workflow">One candidate</button>
+            <button class="wf-btn" data-workflow="multiple" data-action="set-workflow">Multiple</button>
           </div>
         </div>
 
@@ -170,7 +170,7 @@
             <div class="upload-icon">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             </div>
-            <div class="upload-text" id="dropText">Drop a PDF CV here, or <a href="#" onclick="event.stopPropagation();document.getElementById('cvFileInput').click();return false">browse to upload</a> — or type in the box below</div>
+            <div class="upload-text" id="dropText">Drop a PDF CV here, or <a href="#" data-action="browse-cv">browse to upload</a> — or type in the box below</div>
           </div>
           <textarea class="free-text" id="cvPasteText" placeholder="Paste a full CV, or just describe the candidate in plain language — e.g. 'Experienced forklift operator, Vienna, available from July, salary expectation €2,200+'. The AI extracts skills and experience automatically."></textarea>
         </div>
@@ -202,8 +202,8 @@
                 <div class="gb-chat-thread" id="gbThread"></div>
                 <div class="gb-chat-input">
                   <input type="text" id="gbMsg" placeholder="Answer or describe the candidate you need…"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();gbSend();}">
-                  <button type="button" id="gbSendBtn" onclick="gbSend()">Send</button>
+                    data-keydown-action="gb-send-enter">
+                  <button type="button" id="gbSendBtn" data-action="gb-send">Send</button>
                 </div>
               </div>
             </div>
@@ -217,15 +217,15 @@
             Add up to 50 candidates — paste profiles (separate each with a line of <code>---</code>),
             add files, or load saved candidates.
           </div>
-          <textarea class="free-text" id="mcPasteText" oninput="_mcUpdateCount()"
+          <textarea class="free-text" id="mcPasteText" data-input-action="mc-update-count"
             placeholder="Paste candidate profiles, one per block, separated by a line containing only ---&#10;&#10;Peter — B2B sales manager, 10y SaaS, Salesforce, pipeline...&#10;---&#10;Eva — data analyst, SQL, Power BI, Python, dashboards..."></textarea>
           <input type="file" id="mcFileInput" accept=".pdf,.txt" multiple style="display:none"
-            onchange="_mcAddFiles(this.files); this.value='';">
+            data-change-action="mc-add-files">
           <div id="mcFiles" class="mc-files"></div>
           <div class="mc-controls">
-            <button type="button" class="mc-btn-ghost" onclick="_mcLoadExamples()">✨ Load 50 examples</button>
-            <button type="button" class="mc-btn-ghost" onclick="document.getElementById('mcFileInput').click()">＋ Add files</button>
-            <button type="button" class="mc-btn-ghost" onclick="_mcLoadFromDb()">⬇ Load from saved</button>
+            <button type="button" class="mc-btn-ghost" data-action="mc-load-examples">✨ Load 50 examples</button>
+            <button type="button" class="mc-btn-ghost" data-action="mc-add-files-click">＋ Add files</button>
+            <button type="button" class="mc-btn-ghost" data-action="mc-load-from-db">⬇ Load from saved</button>
             <span id="mcCount" class="mc-count">0 candidates</span>
           </div>
 
@@ -236,7 +236,7 @@
               <input type="range" id="mcGranularity" min="0" max="100" value="50">
               <span class="mc-gran-hint">coarse → fine</span>
             </span>
-            <button type="button" class="run-btn" id="btnCluster" onclick="runClustering()">
+            <button type="button" class="run-btn" id="btnCluster" data-action="run-clustering">
               <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
               <span>Cluster candidates</span>
             </button>
@@ -265,26 +265,26 @@
           </select>
           <span class="lbl">results</span>
           <div class="run-bar-right">
-            <button class="export-btn" onclick="exportResults()">
+            <button class="export-btn" data-action="export-results">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
               Export CSV
             </button>
-            <button class="export-btn" onclick="saveAll()">+ Save all A/B</button>
-            <button class="export-btn" id="gbSaveTemplateBtn" onclick="gbSaveTemplate()" style="display:none;color:#1a56c4;border-color:#b0ccf0;font-weight:600">★ Save as template candidate</button>
-            <button class="export-btn" onclick="clearResults()">Clear</button>
+            <button class="export-btn" data-action="save-all">+ Save all A/B</button>
+            <button class="export-btn" id="gbSaveTemplateBtn" data-action="gb-save-template" style="display:none;color:#1a56c4;border-color:#b0ccf0;font-weight:600">★ Save as template candidate</button>
+            <button class="export-btn" data-action="clear-results">Clear</button>
           </div>
         </div>
       </div>
 
       <!-- Candidate assistant — docked chat for editing the CV & discussing the offers -->
       <div class="cand-asst collapsed" id="candAsst">
-        <div class="cand-asst-head" onclick="candAsstToggle()">
+        <div class="cand-asst-head" data-action="cand-asst-toggle">
           <span class="cand-asst-title">
             <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Candidate assistant
           </span>
           <span class="cand-asst-actions">
-            <button type="button" class="cand-asst-reset" onclick="event.stopPropagation();candAsstReset()" title="Clear conversation">Reset</button>
+            <button type="button" class="cand-asst-reset" data-action="cand-asst-reset" title="Clear conversation">Reset</button>
             <span class="cand-asst-chevron" id="candAsstChevron">▾</span>
           </span>
         </div>
@@ -293,21 +293,21 @@
           <div class="cand-asst-input">
             <div class="cand-asst-tools">
               <button type="button" class="cand-asst-tools-btn" id="candAsstToolsBtn"
-                onclick="candAsstToggleMenu(event)" title="Actions" aria-label="Actions">
+                data-action="cand-asst-toggle-menu" title="Actions" aria-label="Actions">
                 <svg viewBox="0 0 24 24"><path d="M12 3l1.7 4.8L18.5 9.5l-4.8 1.7L12 16l-1.7-4.8L5.5 9.5l4.8-1.7L12 3z"/><path d="M19 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>
               </button>
               <div class="cand-asst-menu" id="candAsstMenu">
-                <button type="button" onclick="candAsstAnalyzeFit()">📊 Analyze fit</button>
-                <button type="button" onclick="candAsstStartHighlight()">🎨 Highlight offers…</button>
+                <button type="button" data-action="cand-asst-analyze-fit">📊 Analyze fit</button>
+                <button type="button" data-action="cand-asst-start-highlight">🎨 Highlight offers…</button>
                 <button type="button" id="candAsstClearHlBtn" style="display:none"
-                  onclick="candAsstClearHighlight()">✕ Clear highlight</button>
-                <button type="button" onclick="candAsstStartUrlMatch()">🔗 Match a job URL…</button>
+                  data-action="cand-asst-clear-highlight">✕ Clear highlight</button>
+                <button type="button" data-action="cand-asst-start-url-match">🔗 Match a job URL…</button>
               </div>
             </div>
             <input type="text" id="candAsstMsg" autocomplete="off"
               placeholder="Add a CV detail, or ask about the matched offers…"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();candAsstSend();}">
-            <button type="button" id="candAsstSend" onclick="candAsstSend()">Send</button>
+              data-keydown-action="cand-asst-send-enter">
+            <button type="button" id="candAsstSend" data-action="cand-asst-send">Send</button>
           </div>
         </div>
       </div>
@@ -320,7 +320,7 @@
         <!-- Stale-score warning: frozen results no longer match the current candidate. -->
         <div id="staleScoreNotice" style="display:none;margin:0 0 10px;padding:8px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;color:#9a3412;font-size:13px;align-items:center;gap:10px">
           <span>⚠ Candidate changed — these frozen scores are stale.</span>
-          <button type="button" onclick="rescoreFrozenResults()" style="margin-left:auto;background:#9a3412;color:#fff;border:none;border-radius:6px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer">Re-score</button>
+          <button type="button" data-action="rescore-frozen-results" style="margin-left:auto;background:#9a3412;color:#fff;border:none;border-radius:6px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer">Re-score</button>
         </div>
         <!-- Filter bar — narrows the results below -->
         <div class="filter-bar">
@@ -333,12 +333,12 @@
           </div>
           <div class="filter-row-2">
             <label class="freeze-toggle" id="freezeToggle" title="Keep this exact set of jobs and only re-score them when you change the candidate">
-              <input type="checkbox" id="freezeChk" onchange="toggleFreeze()">
+              <input type="checkbox" id="freezeChk" data-change-action="toggle-freeze">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
               <span>Freeze all results</span>
             </label>
             <label class="freeze-toggle" id="showCToggle" title="Weak (C) matches are hidden by default — turn this on to show them">
-              <input type="checkbox" id="showCChk" onchange="toggleShowWeak()">
+              <input type="checkbox" id="showCChk" data-change-action="toggle-show-weak">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <span>Show weak (C) matches</span>
             </label>
@@ -348,11 +348,11 @@
           <table id="resultsTable">
             <thead>
               <tr>
-                <th style="width:90px" onclick="sortBy('score')">Score ↕</th>
-                <th onclick="sortBy('title')">Job title ↕</th>
-                <th onclick="sortBy('company')">Company ↕</th>
-                <th onclick="sortBy('location')">Location ↕</th>
-                <th onclick="sortBy('salary')">Salary ↕</th>
+                <th style="width:90px" data-action="sort-by" data-sort="score">Score ↕</th>
+                <th data-action="sort-by" data-sort="title">Job title ↕</th>
+                <th data-action="sort-by" data-sort="company">Company ↕</th>
+                <th data-action="sort-by" data-sort="location">Location ↕</th>
+                <th data-action="sort-by" data-sort="salary">Salary ↕</th>
                 <th>Portal</th>
                 <th>Posted</th>
                 <th style="width:185px"></th>
@@ -1922,6 +1922,52 @@ dropZone.addEventListener('drop', e => {
 });
 document.getElementById('cvFileInput').addEventListener('change', e => {
   if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+// Action registry for the SEARCH tab static markup — candidate bar, example
+// dropdown, workflow toggle, mode zones (CV browse / Multiple-CV pool / guided
+// chat), run row, candidate assistant, results filter toggles + sortable headers.
+Object.assign(_ACTIONS, {
+  // candidate name + example dropdown
+  'mc-back-to-segments':     ()      => _mcBackToSegments(),
+  'start-edit-candidate-name': ()    => startEditCandidateName(),
+  'candidate-name-enter':    (el, e) => { if (e.key === 'Enter') confirmCandidateName(); },
+  'confirm-candidate-name':  ()      => confirmCandidateName(),
+  'ex-toggle':               ()      => _exToggle(),
+  'clear-candidate-profile': ()      => clearCandidateProfile(),
+  'set-workflow':            (el)    => setWorkflow(el.dataset.workflow),
+  // CV zone — browse link (preserve the original preventDefault + stopPropagation)
+  'browse-cv':               (el, e) => { e.preventDefault(); e.stopPropagation(); document.getElementById('cvFileInput').click(); },
+  // Multiple-CV pool
+  'mc-update-count':         ()      => _mcUpdateCount(),
+  'mc-add-files':            (el)    => { _mcAddFiles(el.files); el.value = ''; },
+  'mc-load-examples':        ()      => _mcLoadExamples(),
+  'mc-add-files-click':      ()      => document.getElementById('mcFileInput').click(),
+  'mc-load-from-db':         ()      => _mcLoadFromDb(),
+  'run-clustering':          ()      => runClustering(),
+  // guided builder chat
+  'gb-send-enter':           (el, e) => { if (e.key === 'Enter') { e.preventDefault(); gbSend(); } },
+  'gb-send':                 ()      => gbSend(),
+  // run row
+  'export-results':          ()      => exportResults(),
+  'save-all':                ()      => saveAll(),
+  'gb-save-template':        ()      => gbSaveTemplate(),
+  'clear-results':           ()      => clearResults(),
+  // candidate assistant
+  'cand-asst-toggle':        ()      => candAsstToggle(),
+  'cand-asst-reset':         (el, e) => { e.stopPropagation(); candAsstReset(); },
+  'cand-asst-toggle-menu':   (el, e) => candAsstToggleMenu(e),
+  'cand-asst-analyze-fit':   ()      => candAsstAnalyzeFit(),
+  'cand-asst-start-highlight': ()    => candAsstStartHighlight(),
+  'cand-asst-clear-highlight': ()    => candAsstClearHighlight(),
+  'cand-asst-start-url-match': ()    => candAsstStartUrlMatch(),
+  'cand-asst-send-enter':    (el, e) => { if (e.key === 'Enter') { e.preventDefault(); candAsstSend(); } },
+  'cand-asst-send':          ()      => candAsstSend(),
+  // results filter + sortable headers
+  'rescore-frozen-results':  ()      => rescoreFrozenResults(),
+  'toggle-freeze':           ()      => toggleFreeze(),
+  'toggle-show-weak':        ()      => toggleShowWeak(),
+  'sort-by':                 (el)    => sortBy(el.dataset.sort),
 });
 
 async function processFile(file) {
@@ -6727,6 +6773,13 @@ document.addEventListener('keydown', function(e) {
   const el = e.target.closest('[data-keydown-action]');
   if (!el) return;
   const handler = _ACTIONS[el.dataset.keydownAction];
+  if (handler) handler(el, e);
+});
+// focusout (not blur — blur doesn't bubble, so it can't be delegated).
+document.addEventListener('focusout', function(e) {
+  const el = e.target.closest('[data-blur-action]');
+  if (!el) return;
+  const handler = _ACTIONS[el.dataset.blurAction];
   if (handler) handler(el, e);
 });
 
