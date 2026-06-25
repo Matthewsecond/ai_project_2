@@ -423,18 +423,25 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   reachable — eliminates that coupling, so the module split lands clean with no scaffold.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
   stops referencing globals by name — kills the HTML→global-fn coupling that made the dead-code sweep hard.
-  **IN PROGRESS.** Mechanism: one delegated click dispatcher reads `data-action="name"` and looks the
-  handler up in a single `_ACTIONS` registry; each feature registers its handlers (reading params from
-  `data-*`) next to its own code, so the maps split cleanly with the modules in 2.6c. ~226 inline
-  handlers total (197 onclick + 29 other), 136 distinct fns.
-  - ✅ part 1 (pilot): dispatcher core + `_ACTIONS` registry; converted the 3 job-chat lang buttons.
-  - ✅ part 2: extended the dispatcher with delegated `input`/`keydown` listeners (same registry, via
-    `data-input-action` / `data-keydown-action`); converted the whole Multiple-CV cluster feature
-    (23 handlers — covers dynamic args, two-arg, `this`, and inline-JS cases). 0 inline handlers left
-    in that section. Nesting (seg-check inside seg-card) handled by `closest()` picking the innermost.
-  - ✅ part 3: added a delegated `change` listener (`data-change-action`); converted the Radar/Analytics
-    static markup (AI filter panel, sub-nav, trend tab-chat, quick-finder selects, report + summary chat
-    — ~25 handlers, 12 actions). ~51 of 226 handlers done.
+  ✅ **COMPLETE (226/226 — zero inline handlers remain in `index.html`).** Mechanism: five delegated
+  listeners on `document` (`click`/`input`/`change`/`keydown`/`focusout`) read `data-[*-]action="name"`
+  and look the handler up in a single `_ACTIONS` registry; each feature registers its handlers (reading
+  params from `data-*`) in a co-located `Object.assign(_ACTIONS,{…})` block next to its own code, so the
+  maps split cleanly with the modules in 2.6c. Dynamic args (`${id}`) → `data-*`; `this` → `el`; inline-JS
+  (`stopPropagation`/`preventDefault`/backdrop `event.target===this`) preserved inside the registered handler.
+  - ✅ part 1 (pilot): dispatcher core + `_ACTIONS` registry; job-chat lang buttons (3).
+  - ✅ part 2: `input`/`keydown` listeners; whole Multiple-CV cluster feature (23).
+  - ✅ part 3: `change` listener; Radar/Analytics static markup (25).
+  - ✅ part 4: job-detail modal static markup (40).
+  - ✅ part 5: search-tab static markup (39); added `focusout` listener for the one `onblur`.
+  - ✅ part 6: saved + radar static stragglers (22) — clears ALL static-HTML handlers.
+  - ✅ part 7: search-region JS template-string handlers (guided fields/chips, results rows, cand-asst
+    chips, extras picker, candidate card).
+  - ✅ part 8 (FINAL): radar/analytics chips + summary, interview scorecard, feedback widget; dropped a
+    dead `href="#" onclick="return false"` placeholder. Per-batch gate each time: 0 inline attrs in the
+    batch region, every `data-*action` cross-checked to an `_ACTIONS` key, `node --check` on rendered
+    inline JS, Jinja compile, `create_app` boot (GET / → 302). NOTE: verification was static-only
+    (`/` redirects to login) — an interactive pass (login + click each tab) is still worth doing.
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.
