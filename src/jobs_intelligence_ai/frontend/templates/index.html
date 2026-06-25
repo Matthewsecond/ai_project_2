@@ -1051,6 +1051,11 @@
 // ════════════════════════════════════════════════════════════
 //  State
 // ════════════════════════════════════════════════════════════
+// Action registry for the delegated data-action dispatcher (defined further down,
+// near "Action dispatch"). Declared up here because feature modules register their
+// handlers via Object.assign(_ACTIONS, …) blocks that run during load BEFORE the
+// dispatcher section — a `const` down there would be in its temporal dead zone.
+const _ACTIONS = {};
 let lastResults      = [];
 let savedJobs        = [];
 let currentCandidate = '';   // name entered in the candidate bar
@@ -6805,7 +6810,8 @@ document.addEventListener('click', function(e) {
 // Each feature registers its handlers into _ACTIONS near its own code, so markup
 // stops referencing global function names by name — the prerequisite for splitting
 // the script into ES modules (2.6c). Registration runs at load, before any click.
-const _ACTIONS = {};
+// (`_ACTIONS` itself is declared up in the State section so the registration blocks
+// scattered above this point aren't in its temporal dead zone.)
 document.addEventListener('click', function(e) {
   const el = e.target.closest('[data-action]');
   if (!el) return;
