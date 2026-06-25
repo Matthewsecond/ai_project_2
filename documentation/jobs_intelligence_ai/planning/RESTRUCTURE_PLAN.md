@@ -442,9 +442,72 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     batch region, every `data-*action` cross-checked to an `_ACTIONS` key, `node --check` on rendered
     inline JS, Jinja compile, `create_app` boot (GET / → 302). NOTE: verification was static-only
     (`/` redirects to login) — an interactive pass (login + click each tab) is still worth doing.
-- 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
-  modules + a boot module + a shared-util module.
-Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.
+- 2.6e **Frontend test harness FIRST — Playwright E2E smoke** *(new prerequisite, runs before 2.6c)*.
+  **Why:** today's `frontend/integration_tests/` use Flask `test_client`, which **never executes the
+  client JS** — it only checks server responses. So nothing tests the actual 8,300-line script; a broken
+  cross-module `import` in 2.6c would be invisible to `node --check` + boot-302 and only surface when a
+  human clicks the tab. A real (headless) browser closes that gap, and it can be **run from the terminal**
+  (no manual app-opening) — so the split becomes verifiable per-module instead of blind.
+  - Tool: **`pytest-playwright`** (fits the existing pytest stack; sits next to `integration_tests/`).
+    Setup: `pip install pytest-playwright` + `playwright install chromium` (no Node project needed).
+  - Pieces: ① **auth fixture** — log in once via `SEED_USERS`, save `storage_state` (session cookie),
+    reuse across tests (handles the login gate one time). ② **tabs-smoke test** (the high-value one) —
+    for each tab: click `[data-tab="X"]`, assert `#tab-X` visible AND **zero `console` errors**; this
+    catches the exact 2.6c failure mode (missing import → ReferenceError on tab click). The `data-action`
+    attributes from 2.6d give stable selectors. ③ later: a few flow tests (run a search with the backend
+    mocked, open a job modal). Make tab-loads deterministic by mocking the on-open fetches (Playwright
+    `route`) or filtering network errors from JS errors.
+  - Gate: the smoke suite goes **green on the CURRENT (pre-split) app** first — that's the safety net.
+  - Caveat: confirm a headless browser can launch in the dev sandbox; if not, the suite still runs in the
+    normal env / CI (one command vs. manual clicking).
+
+- 2.6c **Split JS into per-feature ES modules** (Phase 1 — *pure move, behavior-preserving*).
+  Cut the one inline `<script>` into the files below (sizes = real line counts from the split), add
+  `import`/`export` only for cross-file refs, and replace the inline block with
+  `<script type="module" src="…/boot.js">`. **No logic changes** — a missed reuse/cleanup waits for 2.6f.
+  Proposed `static/js/` layout (mirrors the backend: `boot.js`≈`app.py`, `util.js`/`state.js`≈`shared/`,
+  each tab file ≈ a `services/` module):
+
+  | file | ~lines | covers |
+  |---|---|---|
+  | `api.js` | 60 | (exists) fetch wrappers |
+  | `util.js` | 110 | `esc()`, formatters, the `_ACTIONS` dispatcher, job store, session id |
+  | `state.js` | 40 | the few genuine cross-module singletons (current candidate, active mode) |
+  | `candidate.js` | 1300 | input modes, CV upload/parse, profile card, LinkedIn, examples |
+  | `guided.js` | 290 | guided "build a template" chat |
+  | `assistant.js` | 395 | docked candidate-assistant chat |
+  | `clustering.js` | 650 | Multiple-CV → talent segments |
+  | `search.js` | 780 | run matching, SSE progress, render/sort/save/freeze, row actions, extras |
+  | `saved.js` | 1240 | the saved candidates/jobs panel (table + dashboard) |
+  | `modal.js` | 970 | job-detail modal + quality + sub-chat + analysis panels + translate |
+  | `interview.js` | 930 | interview scorecard |
+  | `radar.js` | 1220 | radar/analytics + AI filter assistant + opportunity cards |
+  | `map.js` | 50 | the Leaflet map tab |
+  | `export.js` | 155 | CSV/Excel export |
+  | `boot.js` | 120 | tab routing, init, feedback widget, registers all `_ACTIONS`, DOMContentLoaded |
+
+  **Shared-state rule (decided):** of the 149 top-level vars, ~113 are used 1–8× inside one feature →
+  they just become **module-private** on the move (no accessors — the split *fixes* them for free). Of the
+  ~36 cross-section vars, most are also module-internal once the boundary wraps the whole feature *cluster*
+  (e.g. modal+quality+interview+analysis = one module), or are a **handoff** → pass as a function argument
+  (`openJobModal(job)`, not a shared global). Only a single-digit residue of genuine read-many singletons
+  (e.g. current candidate profile, active mode) live in `state.js` and get a plain **getter** (setter only
+  where the write has a side effect, e.g. "candidate changed → mark scores stale"). **No blanket
+  getter/setter ceremony.**
+  - Order: smallest/safest first (`map.js`) as a proof-of-shape, then up to the big ones
+    (`saved`/`radar`/`candidate`). **One module per commit** so a break is isolated.
+  - Gate per module: 2.6e **smoke green** (run the headless browser — click every tab, console clean) +
+    `node --check` + Jinja compile + boot-302 + `integration_tests` still green. Smoke is the one that
+    actually proves a cross-module import didn't break.
+
+- 2.6f **Simplify each module** (Phase 2 — *behavior may change; separate commits, AFTER 2.6c is committed*).
+  Rule: **never mix a move with a rewrite** — so this is its own pass once the split is stable and the diff
+  per file is small/reviewable. Per file: delete dead code, dedupe, and **sub-split the oversized ones**
+  (`candidate.js` 1300 / `radar.js` 1220 / `saved.js` 1240 are doing several jobs each). Gate per change:
+  the 2.6e smoke + any added flow tests must stay green (this phase is exactly where click-testing is
+  non-negotiable, now automated).
+
+Gate per step: 2.6e smoke (all five tabs, console-clean) + `boot` + `integration_tests` green.
 
 - [ ] **Stage 3 — Make `master` the lean app.** Bring only matured modules onto `master`
       (search + whatever basics we bless — deferred), replacing the old `demo_real/` content. Push.
