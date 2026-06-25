@@ -6,10 +6,12 @@
  * shrink from a ~6-line fetch boilerplate to `const d = await api.post(path, body)`.
  *
  * Three primitives cover every pattern in the app:
- *   api.get(path)         → parsed JSON envelope; throws Error(error) when ok is false
- *   api.post(path, body)  → same, POST with a JSON body
- *   api.raw(path, opts)   → the raw Response (for blob downloads and SSE streams,
- *                           where the caller handles status/body itself)
+ *   api.get(path)          → parsed JSON envelope; throws Error(error) when ok is false
+ *   api.post(path, body)   → same, POST with a JSON body
+ *   api.patch(path, body)  → same, PATCH
+ *   api.del(path)          → same, DELETE
+ *   api.raw(path, opts)    → the raw Response (for blob downloads, SSE streams, and
+ *                            fire-and-forget mutations where the caller ignores the body)
  *
  * Native ES module (RESTRUCTURE_PLAN §12). During the 2.6 transition a small inline
  * module bridge assigns this to `window.api` so the not-yet-modularized inline script
@@ -34,7 +36,9 @@ async function _envelope(path, opts) {
 
 export const get = (path) => _envelope(path, _opts('GET'));
 export const post = (path, body) => _envelope(path, _opts('POST', body));
+export const patch = (path, body) => _envelope(path, _opts('PATCH', body));
+export const del = (path) => _envelope(path, _opts('DELETE'));
 export const raw = (path, opts = {}) => fetch(path, _opts(opts.method || 'GET', opts.body));
 
-export const api = { get, post, raw };
+export const api = { get, post, patch, del, raw };
 export default api;

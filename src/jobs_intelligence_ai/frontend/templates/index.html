@@ -2069,9 +2069,7 @@ async function loadCandidateFromDb(){
   const orig = btn ? btn.innerHTML : '';
   if (btn){ btn.disabled = true; btn.innerHTML = 'Loading…'; }
   try {
-    const res  = await fetch('/api/saved/load?name=' + encodeURIComponent(name));
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'load failed');
+    const data = await api.get('/api/saved/load?name=' + encodeURIComponent(name));
 
     if (data.profile){
       _renderCandidateProfile(data.profile);   // re-renders the banner too
@@ -2115,9 +2113,7 @@ async function refreshCandidateFromDb(){
   const orig = btn ? btn.innerHTML : '';
   if (btn){ btn.disabled = true; btn.innerHTML = 'Refreshing…'; }
   try {
-    const res  = await fetch('/api/saved/load?name=' + encodeURIComponent(name));
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'load failed');
+    const data = await api.get('/api/saved/load?name=' + encodeURIComponent(name));
     if (data.profile){
       _renderCandidateProfile(data.profile);
       _seedMatchTextFromProfile(data.profile);
@@ -2288,11 +2284,7 @@ async function saveCompanies(btn){
   const orig = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = 'Saving…';
   try {
-    const res  = await fetch('/api/saved/companies', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ candidate: name, companies, candidate_profile: prof }) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'save failed');
+    const data = await api.post('/api/saved/companies', { candidate: name, companies, candidate_profile: prof });
     btn.innerHTML = `✓ Saved ${data.saved}`;
     setTimeout(() => { btn.disabled = false; btn.innerHTML = orig; }, 2500);
   } catch(e) {
@@ -5129,11 +5121,7 @@ async function updateCandidateStatus(c, status, sel){
   if (!c) return;
   const prev = c.status;
   try {
-    const res = await fetch('/api/saved/candidate/' + encodeURIComponent(c.name), {
-      method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ status }) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error||'update failed');
+    const data = await api.patch('/api/saved/candidate/' + encodeURIComponent(c.name), { status });
     c.status = status;
     sel.className = 'sv-status-sel sv-st-' + status.replace(/\s+/g,'-');
   } catch(e){
@@ -5152,11 +5140,7 @@ async function saveCandidateEdits(c, tr, btn){
   const orig = btn.textContent;
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    const res = await fetch('/api/saved/candidate/' + encodeURIComponent(c.name), {
-      method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(fields) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'save failed');
+    const data = await api.patch('/api/saved/candidate/' + encodeURIComponent(c.name), fields);
     // Reflect new values on the row object and invalidate cached insights so the
     // next time this candidate's dashboard opens it recomputes from the edits.
     inputs.forEach(inp => { c[inp.dataset.key] = inp.value; });
@@ -5258,9 +5242,7 @@ async function eraseCandidateFromTable(c){
   if (!c) return;
   if (!confirm(`Erase "${c.name}" and all ${c.matches} saved job(s)?\n\nThis permanently deletes the candidate from the database and cannot be undone.`)) return;
   try {
-    const res = await fetch('/api/saved/candidate/' + encodeURIComponent(c.name), { method:'DELETE' });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'erase failed');
+    const data = await api.del('/api/saved/candidate/' + encodeURIComponent(c.name));
     delete _miCache[c.name];
     await reloadSavedFromDb();
   } catch(e){
@@ -5275,11 +5257,7 @@ async function saveLocalCandidate(row, btn){
   if (!name){ alert('Give the candidate a name before saving.'); return; }
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Saving…';
   try {
-    const res  = await fetch('/api/saved/candidate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ profile }) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'save failed');
+    const data = await api.post('/api/saved/candidate', { profile });
     // Persisted — drop it from the Local list. Only fold the fresh DB list in if
     // the user is already viewing the database; otherwise leave the Database side
     // untouched until they load it explicitly (keeps the tab predictable).
@@ -5318,11 +5296,7 @@ async function saveAllLocalCandidates(){
     const name = profile && (profile.name || '').trim();
     if (!name){ fail++; continue; }
     try {
-      const res  = await fetch('/api/saved/candidate', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ profile }) });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'save failed');
+      const data = await api.post('/api/saved/candidate', { profile });
       _localCandidates = _localCandidates.filter(c => (c.name||'').trim() !== name);
       if (_savedDbLoaded && data.candidates) _miCandidates = data.candidates;
       ok++;
@@ -5377,9 +5351,7 @@ async function _miGo(i){
   try {
     let payload=_miCache[name];
     if (!payload) {
-      const res=await fetch('/api/saved/insights?candidate='+encodeURIComponent(name));
-      const data=await res.json();
-      if (!data.ok) throw new Error(data.error||'insights failed');
+      const data = await api.get('/api/saved/insights?candidate='+encodeURIComponent(name));
       payload=data.insights; _miCache[name]=payload;
     }
     _miD=payload;
@@ -5923,19 +5895,13 @@ async function saveWithExtras() {
 
 async function updateStatus(jobId, sel) {
   sel.className = `status-select s-${sel.value}`;
-  await fetch(`/api/saved/${jobId}`, {
-    method: 'PATCH', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ pipeline_status: sel.value }),
-  });
+  await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { pipeline_status: sel.value } });
 }
 async function updateNotes(jobId, notes) {
-  await fetch(`/api/saved/${jobId}`, {
-    method: 'PATCH', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ notes }),
-  });
+  await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { notes } });
 }
 async function removeJob(jobId) {
-  await fetch(`/api/saved/${jobId}`, { method: 'DELETE' });
+  await api.raw(`/api/saved/${jobId}`, { method: 'DELETE' });
   document.getElementById(`srow-${jobId}`)?.remove();
   savedJobs = savedJobs.filter(j => j.job_id !== jobId);
   updateSavedBadge();
@@ -6673,10 +6639,7 @@ async function addLastAnswerToNotes() {
   // Update in-memory and on server if already saved
   if (existing) {
     existing.notes = newNote;
-    await fetch(`/api/saved/${jobId}`, {
-      method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ notes: newNote }),
-    });
+    await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { notes: newNote } });
     const inp = document.getElementById(`srow-${jobId}`)?.querySelector('.notes-inp');
     if (inp) inp.value = newNote;
   }
@@ -9134,10 +9097,7 @@ async function _persistInterview() {
   const isSaved = (savedJobs || []).some(j => String(j.job_id) === String(jobId));
   try {
     if (isSaved) {
-      await fetch(`/api/saved/${jobId}`, {
-        method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ extras: { interview: _interview } }),
-      });
+      await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: _interview } } });
     } else {
       const status = document.getElementById('modalStatusSel')?.value || 'New';
       const res = await fetch('/api/saved', {
