@@ -4532,9 +4532,9 @@ async function doSaveWithExtras() {
   const extras = {};
   await Promise.all([
 
-    _epSel.salary && job.occ_group && fetch(`/api/salary_stats?occ_group=${encodeURIComponent(job.occ_group)}`)
-      .then(r => r.json()).then(d => {
-        if (!d.ok || !d.count) return;
+    _epSel.salary && job.occ_group && api.get(`/api/salary_stats?occ_group=${encodeURIComponent(job.occ_group)}`)
+      .then(d => {
+        if (!d.count) return;
         const ps  = v => { const n = parseFloat(String(v||'').replace(/[^0-9.]/g,'')); return n > 100 ? n : null; };
         const js  = ps(job.salary);
         const ptb = js ? Math.round((d.salaries.filter(s => s < js).length / d.count) * 100) : null;
@@ -4543,55 +4543,41 @@ async function doSaveWithExtras() {
           job_salary: js, pct_below: ptb, diff_mean: js ? Math.round(js - d.mean) : null };
       }).catch(() => {}),
 
-    _epSel.quality && fetch('/api/quality', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ jobs: [job], occ_group: job.occ_group||'', state: job.state||null }),
-    }).then(r => r.json()).then(d => {
-      if (!d.ok || !d.jobs?.length) return;
+    _epSel.quality && api.post('/api/quality', { jobs: [job], occ_group: job.occ_group||'', state: job.state||null })
+    .then(d => {
+      if (!d.jobs?.length) return;
       const q = d.jobs[0];
       extras.quality = { grade: q.quality, score: q.quality_score,
         verdict: q.quality_verdict, fit: q.quality_fit, flags: q.quality_flags };
     }).catch(() => {}),
 
-    _epSel.strength && _lastParsedText && fetch('/api/candidate_strength', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ job: { title: job.title, company: job.company,
+    _epSel.strength && _lastParsedText && api.post('/api/candidate_strength', { job: { title: job.title, company: job.company,
         skills: job.skills_en || job.skills,
         description: (job.description || job.description_snippet || '').slice(0,2000) },
-        cv_text: _lastParsedText.slice(0,2000) }),
-    }).then(r => r.json()).then(d => {
-      if (d.ok) extras.strength = { axes: d.axes, scores: d.scores, reasons: d.reasons, overall: d.overall };
+        cv_text: _lastParsedText.slice(0,2000) })
+    .then(d => {
+      extras.strength = { axes: d.axes, scores: d.scores, reasons: d.reasons, overall: d.overall };
     }).catch(() => {}),
 
-    _epSel.compact && fetch('/api/desc_compact', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ description: job.description || job.description_snippet || '', lang: 'en' }),
-    }).then(r => r.json()).then(d => { if (d.ok) extras.compact = d.text; }).catch(() => {}),
+    _epSel.compact && api.post('/api/desc_compact', { description: job.description || job.description_snippet || '', lang: 'en' })
+    .then(d => { extras.compact = d.text; }).catch(() => {}),
 
-    _epSel.questions && _lastParsedText && fetch('/api/desc_cv_questions', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ description: job.description || job.description_snippet || '',
-        cv_text: _lastParsedText, lang: 'en' }),
-    }).then(r => r.json()).then(d => { if (d.ok) extras.cv_questions = d.text; }).catch(() => {}),
+    _epSel.questions && _lastParsedText && api.post('/api/desc_cv_questions', { description: job.description || job.description_snippet || '',
+        cv_text: _lastParsedText, lang: 'en' })
+    .then(d => { extras.cv_questions = d.text; }).catch(() => {}),
 
-    _epSel.outreach && fetch('/api/desc_outreach', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ job: { title: job.title, company: job.company,
+    _epSel.outreach && api.post('/api/desc_outreach', { job: { title: job.title, company: job.company,
         location: [job.city, job.state].filter(Boolean).join(', '),
         salary: job.salary, skills: job.skills_en || job.skills,
         description: (job.description || job.description_snippet || '').slice(0,1500) },
         candidate_name: getCandidateName(),
-        cv_text: _lastParsedText ? _lastParsedText.slice(0,1500) : '', lang: 'en' }),
-    }).then(r => r.json()).then(d => { if (d.ok) extras.outreach = d.text; }).catch(() => {}),
+        cv_text: _lastParsedText ? _lastParsedText.slice(0,1500) : '', lang: 'en' })
+    .then(d => { extras.outreach = d.text; }).catch(() => {}),
 
   ].filter(Boolean));
 
   try {
-    const res  = await fetch('/api/saved', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras, candidate_profile: _currentCandidateProfile || null }),
-    });
-    const data = await res.json();
+    const data = await api.post('/api/saved', { job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras, candidate_profile: _currentCandidateProfile || null });
     if (data.ok) {
       savedJobs = data.jobs;
       updateSavedBadge();
