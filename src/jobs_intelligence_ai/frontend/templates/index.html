@@ -1296,7 +1296,7 @@ async function _mcAddFiles(files) {
 }
 function _mcRenderFiles() {
   document.getElementById('mcFiles').innerHTML = _mcFileCandidates.map((c, i) =>
-    `<span class="mc-file-chip">${esc(c.name)}<button onclick="_mcRemoveFile(${i})" title="Remove">×</button></span>`).join('');
+    `<span class="mc-file-chip">${esc(c.name)}<button data-action="mc-remove-file" data-i="${i}" title="Remove">×</button></span>`).join('');
 }
 function _mcRemoveFile(i) { _mcFileCandidates.splice(i, 1); _mcRenderFiles(); _mcUpdateCount(); }
 
@@ -1333,20 +1333,20 @@ function _mcRenderSegments(clusters) {
     `<div class="mc-step">3 · Review segments</div>
      <div class="mc-seg-bar">
        <span class="mc-count"><b>${clusters.length} segment${clusters.length !== 1 ? 's' : ''}</b> · ${total} people
-         · <a class="mc-link" onclick="_mcSelectAll(true)">select all</a>
-         · <a class="mc-link" onclick="_mcSelectAll(false)">clear</a></span>
+         · <a class="mc-link" data-action="mc-select-all" data-all="1">select all</a>
+         · <a class="mc-link" data-action="mc-select-all" data-all="0">clear</a></span>
        <span class="mc-seg-bar-actions">
-         <label class="mc-minjobs">Min A/B jobs <input type="number" id="mcMinJobs" min="0" value="0" oninput="_mcApplyFilter()"></label>
-         <button type="button" class="mc-btn-ghost" id="btnMatchSelected" onclick="matchSelectedSegments()">▶ Match selected</button>
-         <button type="button" class="mc-btn-ghost" id="btnOverview" onclick="_mcOpportunityOverview()">📈 Opportunity overview</button>
+         <label class="mc-minjobs">Min A/B jobs <input type="number" id="mcMinJobs" min="0" value="0" data-input-action="mc-apply-filter"></label>
+         <button type="button" class="mc-btn-ghost" id="btnMatchSelected" data-action="mc-match-selected">▶ Match selected</button>
+         <button type="button" class="mc-btn-ghost" id="btnOverview" data-action="mc-opportunity-overview">📈 Opportunity overview</button>
        </span>
      </div>
      <div class="mc-seg-hint">Click a segment to open it · tick the box to include it in “Match selected”.</div>` +
     clusters.map((cl, i) => `
-      <div class="mc-seg-card${cl._selected ? ' selected' : ''}" id="mcSeg-${i}" onclick="openSegmentModal(${i})">
+      <div class="mc-seg-card${cl._selected ? ' selected' : ''}" id="mcSeg-${i}" data-action="mc-open-segment" data-i="${i}">
         <div class="mc-seg-head">
           <span style="display:flex;align-items:center;gap:8px;min-width:0">
-            <span class="mc-seg-check" id="mcSegCheck-${i}" title="Select for matching" onclick="event.stopPropagation();_mcToggleSelect(${i})">${cl._selected ? '✓' : ''}</span>
+            <span class="mc-seg-check" id="mcSegCheck-${i}" title="Select for matching" data-action="mc-toggle-select" data-i="${i}">${cl._selected ? '✓' : ''}</span>
             <span class="mc-seg-title">${esc(cl.title)}</span>
           </span>
           <span class="mc-seg-size">${cl.size} ${cl.size !== 1 ? 'people' : 'person'}</span>
@@ -1429,8 +1429,8 @@ async function _mcLoadFromDb() {
       `<label class="mc-db-pick"><input type="checkbox" value="${i}"> <b>${esc(cnd.name)}</b>` +
       (cnd.title ? ` <span class="mc-muted">— ${esc(cnd.title)}</span>` : '') + `</label>`).join('') +
     `</div><div style="margin-top:10px;display:flex;gap:8px">` +
-    `<button type="button" class="mc-btn-ghost" onclick="_mcAddSelectedDb()">Add selected to pool</button>` +
-    `<button type="button" class="mc-btn-ghost" onclick="document.getElementById('mcSegments').innerHTML=''">Cancel</button></div>`;
+    `<button type="button" class="mc-btn-ghost" data-action="mc-add-selected-db">Add selected to pool</button>` +
+    `<button type="button" class="mc-btn-ghost" data-action="mc-clear-segments">Cancel</button></div>`;
 }
 function _mcAddSelectedDb() {
   const picks = [...document.querySelectorAll('#mcSegments input[type=checkbox]:checked')]
@@ -1491,13 +1491,13 @@ function _segChatHtml() {
     <div class="seg-chat-thread" id="segChatThread"></div>
     <div class="seg-chat-tools">
       <select id="segChatCompare"><option value="">Compare a candidate…</option>${opts}</select>
-      <button type="button" onclick="_segChatCompare()">Compare</button>
+      <button type="button" data-action="seg-chat-compare">Compare</button>
     </div>
     <div class="seg-chat-input">
       <input id="segChatInput" autocomplete="off"
         placeholder="e.g. Why is Marek in this group? How do these candidates differ?"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();sendSegChat();}">
-      <button type="button" onclick="sendSegChat()">Ask</button>
+        data-keydown-action="seg-chat-enter">
+      <button type="button" data-action="seg-chat-send">Ask</button>
     </div>
   </div>`;
 }
@@ -1574,7 +1574,7 @@ function openSegmentModal(i) {
   if (!matched) {
     content.innerHTML =
       `<div class="mc-intro" style="margin-top:4px">Match this segment to rank its candidates and see which fit each role best.</div>` +
-      `<button type="button" class="mc-btn-ghost" onclick="_segModalMatch(${i})">▶ Match this segment</button>`;
+      `<button type="button" class="mc-btn-ghost" data-action="seg-modal-match" data-i="${i}">▶ Match this segment</button>`;
     return;
   }
   if (cl._rank) { _segRenderRanking(i); return; }          // cached — no repeat embed call
@@ -1584,17 +1584,17 @@ function openSegmentModal(i) {
 
 function _segMembersHtml(cl) {
   return `<div class="seg-people"><span class="seg-lbl">People</span> ` +
-    cl.members.map(m => `<span class="mc-chip mc-chip-drill" title="Open this CV in single mode" onclick="_mcDrillToCandidate(${m.index})">${esc(m.name)}</span>`).join('') +
+    cl.members.map(m => `<span class="mc-chip mc-chip-drill" title="Open this CV in single mode" data-action="mc-drill-candidate" data-idx="${m.index}">${esc(m.name)}</span>`).join('') +
     `</div>`;
 }
 function _segActionsHtml(i, matched) {
   return `<div class="seg-actions">` +
-    `<button type="button" class="mc-btn-ghost" onclick="_segToggleAddForm(${i})">➕ Add candidate</button>` +
+    `<button type="button" class="mc-btn-ghost" data-action="seg-toggle-add-form" data-i="${i}">➕ Add candidate</button>` +
     (matched
-      ? `<button type="button" class="mc-btn-ghost" onclick="_segAnalyze(${i})">Analyze fit</button>` +
-        `<button type="button" class="mc-btn-ghost" onclick="_segViewJobs(${i})">View jobs in table</button>`
+      ? `<button type="button" class="mc-btn-ghost" data-action="seg-analyze" data-i="${i}">Analyze fit</button>` +
+        `<button type="button" class="mc-btn-ghost" data-action="seg-view-jobs" data-i="${i}">View jobs in table</button>`
       : '') +
-    `<button type="button" class="mc-btn-ghost" onclick="_mcSavePersona(${i}, this)">💾 Save as candidate</button>` +
+    `<button type="button" class="mc-btn-ghost" data-action="mc-save-persona" data-i="${i}">💾 Save as candidate</button>` +
     `</div>`;
 }
 
@@ -1607,8 +1607,8 @@ function _segToggleAddForm(i) {
     f.innerHTML =
       `<input id="segAddName" placeholder="Name (optional)">` +
       `<textarea id="segAddText" placeholder="Paste this candidate's CV / profile…"></textarea>` +
-      `<div><button type="button" onclick="_segAddCandidate(${i})">Add to segment</button>` +
-      `<button type="button" onclick="document.getElementById('segAddForm').style.display='none'">Cancel</button></div>`;
+      `<div><button type="button" data-action="seg-add-candidate" data-i="${i}">Add to segment</button>` +
+      `<button type="button" data-action="seg-add-form-cancel">Cancel</button></div>`;
     document.getElementById('segAddText').focus();
   } else {
     f.style.display = 'none';
@@ -1684,7 +1684,7 @@ function _segRankRows(rows) {
 function _segRenderRanking(i) {
   const cl = _mcLastClusters[i];
   const jobsHtml = (cl._abJobs || []).map((j, jx) =>
-    `<div class="seg-job-row" id="segJob-${jx}" onclick="_segJobClick(${i},${jx})">
+    `<div class="seg-job-row" id="segJob-${jx}" data-action="seg-job-click" data-i="${i}" data-jx="${jx}">
        <span class="grade ${gradeClass(j.grade)}">${j.grade}</span>
        <span style="flex:1;min-width:0">${esc(j.title)} <span class="mc-muted">@ ${esc(j.company || '')}</span></span>
        <span class="seg-rank-pct">${j.score_pct || ''}</span></div>`).join('');
@@ -1703,7 +1703,7 @@ function _segJobClick(i, jx) {
     `<div class="seg-job-fit">
        <h4>Best fit for “${esc(job.title)}” <span class="mc-muted">(embedding similarity)</span></h4>
        ${_segRankRows(fits.slice(0, 8))}
-       <button type="button" class="mc-seg-analyze" style="margin-top:8px" onclick="_segGradeJobAI(${i},${jx})">⚖ Grade with AI (precise)</button>
+       <button type="button" class="mc-seg-analyze" style="margin-top:8px" data-action="seg-grade-job" data-i="${i}" data-jx="${jx}">⚖ Grade with AI (precise)</button>
        <div id="segGradeOut"></div>
      </div>`;
 }
@@ -1812,6 +1812,32 @@ function _mcShowSegmentResults(cl) {
   if (typeof reapplyHighlight === 'function') reapplyHighlight();
   document.querySelector('.results-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// Action registry for the Multiple-CV cluster feature (replaces inline onclick/oninput/onkeydown).
+Object.assign(_ACTIONS, {
+  'mc-remove-file':          (el)    => _mcRemoveFile(+el.dataset.i),
+  'mc-select-all':           (el)    => _mcSelectAll(el.dataset.all === '1'),
+  'mc-apply-filter':         ()      => _mcApplyFilter(),
+  'mc-match-selected':       ()      => matchSelectedSegments(),
+  'mc-opportunity-overview': ()      => _mcOpportunityOverview(),
+  'mc-open-segment':         (el)    => openSegmentModal(+el.dataset.i),
+  'mc-toggle-select':        (el, e) => { e.stopPropagation(); _mcToggleSelect(+el.dataset.i); },
+  'mc-add-selected-db':      ()      => _mcAddSelectedDb(),
+  'mc-clear-segments':       ()      => { document.getElementById('mcSegments').innerHTML = ''; },
+  'seg-chat-compare':        ()      => _segChatCompare(),
+  'seg-chat-send':           ()      => sendSegChat(),
+  'seg-chat-enter':          (el, e) => { if (e.key === 'Enter') { e.preventDefault(); sendSegChat(); } },
+  'mc-drill-candidate':      (el)    => _mcDrillToCandidate(+el.dataset.idx),
+  'seg-modal-match':         (el)    => _segModalMatch(+el.dataset.i),
+  'seg-toggle-add-form':     (el)    => _segToggleAddForm(+el.dataset.i),
+  'seg-analyze':             (el)    => _segAnalyze(+el.dataset.i),
+  'seg-view-jobs':           (el)    => _segViewJobs(+el.dataset.i),
+  'mc-save-persona':         (el)    => _mcSavePersona(+el.dataset.i, el),
+  'seg-add-candidate':       (el)    => _segAddCandidate(+el.dataset.i),
+  'seg-add-form-cancel':     ()      => { document.getElementById('segAddForm').style.display = 'none'; },
+  'seg-job-click':           (el)    => _segJobClick(+el.dataset.i, +el.dataset.jx),
+  'seg-grade-job':           (el)    => _segGradeJobAI(+el.dataset.i, +el.dataset.jx),
+});
 
 // ════════════════════════════════════════════════════════════
 //  Filter chip toggles (single-select per group)
@@ -6634,6 +6660,19 @@ document.addEventListener('click', function(e) {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const handler = _ACTIONS[el.dataset.action];
+  if (handler) handler(el, e);
+});
+// Same registry, dispatched for the non-click inline handlers (oninput / onkeydown).
+document.addEventListener('input', function(e) {
+  const el = e.target.closest('[data-input-action]');
+  if (!el) return;
+  const handler = _ACTIONS[el.dataset.inputAction];
+  if (handler) handler(el, e);
+});
+document.addEventListener('keydown', function(e) {
+  const el = e.target.closest('[data-keydown-action]');
+  if (!el) return;
+  const handler = _ACTIONS[el.dataset.keydownAction];
   if (handler) handler(el, e);
 });
 

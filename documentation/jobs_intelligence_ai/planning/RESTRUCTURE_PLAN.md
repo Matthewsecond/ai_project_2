@@ -428,6 +428,10 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   `data-*`) next to its own code, so the maps split cleanly with the modules in 2.6c. ~226 inline
   handlers total (197 onclick + 29 other), 136 distinct fns.
   - ✅ part 1 (pilot): dispatcher core + `_ACTIONS` registry; converted the 3 job-chat lang buttons.
+  - ✅ part 2: extended the dispatcher with delegated `input`/`keydown` listeners (same registry, via
+    `data-input-action` / `data-keydown-action`); converted the whole Multiple-CV cluster feature
+    (23 handlers — covers dynamic args, two-arg, `this`, and inline-JS cases). 0 inline handlers left
+    in that section. Nesting (seg-check inside seg-card) handled by `closest()` picking the innermost.
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 Gate per step: `boot` + console-clean reload + `tab` (all five) + integration tests still green.
