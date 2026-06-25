@@ -401,15 +401,16 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     bare `loadFilters()` init deferred to `DOMContentLoaded` (only parse-time API caller — audited) so it
     runs after the deferred bridge. Added `static/js/*.js` to package-data.
     api.js grew `patch`/`del` (envelope) alongside `get`/`post`/`raw`.
-  - ✅ Migrated **36 of 88 sites** across 3 commits (all explicit `if(!data.ok)throw` sites + the
-    fire-and-forget mutations): part 1 search (b71f8ba), part 2 saved (5c6b59b), part 3 the rest of the
-    throw-sites — candidate/company/guided/opportunity/radar/analytics/desc/interview/feedback (3a522fa).
-    Verified live (parts 1–3): filters/radar/saved/company flow through `api.*`, console clean, boot OK.
-  - ⏳ **52 sites remain** — the careful pass: FormData uploads (parse-pdf, interview/extract — can't use
-    the JSON client), and the inline-`data.ok`/compact `await(await fetch()).json()` sites (multi-CV,
-    cluster, candidate assistant, job-card extras, opportunity chats, several saved lists). These read
-    `.ok` WITHOUT throwing today, so each needs per-site behavior-preserving conversion. App works
-    throughout (raw fetch + api.js coexist).
+  - ✅ Migrated **50 of 88 sites** across 5 commits: part 1 search (b71f8ba), part 2 saved (5c6b59b),
+    part 3 rest of throw-sites (3a522fa), part 4 cluster/multi-CV (1f1b704), part 5 extras-picker+save (7a3d6d5).
+    **Decision (throw+surface):** inline-`data.ok` sites convert to `api.*` and let errors throw; the existing
+    catch surfaces them (kills the silent error-swallowing). Verified live: filters/radar/saved/company/cluster
+    flow through `api.*`, console clean, boot OK; node --check after every batch.
+  - ⏳ **38 sites remain** (long tail): FormData uploads — parse-pdf ×3, interview/extract, item.pdf blob —
+    **stay raw `fetch`** (can't use the JSON client). The rest are more inline-`data.ok`/other sites
+    (candidate assistant, match/analyze, interview assess/model_answer/opportunities/context/followup/analyze,
+    opportunity chats, job_chat, analytics/report, saved lists/observation/report, salary_stats) — same
+    throw+surface treatment, per-site. App works throughout (raw fetch + api.js coexist).
 - 2.6c **Split JS by the existing tabs** (search / saved / radar / map / analytics) into per-feature
   modules + a boot module + a shared-util module.
 - 2.6d **Replace inline `onclick=` with event listeners** (delegation / `data-action`), so markup
