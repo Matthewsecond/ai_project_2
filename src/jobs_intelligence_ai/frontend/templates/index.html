@@ -1050,7 +1050,7 @@
 <script type="module">
 // ── 2.6c per-feature modules (extracted from this script, one at a time) ──
 import { state, _ACTIONS } from "{{ url_for('static', filename='js/state.js') }}";
-import { esc, mdToHtml, storeJob, getStoredJob } from "{{ url_for('static', filename='js/util.js') }}";
+import { esc, mdToHtml, gradeClass, storeJob, getStoredJob } from "{{ url_for('static', filename='js/util.js') }}";
 import { initMap, updateMapStats } from "{{ url_for('static', filename='js/map.js') }}";
 import { exportResults, exportSaved, generateSavedReport } from "{{ url_for('static', filename='js/export.js') }}";
 import { loadRadar } from "{{ url_for('static', filename='js/radar.js') }}";
@@ -1067,7 +1067,6 @@ function getCandidateName() {
 }
 let jobChatSessionId   = null;
 let _jobChatLastAnswer = '';
-let jobChatLang        = 'en';
 // The exact candidate text used for the last search — so the per-job chat can judge
 // fit for the candidate you searched with, even if the input boxes change afterward.
 // The candidate text the CURRENT scores were computed against — re-scoring a frozen
@@ -3624,7 +3623,7 @@ async function candAsstSend() {
 
   try {
     const data = await api.post('/api/candidate/assistant', {
-      session_id: SESSION_ID,
+      session_id: state.SESSION_ID,
       message:    text,
       profile:    state.currentCandidateProfile || {},
       jobs,
@@ -3652,7 +3651,7 @@ async function candAsstReset() {
   _candAsstNotes   = [];
   _candAsstMode    = '';
   try {
-    await api.raw('/api/candidate/assistant/reset', { method: 'POST', body: { session_id: SESSION_ID } });
+    await api.raw('/api/candidate/assistant/reset', { method: 'POST', body: { session_id: state.SESSION_ID } });
   } catch(e) { /* best-effort */ }
   candAsstEnsureGreeting();
 }
@@ -3828,7 +3827,7 @@ async function gbSend() {
   gbRenderThread();
 
   try {
-    const data = await api.post('/api/guided/chat', { message: msg, draft: gbDraft, user_edits: edits, last_offer: gbLastOffer, lang: jobChatLang, last_question: lastQuestion, last_field: gbLastField });
+    const data = await api.post('/api/guided/chat', { message: msg, draft: gbDraft, user_edits: edits, last_offer: gbLastOffer, lang: state.jobChatLang, last_question: lastQuestion, last_field: gbLastField });
     const changed = gbApplyDraft(data.draft, data.field_updates);
     const chips = gbBuildChips(data.options, data.suggestions, !!data.next_question);
     // Both data-option chips (sector/role/region) and free-text suggestions
@@ -4367,9 +4366,6 @@ async function streamMatching(text, filters, topN, maxResults) {
 // ════════════════════════════════════════════════════════════
 //  Render results
 // ════════════════════════════════════════════════════════════
-function gradeClass(g) {
-  return g === 'A' ? 'grade-a' : g === 'B' ? 'grade-b' : 'grade-c';
-}
 
 function renderResults(jobs) {
   const notDismissed = jobs.filter(j => !state.dismissedJobIds.has(String(j.job_id)));
@@ -6333,7 +6329,7 @@ document.addEventListener('keydown', e => {
 });
 
 function setJobChatLang(lang) {
-  jobChatLang = lang;
+  state.jobChatLang = lang;
   document.querySelectorAll('.jc-lang-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.lang === lang));
 }
@@ -6364,7 +6360,7 @@ async function sendJobChat() {
     const data = await api.post('/api/job_chat', {
       session_id:     jobChatSessionId,
       message:        text,
-      lang:           jobChatLang,
+      lang:           state.jobChatLang,
       candidate_text: state.lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
       job_context: {
         job_id:              state.modalJob.job_id,
@@ -6605,7 +6601,6 @@ document.addEventListener('focusout', function(e) {
 // ════════════════════════════════════════════════════════════
 //  Session id (candidate-assistant chat)
 // ════════════════════════════════════════════════════════════
-const SESSION_ID   = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 // (Radar / Analytics tab — moved to static/js/radar.js in 2.6c.)
 
@@ -6989,11 +6984,11 @@ function _ivCvText() {
   try { return (buildCandidateText() || '').trim(); } catch (_) { return ''; }
 }
 
-// Interview content follows the page-wide "AI lang" setting (jobChatLang), NOT
+// Interview content follows the page-wide "AI lang" setting (state.jobChatLang), NOT
 // the description's display language (_modalLang defaults to DE for the source
 // posting). So selecting EN at the top of the page yields English questions.
 function _ivLang() {
-  return (typeof jobChatLang !== 'undefined' && jobChatLang) ? jobChatLang : 'en';
+  return (typeof state.jobChatLang !== 'undefined' && state.jobChatLang) ? state.jobChatLang : 'en';
 }
 
 // The recruiter's structured profile / AI summary, fed to the helper as prior analysis.

@@ -9,6 +9,10 @@ export function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+export function gradeClass(g) {
+  return g === 'A' ? 'grade-a' : g === 'B' ? 'grade-b' : 'grade-c';
+}
+
 export function mdToHtml(text) {
   let s = esc(text);
   // Bold then italic (order matters — do ** before *)

@@ -39,6 +39,11 @@ export const state = {
   // ── Candidate-assistant highlight overlay (assistant; read by search/candidate) ──
   highlightedJobIds: new Set(),
   highlightCriterion: '',
+
+  // Page-wide AI chat language (job chat / guided / interview / modal).
+  jobChatLang: 'en',
+  // Per-page session id for the candidate-assistant chat (assistant + modal).
+  SESSION_ID: Math.random().toString(36).slice(2) + Date.now().toString(36),
 };
 
 // The delegated-action registry (data-action → handler). Lives here so any feature
