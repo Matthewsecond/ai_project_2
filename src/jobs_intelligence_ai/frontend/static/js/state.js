@@ -47,6 +47,15 @@ export const state = {
   // Drilled from a multi-CV segment into the single-candidate workflow — clustering
   // sets it on drill-down, candidate's clearCandidateProfile/setWorkflow clear it.
   mcDrilledFrom: false,
+  // Guided-builder draft fields — owned/written by guided.js, read by candidate's
+  // buildCandidateText() when the active input mode is 'guided'.
+  gbDraft: { name:'', sector:[], roles:[], skills:[], levels:[], states:[], languages:[], certs:[], salary:'', availability:'', notes:'' },
+  // CV-style lines the candidate assistant added → folded into the matching text by
+  // candidate's buildCandidateText()/_withAsstNotes(); owned/written by assistant.js.
+  candAsstNotes: [],
+  // Saved-tab view ('table' | 'dash') — owned by saved.js, set from candidate.js's
+  // _gotoSavedLocal() when jumping to the Saved → Local list after a LinkedIn import.
+  savedView: 'table',
 };
 
 // The delegated-action registry (data-action → handler). Lives here so any feature
