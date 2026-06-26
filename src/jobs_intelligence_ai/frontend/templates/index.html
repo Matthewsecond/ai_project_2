@@ -1049,11 +1049,30 @@
 
 <script type="module">
 // ── 2.6c per-feature modules (extracted from this script, one at a time) ──
-import { state, _ACTIONS } from "{{ url_for('static', filename='js/state.js') }}";
+import { state, _ACTIONS, app } from "{{ url_for('static', filename='js/state.js') }}";
 import { esc, mdToHtml, gradeClass, storeJob, getStoredJob } from "{{ url_for('static', filename='js/util.js') }}";
 import { initMap, updateMapStats } from "{{ url_for('static', filename='js/map.js') }}";
 import { exportResults, exportSaved, generateSavedReport } from "{{ url_for('static', filename='js/export.js') }}";
 import { loadRadar } from "{{ url_for('static', filename='js/radar.js') }}";
+
+// Cross-module function registry (2.6c). These are the functions that feature
+// modules call across module boundaries; callers use app.fn(). Registered here while
+// the core is still one script; as each module is extracted, its entries move into
+// that module's own Object.assign(app, {…}). All are hoisted function declarations.
+Object.assign(app, {
+  // boot / candidate-name
+  getCandidateName, _activateTab,
+  // candidate
+  buildCandidateText, setWorkflow, _renderCandidateProfile, ensureLinkedInScraped,
+  _initials, openCompanyPanel, closeCompanyPanel, closeCvPreview,
+  // search
+  renderResults, runMatching, saveAll, toggleFreeze, updateSavedBadge,
+  // saved
+  openSavedTab, _trackLocalCandidate, setSavedSource, _applySavedView,
+  // assistant / guided / clustering / interview
+  reapplyHighlight, gbInit, _setBackToSegments,
+  _ivHasAnswers, _interviewRestore, _feedbackContext,
+});
 
 // ════════════════════════════════════════════════════════════
 //  State
@@ -1089,7 +1108,7 @@ function _activateTab(id) {
   const group = btn && btn.dataset.modeGroup;
   if (group) _modeLastTab[group] = id;
   // Side effects
-  if (id === 'saved') openSavedTab();
+  if (id === 'saved') app.openSavedTab();
   if (id === 'map')   initMap(state.lastResults);
   if (id === 'radar') loadRadar();
 }
@@ -1125,7 +1144,7 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
     if (prevMode !== state.activeMode) _resetCandidateOnModeSwitch();
     document.getElementById('zone-' + state.activeMode).classList.add('active');
     const guided = state.activeMode === 'guided';
-    if (guided) gbInit();
+    if (guided) app.gbInit();
     const stBtn = document.getElementById('gbSaveTemplateBtn');
     if (stBtn) stBtn.style.display = guided ? 'inline-flex' : 'none';
     document.getElementById('runLabel').textContent = guided ? 'Find roles' : 'Run matching';
@@ -1156,7 +1175,7 @@ function _applyChrome() {
 // the multiple-candidates workflow (cluster a pool into segments).
 function setWorkflow(wf) {
   _currentWorkflow = wf;
-  if (wf === 'multiple') { _mcDrilledFrom = false; _setBackToSegments(false); }
+  if (wf === 'multiple') { _mcDrilledFrom = false; app._setBackToSegments(false); }
   document.querySelectorAll('.wf-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.workflow === wf));
   const tabs = document.querySelector('.mode-tabs');
@@ -1181,7 +1200,7 @@ function setWorkflow(wf) {
     tab.classList.add('active');
     state.activeMode = tab.dataset.mode;
     document.getElementById('zone-' + state.activeMode).classList.add('active');
-    if (state.activeMode === 'guided') gbInit();
+    if (state.activeMode === 'guided') app.gbInit();
   }
   _applyChrome();
 }
@@ -1445,7 +1464,7 @@ function _mcDrillToCandidate(idx) {
   const cand = _mcLastCandidates[idx];
   if (!cand) return;
   closeSegmentModal();
-  setWorkflow('single');
+  app.setWorkflow('single');
   const tab = document.querySelector('.mode-tab[data-mode="cv"]');
   if (tab) tab.click();                       // ensure CV input mode
   const box = document.getElementById('cvPasteText');
@@ -1455,7 +1474,7 @@ function _mcDrillToCandidate(idx) {
   // Remember we came from a segment so the user can get back without re-clustering.
   _mcDrilledFrom = true;
   _setBackToSegments(true);
-  runMatching();
+  app.runMatching();
 }
 
 // "← Back to segments" — return to the multiple-candidate view (segments persist in
@@ -1468,7 +1487,7 @@ function _setBackToSegments(show) {
 function _mcBackToSegments() {
   _mcDrilledFrom = false;
   _setBackToSegments(false);
-  setWorkflow('multiple');
+  app.setWorkflow('multiple');
   if (_mcLastClusters && _mcLastClusters.length &&
       !document.getElementById('mcSegments').children.length) {
     _mcRenderSegments(_mcLastClusters);
@@ -1806,9 +1825,9 @@ function _mcShowSegmentResults(cl) {
   state.lastResults        = cl._jobs || [];
   state.lastMatchText     = cl.persona_text;   // per-job chat / analyze use this persona
   state.scoredAgainstText = cl.persona_text;   // keep the re-score guard consistent
-  renderResults(state.lastResults);
+  app.renderResults(state.lastResults);
   if (typeof updateMapStats === 'function') updateMapStats(state.lastResults);
-  if (typeof reapplyHighlight === 'function') reapplyHighlight();
+  if (typeof reapplyHighlight === 'function') app.reapplyHighlight();
   document.querySelector('.results-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -2117,7 +2136,7 @@ async function loadCandidateFromDb(){
     }
     if (data.jobs && data.jobs.length){
       state.lastResults = data.jobs;
-      renderResults(state.lastResults);
+      app.renderResults(state.lastResults);
       updateMapStats(state.lastResults);
       document.getElementById('resultsStatus').innerHTML =
         `<span>Loaded ${data.jobs.length} saved job${data.jobs.length!==1?'s':''} for ${esc(name)} from the database.</span>`;
@@ -2159,11 +2178,11 @@ async function refreshCandidateFromDb(){
     // A refresh is a fresh search — never re-score a frozen set.
     if (state.resultsFrozen){
       const chk = document.getElementById('freezeChk');
-      if (chk){ chk.checked = false; toggleFreeze(); }
+      if (chk){ chk.checked = false; app.toggleFreeze(); }
     }
     if (btn) btn.innerHTML = orig;
-    await runMatching();                 // fresh vector search against the live DB
-    if (state.lastResults.length) await saveAll();   // upsert profile + save new A/B jobs
+    await app.runMatching();                 // fresh vector search against the live DB
+    if (state.lastResults.length) await app.saveAll();   // upsert profile + save new A/B jobs
     const n = state.lastResults.filter(j => j.grade !== 'C').length;
     document.getElementById('resultsStatus').innerHTML =
       `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; Refreshed ${esc(name)} — ` +
@@ -2196,7 +2215,7 @@ function _initials(name) {
 
 function _renderCandidateProfile(data) {
   state.currentCandidateProfile = data;
-  _trackLocalCandidate(data);   // make it available in the Saved-tab "Local" view
+  app._trackLocalCandidate(data);   // make it available in the Saved-tab "Local" view
   checkCandidateDuplicate(data.name || '');   // red banner if already in the DB
   const card    = document.getElementById('candProfileCard');
   const parsing = document.getElementById('candParsing');
@@ -2313,7 +2332,7 @@ function _companiesFromProfile(prof){
 // worked there). Driven by the "Save companies" button in the work-history panel.
 async function saveCompanies(btn){
   const prof = state.currentCandidateProfile;
-  const name = (prof && prof.name || '').trim() || getCandidateName();
+  const name = (prof && prof.name || '').trim() || app.getCandidateName();
   const companies = _companiesFromProfile(prof);
   if (!name) { alert('Give the candidate a name first.'); return; }
   if (!companies.length) { return; }
@@ -2387,7 +2406,7 @@ async function ensureLinkedInScraped() {
     if (!profiles.length) throw new Error('No profiles returned');
 
     // Every imported profile becomes a session ("Local") candidate, ready to save.
-    profiles.forEach(p => _trackLocalCandidate(p.profile));
+    profiles.forEach(p => app._trackLocalCandidate(p.profile));
 
     // Load the first one as the active candidate (card + matcher text); the rest
     // wait in Saved → Local. Matching then runs on this profile's text.
@@ -2414,10 +2433,10 @@ async function ensureLinkedInScraped() {
 
 // Jump to the Saved tab's Local list (where bulk-imported candidates wait to save).
 function _gotoSavedLocal() {
-  _activateTab('saved');
+  app._activateTab('saved');
   _savedView = 'table';
-  setSavedSource('local');
-  _applySavedView();
+  app.setSavedSource('local');
+  app._applySavedView();
 }
 
 // ── CV loaded chip + preview ──────────────────────────────────
@@ -2623,7 +2642,7 @@ function _resetCandidateOnModeSwitch() {
 
 function clearCandidateProfile() {
   document.getElementById('candProfileCard').classList.remove('visible');
-  _mcDrilledFrom = false; _setBackToSegments(false);   // breaking the candidate breaks the segment link
+  _mcDrilledFrom = false; app._setBackToSegments(false);   // breaking the candidate breaks the segment link
   setCandidateName('');
   checkCandidateDuplicate('');   // clears the duplicate warning
   state.lastParsedText = '';
@@ -3307,7 +3326,7 @@ function candAsstClearHighlight() {
   state.highlightCriterion = '';
   state.highlightedJobIds  = new Set();
   document.getElementById('candAsstClearHlBtn').style.display = 'none';
-  if (state.lastResults.length) renderResults(state.lastResults);
+  if (state.lastResults.length) app.renderResults(state.lastResults);
 }
 
 // Overall analysis: how the candidate stacks up against the CURRENT matched jobs —
@@ -3321,7 +3340,7 @@ async function candAsstAnalyzeFit() {
     candAsstAppendAi('Run matching first so there are jobs to analyze the candidate against.');
     return;
   }
-  const text = state.lastMatchText || buildCandidateText();
+  const text = state.lastMatchText || app.buildCandidateText();
   if (!text) { candAsstAppendAi('Add a candidate profile first, then run matching.'); return; }
 
   const thread = document.getElementById('candAsstThread');
@@ -3362,7 +3381,7 @@ async function matchJobUrl(url) {
   url = (url || '').trim();
   if (!url) { _candAsstMode = ''; return; }
 
-  const profileText = buildCandidateText();
+  const profileText = app.buildCandidateText();
   if (!profileText) {
     candAsstAppendAi('Add a candidate profile first, then paste a job URL to score it.');
     _candAsstMode = '';
@@ -3427,7 +3446,7 @@ function addUrlJobToResults(job, btn) {
   }
   state.dismissedJobIds.delete(id);   // a re-added job must not stay hidden by a prior dismiss
   state.pinnedJobIds.add(id);         // pin: keeps weak matches visible and sticks across re-runs
-  renderResults(state.lastResults);
+  app.renderResults(state.lastResults);
   if (btn) { btn.disabled = true; btn.textContent = '✓ Added to results'; }
 }
 
@@ -3453,7 +3472,7 @@ async function applyHighlight(criterion) {
     state.highlightedJobIds  = new Set((ids || []).map(String));
     document.getElementById('candAsstClearHlBtn').style.display =
       state.highlightedJobIds.size ? '' : 'none';
-    renderResults(state.lastResults);
+    app.renderResults(state.lastResults);
     const n = state.highlightedJobIds.size;
     candAsstAppendAi(n
       ? `Highlighted ${n} offer${n !== 1 ? 's' : ''} matching “${criterion}” in amber. They stay highlighted when you re-run (and combine with frozen rows). Use the Actions button → Clear highlight to remove.`
@@ -3485,7 +3504,7 @@ async function reapplyHighlight() {
     state.highlightedJobIds = new Set((ids || []).map(String));
     document.getElementById('candAsstClearHlBtn').style.display =
       state.highlightedJobIds.size ? '' : 'none';
-    renderResults(state.lastResults);
+    app.renderResults(state.lastResults);
   } catch(e) { /* keep prior highlights on failure */ }
 }
 
@@ -3557,7 +3576,7 @@ function candAsstRerun(btn) {
   btn.textContent = 'Matching…';
   // Scroll the results into view, then run.
   document.querySelector('.results-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  runMatching();
+  app.runMatching();
 }
 
 // Merge the assistant's structured profile_updates into the candidate card, and
@@ -3582,7 +3601,7 @@ function candAsstApplyUpdates(updates, cvNote) {
     }
   }
   if (!changed) return false;
-  _renderCandidateProfile(prof);   // re-renders the card and updates state.currentCandidateProfile
+  app._renderCandidateProfile(prof);   // re-renders the card and updates state.currentCandidateProfile
   const note = (cvNote || '').trim();
   if (note) _candAsstNotes.push(note);
   return true;
@@ -3932,13 +3951,13 @@ async function gbSaveTemplate() {
 
   // Wire the profile so saved jobs carry the template profile for Match Insights.
   state.currentCandidateProfile = { ...gbProfileFromDraft(), name };
-  _trackLocalCandidate(state.currentCandidateProfile);
+  app._trackLocalCandidate(state.currentCandidateProfile);
   document.getElementById('candidateName').value = name;
 
   const btn = document.getElementById('gbSaveTemplateBtn');
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Saving…';
   try {
-    await saveAll();   // saves A/B roles under getCandidateName() with the profile
+    await app.saveAll();   // saves A/B roles under app.getCandidateName() with the profile
     btn.textContent = '✓ Saved to pipeline';
     setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
   } catch(e) {
@@ -4024,7 +4043,7 @@ function _updateStaleNotice() {
   const el = document.getElementById('staleScoreNotice');
   if (!el) return;
   let cur = '';
-  try { cur = (buildCandidateText() || '').trim(); } catch (_) {}
+  try { cur = (app.buildCandidateText() || '').trim(); } catch (_) {}
   const stale = state.resultsFrozen && state.lastResults.length && cur &&
                 cur !== (state.scoredAgainstText || '').trim();
   el.style.display = stale ? 'flex' : 'none';
@@ -4080,7 +4099,7 @@ function _animateRescore(prevRects, prevScore) {
 
 async function rescoreFrozenResults() {
   const btn = document.getElementById('btnRun');
-  const text = buildCandidateText();
+  const text = app.buildCandidateText();
   if (!text) { alert('Please enter a candidate profile.'); return; }
   if (!state.lastResults.length) return;
   // Nothing changed since the current scores — re-scoring identical input just churns
@@ -4141,7 +4160,7 @@ async function runMatching() {
   // LinkedIn mode: scrape the profile(s) first, then match on the scraped text.
   if (state.activeMode === 'linkedin') {
     btn.disabled = true;
-    const ok = await ensureLinkedInScraped();
+    const ok = await app.ensureLinkedInScraped();
     if (!ok) {
       btn.disabled = false;
       document.getElementById('runLabel').textContent = 'Run matching';
@@ -4149,7 +4168,7 @@ async function runMatching() {
     }
   }
 
-  const text = buildCandidateText();
+  const text = app.buildCandidateText();
   if (!text) {
     btn.disabled = false;
     document.getElementById('runLabel').textContent = state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
@@ -4209,7 +4228,7 @@ async function runMatching() {
     state.scoredAgainstText = text;   // these scores correspond to this candidate text
     renderResults(state.lastResults);
     updateMapStats(state.lastResults);
-    reapplyHighlight();   // sticky: re-evaluate the active highlight on the new set
+    app.reapplyHighlight();   // sticky: re-evaluate the active highlight on the new set
   };
 
   try {
@@ -4237,7 +4256,7 @@ async function runMatching() {
 // Frozen-set action: search again with WIDER retrieval and append any jobs not
 // already shown, keeping the frozen rows. Warns when nothing new turns up.
 async function findMoreJobs() {
-  const text = state.lastMatchText || buildCandidateText();
+  const text = state.lastMatchText || app.buildCandidateText();
   if (!text) { alert('Please enter a candidate profile.'); return; }
 
   const moreBtn = document.getElementById('btnFindMore');
@@ -4279,7 +4298,7 @@ async function findMoreJobs() {
       state.lastResults = [...state.lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
       renderResults(state.lastResults);
       updateMapStats(state.lastResults);
-      reapplyHighlight();
+      app.reapplyHighlight();
       document.getElementById('resultsStatus').innerHTML =
         `<span style="color:#1648a8;font-weight:600">➕ Added ${newAB.length} new A/B job${newAB.length !== 1 ? 's' : ''} to the frozen set.</span>`;
     } else {
@@ -4491,7 +4510,7 @@ async function toggleSave(btn, jobId) {
   if (btn.classList.contains('saved')) return;
   const job = state.lastResults.find(j => j.job_id == jobId);
   if (!job) return;
-  const jobWithCandidate = { ...job, candidate_name: getCandidateName() };
+  const jobWithCandidate = { ...job, candidate_name: app.getCandidateName() };
   try {
     const data = await api.post('/api/saved', { job: jobWithCandidate, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
@@ -4633,14 +4652,14 @@ async function doSaveWithExtras() {
         location: [job.city, job.state].filter(Boolean).join(', '),
         salary: job.salary, skills: job.skills_en || job.skills,
         description: (job.description || job.description_snippet || '').slice(0,1500) },
-        candidate_name: getCandidateName(),
+        candidate_name: app.getCandidateName(),
         cv_text: state.lastParsedText ? state.lastParsedText.slice(0,1500) : '', lang: 'en' })
     .then(d => { extras.outreach = d.text; }).catch(() => {}),
 
   ].filter(Boolean));
 
   try {
-    const data = await api.post('/api/saved', { job: { ...job, candidate_name: getCandidateName() }, status: 'New', extras, candidate_profile: state.currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: { ...job, candidate_name: app.getCandidateName() }, status: 'New', extras, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
       state.savedJobs = data.jobs;
       updateSavedBadge();
@@ -4731,7 +4750,7 @@ function _localToRow(p){
   const skills = Array.isArray(skillSrc) ? skillSrc.join(', ') : (skillSrc || '');
   const name = p.name || '';
   return {
-    name, initials: _initials(name || '?'),
+    name, initials: app._initials(name || '?'),
     status: p.status || 'New', title: p.title || '', summary: p.summary || '',
     email: p.email || '', phone: p.phone || '', linkedin: p.linkedin || '',
     location: p.location || '', languages: p.languages || '', skills,
@@ -4825,7 +4844,7 @@ async function loadSaved() {
     // Keep the legacy state.savedJobs array + badge in sync (used by Excel export etc.)
     const sres = await fetch('/api/saved');
     const sdata = await sres.json();
-    if (sdata.ok) { state.savedJobs = sdata.jobs; updateSavedBadge(); }
+    if (sdata.ok) { state.savedJobs = sdata.jobs; app.updateSavedBadge(); }
 
     const res  = await fetch('/api/saved/candidates');
     const data = await res.json();
@@ -5845,7 +5864,7 @@ function toggleExtrasPanel() {
   if (!open) return;
   // Enable checkboxes only for generated content
   const compact   = _descCompact_orig || _descCompact_trans;
-  const questions = _descCvQuestions || _ivHasAnswers();
+  const questions = _descCvQuestions || app._ivHasAnswers();
   const outreach  = _descOutreach;
   const strength  = _strengthData;
   const salaryStats = state.modalJob?._salaryStats;
@@ -5886,17 +5905,17 @@ async function saveWithExtras() {
     extras.strength   = _strengthData || null;
   if (document.getElementById('extrasChkQuestions').checked) {
     if (_descCvQuestions) extras.cv_questions = _descCvQuestions;
-    if (_ivHasAnswers())  extras.interview   = _interview;
+    if (app._ivHasAnswers())  extras.interview   = _interview;
   }
   if (document.getElementById('extrasChkOutreach').checked)
     extras.outreach   = _descOutreach || null;
 
   const status = document.getElementById('modalStatusSel').value;
   try {
-    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: getCandidateName() }, status, extras, candidate_profile: state.currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() }, status, extras, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
       state.savedJobs = data.jobs;
-      updateSavedBadge();
+      app.updateSavedBadge();
       const saveBtn = document.getElementById('modalSaveBtn');
       saveBtn.textContent = '✓ Saved'; saveBtn.classList.add('saved');
       const extrasBtn = document.getElementById('modalExtrasBtn');
@@ -5920,7 +5939,7 @@ async function removeJob(jobId) {
   await api.raw(`/api/saved/${jobId}`, { method: 'DELETE' });
   document.getElementById(`srow-${jobId}`)?.remove();
   state.savedJobs = state.savedJobs.filter(j => j.job_id !== jobId);
-  updateSavedBadge();
+  app.updateSavedBadge();
   loadSaved();
 }
 
@@ -6020,7 +6039,7 @@ function openJobModal(storeId) {
     _descReset(desc);
     // Nothing shown by default — user clicks Original / Compact / Interview.
     _interviewReset();
-    _interviewRestore(job.job_id);
+    app._interviewRestore(job.job_id);
   } else {
     descWrap.style.display = 'none';
     _descReset('');
@@ -6361,7 +6380,7 @@ async function sendJobChat() {
       session_id:     jobChatSessionId,
       message:        text,
       lang:           state.jobChatLang,
-      candidate_text: state.lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
+      candidate_text: state.lastMatchText || app.buildCandidateText(),   // the candidate you searched with (fallback: live input)
       job_context: {
         job_id:              state.modalJob.job_id,
         title:               state.modalJob.title,
@@ -6518,12 +6537,12 @@ async function saveFromModal() {
   if (!state.modalJob || saveBtn.classList.contains('saved')) return;
   const status = document.getElementById('modalStatusSel').value;
   try {
-    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: getCandidateName() }, status, candidate_profile: state.currentCandidateProfile || null });
+    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() }, status, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
       saveBtn.textContent = '✓ Saved';
       saveBtn.classList.add('saved');
       state.savedJobs = data.jobs;
-      updateSavedBadge();
+      app.updateSavedBadge();
       // Sync the results-table save button if present
       const tableBtn = document.getElementById(`save-${state.modalJob.job_id}`);
       if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
@@ -6535,10 +6554,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Close panels in order: innermost first
     if (!document.getElementById('coModal').classList.contains('hidden')) {
-      closeCompanyPanel(); return;
+      app.closeCompanyPanel(); return;
     }
     if (document.getElementById('cvPreviewOverlay').classList.contains('cvpo-open')) {
-      closeCvPreview(); return;
+      app.closeCvPreview(); return;
     }
     // Respect the window lock — don't let Esc close a locked, open job modal.
     const jm = document.getElementById('jobModal');
@@ -6555,7 +6574,7 @@ document.addEventListener('click', function(e) {
   if (!link) return;
   e.stopPropagation();
   const name = link.getAttribute('data-company');
-  if (name) openCompanyPanel(name);
+  if (name) app.openCompanyPanel(name);
 });
 
 // ── Action dispatch — delegated click handler (replaces inline onclick=) ──
@@ -6934,7 +6953,7 @@ function _ivHasAnswers() {
 function _interviewRestore(jobId) {
   // Same job_id can be saved under more than one candidate — prefer the row for the
   // candidate currently open in the modal, else fall back to the first match.
-  const cand = (typeof getCandidateName === 'function') ? getCandidateName() : null;
+  const cand = (typeof getCandidateName === 'function') ? app.getCandidateName() : null;
   const matches = (state.savedJobs || []).filter(j => String(j.job_id) === String(jobId));
   const saved = (cand && matches.find(j => j.candidate_name === cand)) || matches[0];
   const iv = saved && saved.extras && saved.extras.interview;
@@ -6976,12 +6995,12 @@ function _ivOtherRecords(excludeIds) {
 
 // The candidate's CV text for the interview. Prefer a raw parsed/pasted CV
 // (`state.lastParsedText`), but fall back to text rebuilt from the loaded profile via
-// buildCandidateText() — a candidate reloaded from the database has a structured
+// app.buildCandidateText() — a candidate reloaded from the database has a structured
 // profile but no raw CV text, so without this the panel wrongly says "No CV".
 function _ivCvText() {
   const raw = (state.lastParsedText || '').trim();
   if (raw) return raw;
-  try { return (buildCandidateText() || '').trim(); } catch (_) { return ''; }
+  try { return (app.buildCandidateText() || '').trim(); } catch (_) { return ''; }
 }
 
 // Interview content follows the page-wide "AI lang" setting (state.jobChatLang), NOT
@@ -7715,12 +7734,12 @@ async function _persistInterview() {
       await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: _interview } } });
     } else {
       const status = document.getElementById('modalStatusSel')?.value || 'New';
-      const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: getCandidateName() },
+      const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() },
                                                   status, extras: { interview: _interview },
                                                   candidate_profile: state.currentCandidateProfile || null });
       if (data.ok) {
         state.savedJobs = data.jobs;
-        updateSavedBadge();
+        app.updateSavedBadge();
         const saveBtn = document.getElementById('modalSaveBtn');
         if (saveBtn) { saveBtn.textContent = '✓ Saved'; saveBtn.classList.add('saved'); }
         const tableBtn = document.getElementById(`save-${jobId}`);
@@ -7865,7 +7884,7 @@ async function sendFeedback(){
   if (!text){ msg.style.color='#b91c1c'; msg.textContent='Please type something first.'; ta.focus(); return; }
   btn.disabled = true; msg.style.color='#6b7280'; msg.textContent='Sending…';
   try {
-    const data = await api.post('/api/feedback', { message: text, context: _feedbackContext() });
+    const data = await api.post('/api/feedback', { message: text, context: app._feedbackContext() });
     msg.style.color='#1a7a2e'; msg.textContent='Thanks — feedback saved!';
     setTimeout(closeFeedback, 900);
   } catch(e){

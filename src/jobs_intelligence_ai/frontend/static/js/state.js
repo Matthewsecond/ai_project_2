@@ -51,3 +51,11 @@ export const state = {
 // code, and the dispatcher (in the page module) can look them up. Imported bindings
 // are initialised before any module body runs, so there's no temporal-dead-zone trap.
 export const _ACTIONS = {};
+
+// Cross-module function registry (late binding). Feature modules that genuinely call
+// into one another register their public functions here on load
+// (Object.assign(app, { fn, … })) and callers invoke app.fn(…). This decouples the
+// core cluster — no module needs to import a sibling — so each can be extracted
+// independently. Calls fire at runtime (after every module has loaded + registered),
+// the same guarantee that makes _ACTIONS safe.
+export const app = {};
