@@ -1065,17 +1065,13 @@ let currentCandidate = '';   // name entered in the candidate bar
 function getCandidateName() {
   return document.getElementById('candidateName').value.trim() || 'Unassigned';
 }
-let sortCol          = 'score';
-let sortAsc          = false;
 let jobChatSessionId   = null;
 let _jobChatLastAnswer = '';
 let jobChatLang        = 'en';
 // The exact candidate text used for the last search — so the per-job chat can judge
 // fit for the candidate you searched with, even if the input boxes change afterward.
-let _lastMatchText     = '';
 // The candidate text the CURRENT scores were computed against — re-scoring a frozen
 // set is only meaningful when this differs from the live candidate text.
-let _scoredAgainstText = '';
 
 // ════════════════════════════════════════════════════════════
 //  Tab routing
@@ -1809,8 +1805,8 @@ function _mcApplyFilter() {
 
 function _mcShowSegmentResults(cl) {
   state.lastResults        = cl._jobs || [];
-  _lastMatchText     = cl.persona_text;   // per-job chat / analyze use this persona
-  _scoredAgainstText = cl.persona_text;   // keep the re-score guard consistent
+  state.lastMatchText     = cl.persona_text;   // per-job chat / analyze use this persona
+  state.scoredAgainstText = cl.persona_text;   // keep the re-score guard consistent
   renderResults(state.lastResults);
   if (typeof updateMapStats === 'function') updateMapStats(state.lastResults);
   if (typeof reapplyHighlight === 'function') reapplyHighlight();
@@ -2008,7 +2004,6 @@ async function processFile(file) {
 
 // ── AI Candidate profile ──────────────────────────────────────
 let _parseProfileTimer = null;
-let _lastParsedText    = '';
 
 function setCandidateName(name) {
   // Keep the hidden input in sync for job-saving (reads candidateName.value)
@@ -2142,7 +2137,7 @@ function _seedMatchTextFromProfile(profile){
   _activateCVMode && _activateCVMode();
   const ta = document.getElementById('cvPasteText');
   if (ta && !ta.value.trim()){ ta.value = txt; }
-  _lastParsedText = txt;
+  state.lastParsedText = txt;
 }
 
 // "Refresh from database": reload the saved profile, run a FRESH match against the
@@ -2163,7 +2158,7 @@ async function refreshCandidateFromDb(){
       setCandidateName(name);
     }
     // A refresh is a fresh search — never re-score a frozen set.
-    if (resultsFrozen){
+    if (state.resultsFrozen){
       const chk = document.getElementById('freezeChk');
       if (chk){ chk.checked = false; toggleFreeze(); }
     }
@@ -2336,8 +2331,8 @@ async function saveCompanies(btn){
 }
 
 async function parseCandidate(text) {
-  if (!text || text === _lastParsedText) return;
-  _lastParsedText = text;
+  if (!text || text === state.lastParsedText) return;
+  state.lastParsedText = text;
 
   const card    = document.getElementById('candProfileCard');
   const parsing = document.getElementById('candParsing');
@@ -2353,7 +2348,7 @@ async function parseCandidate(text) {
   } catch(e) {
     if (parsing) parsing.style.display = 'none';
     card.classList.remove('visible');
-    _lastParsedText = '';
+    state.lastParsedText = '';
   }
 }
 
@@ -2398,7 +2393,7 @@ async function ensureLinkedInScraped() {
     // Load the first one as the active candidate (card + matcher text); the rest
     // wait in Saved → Local. Matching then runs on this profile's text.
     _linkedinText       = profiles[0].text || '';
-    _lastParsedText     = _linkedinText;
+    state.lastParsedText     = _linkedinText;
     _linkedinScrapedKey = key;
     _renderCandidateProfile(profiles[0].profile);
 
@@ -2454,9 +2449,9 @@ Object.assign(_ACTIONS, {
 });
 
 function openCvPreview() {
-  if (!_lastParsedText) return;
+  if (!state.lastParsedText) return;
   document.getElementById('cvPreviewName').textContent = _cvLoadedName || 'CV Preview';
-  document.getElementById('cvPreviewBody').textContent  = _lastParsedText;
+  document.getElementById('cvPreviewBody').textContent  = state.lastParsedText;
   document.getElementById('cvPreviewOverlay').classList.add('cvpo-open');
 }
 
@@ -2622,7 +2617,7 @@ function _resetCandidateOnModeSwitch() {
   document.getElementById('candProfileCard')?.classList.remove('visible');
   setCandidateName('');
   _showDupWarn(null);
-  _lastParsedText = '';
+  state.lastParsedText = '';
   _cvLoadedName   = '';
   state.currentCandidateProfile = null;
 }
@@ -2632,16 +2627,16 @@ function clearCandidateProfile() {
   _mcDrilledFrom = false; _setBackToSegments(false);   // breaking the candidate breaks the segment link
   setCandidateName('');
   checkCandidateDuplicate('');   // clears the duplicate warning
-  _lastParsedText = '';
+  state.lastParsedText = '';
   _cvLoadedName   = '';
   state.currentCandidateProfile = null;
   _linkedinText       = '';
   _linkedinScrapedKey = '';
   _candAsstNotes      = [];   // drop CV details the assistant added for this candidate
-  _dismissedJobIds    = new Set();   // reset per-row dismiss/freeze for the new candidate
-  _pinnedJobIds       = new Set();
-  _highlightCriterion = '';
-  _highlightedJobIds  = new Set();
+  state.dismissedJobIds    = new Set();   // reset per-row dismiss/freeze for the new candidate
+  state.pinnedJobIds       = new Set();
+  state.highlightCriterion = '';
+  state.highlightedJobIds  = new Set();
   ['cvPasteText', 'liUrls'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('dropText').innerHTML =
     'Drop a PDF CV here, or <a href="#" data-action="browse-cv">browse to upload</a> — or paste CV text directly below';
@@ -2750,7 +2745,7 @@ function loadExampleText() {
   const paste = document.getElementById('cvPasteText');
   if (paste) paste.value = _EXAMPLE_CANDIDATE.text;
   _setCvLoaded('Anna Bauer (example)');
-  _lastParsedText = _EXAMPLE_CANDIDATE.text;
+  state.lastParsedText = _EXAMPLE_CANDIDATE.text;
   _renderCandidateProfile(_EXAMPLE_PROFILE);
 }
 
@@ -2777,7 +2772,7 @@ async function loadExamplePdf() {
     const paste = document.getElementById('cvPasteText');
     if (paste) paste.value = pdfText;
     _setCvLoaded('Max Weber CV (PDF)');
-    _lastParsedText = pdfText;
+    state.lastParsedText = pdfText;
     _renderCandidateProfile(_EXAMPLE_PROFILE_2);
   } catch(e) {
     alert('Could not load example CV: ' + e.message);
@@ -2791,7 +2786,7 @@ function loadExample3() {
   const paste = document.getElementById('cvPasteText');
   if (paste) paste.value = _EXAMPLE_CANDIDATE_3.text;
   _setCvLoaded('Thomas Gruber (example)');
-  _lastParsedText = _EXAMPLE_CANDIDATE_3.text;
+  state.lastParsedText = _EXAMPLE_CANDIDATE_3.text;
   _renderCandidateProfile(_EXAMPLE_PROFILE_3);
 }
 
@@ -3138,7 +3133,7 @@ async function _loadSkExample(item) {
   const paste = document.getElementById('cvPasteText');
   if (paste) paste.value = text;
   _setCvLoaded(item.badge === 'PDF' ? `${item.name} CV (PDF)` : `${item.name} (example)`);
-  _lastParsedText = text;
+  state.lastParsedText = text;
   _renderCandidateProfile(item.prof);
 }
 
@@ -3164,7 +3159,7 @@ function _loadExDirect(n) {
   const paste = document.getElementById('cvPasteText');
   if (paste) paste.value = cand.text;
   _setCvLoaded(label);
-  _lastParsedText = cand.text;
+  state.lastParsedText = cand.text;
   _renderCandidateProfile(prof);
 }
 
@@ -3280,8 +3275,6 @@ const _CAND_ASST_LIST_FIELDS = ['skills', 'top_skills', 'strengths', 'certificat
 
 // Highlight state — a natural-language criterion + the job_ids that matched it.
 // Sticky: re-applied automatically after a re-run so new offers are evaluated too.
-let _highlightCriterion = '';
-let _highlightedJobIds  = new Set();
 
 function candAsstToggleMenu(e) {
   if (e) e.stopPropagation();
@@ -3312,8 +3305,8 @@ function candAsstStartHighlight() {
 
 function candAsstClearHighlight() {
   _closeCandAsstMenu();
-  _highlightCriterion = '';
-  _highlightedJobIds  = new Set();
+  state.highlightCriterion = '';
+  state.highlightedJobIds  = new Set();
   document.getElementById('candAsstClearHlBtn').style.display = 'none';
   if (state.lastResults.length) renderResults(state.lastResults);
 }
@@ -3329,7 +3322,7 @@ async function candAsstAnalyzeFit() {
     candAsstAppendAi('Run matching first so there are jobs to analyze the candidate against.');
     return;
   }
-  const text = _lastMatchText || buildCandidateText();
+  const text = state.lastMatchText || buildCandidateText();
   if (!text) { candAsstAppendAi('Add a candidate profile first, then run matching.'); return; }
 
   const thread = document.getElementById('candAsstThread');
@@ -3433,8 +3426,8 @@ function addUrlJobToResults(job, btn) {
     state.lastResults.push(job);
     state.lastResults.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
-  _dismissedJobIds.delete(id);   // a re-added job must not stay hidden by a prior dismiss
-  _pinnedJobIds.add(id);         // pin: keeps weak matches visible and sticks across re-runs
+  state.dismissedJobIds.delete(id);   // a re-added job must not stay hidden by a prior dismiss
+  state.pinnedJobIds.add(id);         // pin: keeps weak matches visible and sticks across re-runs
   renderResults(state.lastResults);
   if (btn) { btn.disabled = true; btn.textContent = '✓ Added to results'; }
 }
@@ -3457,12 +3450,12 @@ async function applyHighlight(criterion) {
   try {
     const ids = await _fetchHighlightIds(criterion, state.lastResults);
     document.getElementById('candAsstTyping')?.remove();
-    _highlightCriterion = criterion;
-    _highlightedJobIds  = new Set((ids || []).map(String));
+    state.highlightCriterion = criterion;
+    state.highlightedJobIds  = new Set((ids || []).map(String));
     document.getElementById('candAsstClearHlBtn').style.display =
-      _highlightedJobIds.size ? '' : 'none';
+      state.highlightedJobIds.size ? '' : 'none';
     renderResults(state.lastResults);
-    const n = _highlightedJobIds.size;
+    const n = state.highlightedJobIds.size;
     candAsstAppendAi(n
       ? `Highlighted ${n} offer${n !== 1 ? 's' : ''} matching “${criterion}” in amber. They stay highlighted when you re-run (and combine with frozen rows). Use the Actions button → Clear highlight to remove.`
       : `No offers on screen match “${criterion}”. Try different wording, or run matching for more results first.`);
@@ -3487,12 +3480,12 @@ async function _fetchHighlightIds(criterion, results) {
 // Re-apply the active highlight after a fresh re-run, so new offers get evaluated
 // and frozen rows keep their highlight. Best-effort.
 async function reapplyHighlight() {
-  if (!_highlightCriterion || !state.lastResults.length) return;
+  if (!state.highlightCriterion || !state.lastResults.length) return;
   try {
-    const ids = await _fetchHighlightIds(_highlightCriterion, state.lastResults);
-    _highlightedJobIds = new Set((ids || []).map(String));
+    const ids = await _fetchHighlightIds(state.highlightCriterion, state.lastResults);
+    state.highlightedJobIds = new Set((ids || []).map(String));
     document.getElementById('candAsstClearHlBtn').style.display =
-      _highlightedJobIds.size ? '' : 'none';
+      state.highlightedJobIds.size ? '' : 'none';
     renderResults(state.lastResults);
   } catch(e) { /* keep prior highlights on failure */ }
 }
@@ -3963,15 +3956,13 @@ document.getElementById('btnFindMore').addEventListener('click', findMoreJobs);
 // ════════════════════════════════════════════════════════════
 //  Per-row actions — dismiss (×) and freeze/pin (❄) a single result
 // ════════════════════════════════════════════════════════════
-let _dismissedJobIds = new Set();   // jobs removed from view (won't resurface on re-run)
-let _pinnedJobIds    = new Set();   // jobs frozen individually (kept across re-runs)
 
 // Remove a single job from the results view so the list stays clean. Dismissed
 // jobs are remembered, so a later re-run won't bring them back.
 function dismissJob(jobId) {
   const id = String(jobId);
-  _dismissedJobIds.add(id);
-  _pinnedJobIds.delete(id);   // a dismissed job can't also be frozen
+  state.dismissedJobIds.add(id);
+  state.pinnedJobIds.delete(id);   // a dismissed job can't also be frozen
   const tr = document.getElementById('row-' + jobId);
   if (tr) {
     tr.style.transition = 'opacity .2s, transform .2s';
@@ -3997,31 +3988,30 @@ function toggleShowWeak() {
 // kept (with their current score) when you re-run matching to pull in more jobs.
 function togglePinJob(jobId) {
   const id = String(jobId);
-  if (_pinnedJobIds.has(id)) _pinnedJobIds.delete(id);
-  else _pinnedJobIds.add(id);
+  if (state.pinnedJobIds.has(id)) state.pinnedJobIds.delete(id);
+  else state.pinnedJobIds.add(id);
   renderResults(state.lastResults);
 }
 
 // ════════════════════════════════════════════════════════════
 //  Freeze results — keep the job set fixed and only re-score it
 // ════════════════════════════════════════════════════════════
-let resultsFrozen = false;
 
 function _runLabelFor() {
-  if (resultsFrozen && state.lastResults.length) return 'Re-score results';
+  if (state.resultsFrozen && state.lastResults.length) return 'Re-score results';
   return state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
 }
 
 function toggleFreeze() {
-  resultsFrozen = document.getElementById('freezeChk').checked;
-  document.getElementById('freezeToggle').classList.toggle('on', resultsFrozen);
-  document.getElementById('resultsTbody')?.classList.toggle('all-frozen', resultsFrozen);
+  state.resultsFrozen = document.getElementById('freezeChk').checked;
+  document.getElementById('freezeToggle').classList.toggle('on', state.resultsFrozen);
+  document.getElementById('resultsTbody')?.classList.toggle('all-frozen', state.resultsFrozen);
   document.getElementById('runLabel').textContent = _runLabelFor();
   // When frozen, offer a second action: search for more jobs to add to the locked set.
   const moreBtn = document.getElementById('btnFindMore');
-  if (moreBtn) moreBtn.style.display = (resultsFrozen && state.lastResults.length) ? '' : 'none';
+  if (moreBtn) moreBtn.style.display = (state.resultsFrozen && state.lastResults.length) ? '' : 'none';
   const st = document.getElementById('statusText');
-  if (st && resultsFrozen && state.lastResults.length) {
+  if (st && state.resultsFrozen && state.lastResults.length) {
     st.textContent = `❄ Frozen — ${state.lastResults.length} jobs locked. Re-score them against a changed candidate, or find more jobs to add.`;
   }
   _updateStaleNotice();
@@ -4029,15 +4019,15 @@ function toggleFreeze() {
 
 // Show a warning when a FROZEN result set no longer matches the current candidate
 // (e.g. you froze, then edited the CV). The data to detect this already exists:
-// `_scoredAgainstText` is what the scores correspond to. Cheap, prevents acting on
+// `state.scoredAgainstText` is what the scores correspond to. Cheap, prevents acting on
 // stale scores. Hidden whenever not frozen, no results, or the text still matches.
 function _updateStaleNotice() {
   const el = document.getElementById('staleScoreNotice');
   if (!el) return;
   let cur = '';
   try { cur = (buildCandidateText() || '').trim(); } catch (_) {}
-  const stale = resultsFrozen && state.lastResults.length && cur &&
-                cur !== (_scoredAgainstText || '').trim();
+  const stale = state.resultsFrozen && state.lastResults.length && cur &&
+                cur !== (state.scoredAgainstText || '').trim();
   el.style.display = stale ? 'flex' : 'none';
 }
 
@@ -4096,7 +4086,7 @@ async function rescoreFrozenResults() {
   if (!state.lastResults.length) return;
   // Nothing changed since the current scores — re-scoring identical input just churns
   // (the grader jitters a little each call). Skip it and tell the user.
-  if (text.trim() === (_scoredAgainstText || '').trim()) {
+  if (text.trim() === (state.scoredAgainstText || '').trim()) {
     document.getElementById('resultsStatus').innerHTML =
       '<span style="color:#b45309;font-weight:600">Candidate unchanged — nothing to re-score. Edit the profile, then re-score.</span>';
     return;
@@ -4122,14 +4112,14 @@ async function rescoreFrozenResults() {
     const map = {};
     (data.jobs || []).forEach(u => { map[u.job_id] = u; });
     state.lastResults.forEach(j => {
-      if (_pinnedJobIds.has(String(j.job_id))) return;   // frozen row keeps its score
+      if (state.pinnedJobIds.has(String(j.job_id))) return;   // frozen row keeps its score
       const u = map[j.job_id];
       if (u) {
         j.score = u.score; j.score_pct = u.score_pct; j.grade = u.grade;
         if (u.match_reason) j.match_reason = u.match_reason;
       }
     });
-    _scoredAgainstText = text;           // scores now correspond to this candidate text
+    state.scoredAgainstText = text;           // scores now correspond to this candidate text
     renderResults(state.lastResults);          // re-sorts into the new order
     _animateRescore(prevRects, prevScore);
     updateMapStats(state.lastResults);
@@ -4147,7 +4137,7 @@ async function runMatching() {
   const btn = document.getElementById('btnRun');
 
   // Frozen: don't run a fresh search — re-score the locked job set in place.
-  if (resultsFrozen && state.lastResults.length) return rescoreFrozenResults();
+  if (state.resultsFrozen && state.lastResults.length) return rescoreFrozenResults();
 
   // LinkedIn mode: scrape the profile(s) first, then match on the scraped text.
   if (state.activeMode === 'linkedin') {
@@ -4167,7 +4157,7 @@ async function runMatching() {
     alert('Please enter a candidate profile.');
     return;
   }
-  _lastMatchText = text;   // remember who we searched with, for per-job fit chat
+  state.lastMatchText = text;   // remember who we searched with, for per-job fit chat
 
   const filters  = {};
   const stateF   = document.getElementById('filterState').value;
@@ -4186,7 +4176,7 @@ async function runMatching() {
   const tbody = document.getElementById('resultsTbody');
   // Keep any frozen (pinned) rows visible while the new search runs; show the
   // loading spinner beneath them instead of blanking the whole table.
-  const pinnedNow = state.lastResults.filter(j => _pinnedJobIds.has(String(j.job_id)));
+  const pinnedNow = state.lastResults.filter(j => state.pinnedJobIds.has(String(j.job_id)));
   if (pinnedNow.length) {
     renderResults(pinnedNow);
     const loader = document.createElement('tr');
@@ -4212,12 +4202,12 @@ async function runMatching() {
   // re-run, fresh results fill the rest, drop dismissed, de-dupe against pinned.
   // Shared by the streaming path and the /api/match fallback.
   const applyFinalJobs = (jobs) => {
-    const pinned    = state.lastResults.filter(j => _pinnedJobIds.has(String(j.job_id)));
+    const pinned    = state.lastResults.filter(j => state.pinnedJobIds.has(String(j.job_id)));
     const pinnedIds = new Set(pinned.map(j => String(j.job_id)));
     const fresh     = (jobs || []).filter(j =>
-      !_dismissedJobIds.has(String(j.job_id)) && !pinnedIds.has(String(j.job_id)));
+      !state.dismissedJobIds.has(String(j.job_id)) && !pinnedIds.has(String(j.job_id)));
     state.lastResults = [...pinned, ...fresh];
-    _scoredAgainstText = text;   // these scores correspond to this candidate text
+    state.scoredAgainstText = text;   // these scores correspond to this candidate text
     renderResults(state.lastResults);
     updateMapStats(state.lastResults);
     reapplyHighlight();   // sticky: re-evaluate the active highlight on the new set
@@ -4248,7 +4238,7 @@ async function runMatching() {
 // Frozen-set action: search again with WIDER retrieval and append any jobs not
 // already shown, keeping the frozen rows. Warns when nothing new turns up.
 async function findMoreJobs() {
-  const text = _lastMatchText || buildCandidateText();
+  const text = state.lastMatchText || buildCandidateText();
   if (!text) { alert('Please enter a candidate profile.'); return; }
 
   const moreBtn = document.getElementById('btnFindMore');
@@ -4285,7 +4275,7 @@ async function findMoreJobs() {
     // fires when the wider search surfaced no new A or B job beyond the current set.
     const newAB = (fresh || []).filter(j =>
       (j.grade === 'A' || j.grade === 'B') &&
-      !prevIds.has(String(j.job_id)) && !_dismissedJobIds.has(String(j.job_id)));
+      !prevIds.has(String(j.job_id)) && !state.dismissedJobIds.has(String(j.job_id)));
     if (newAB.length) {
       state.lastResults = [...state.lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
       renderResults(state.lastResults);
@@ -4382,33 +4372,33 @@ function gradeClass(g) {
 }
 
 function renderResults(jobs) {
-  const notDismissed = jobs.filter(j => !_dismissedJobIds.has(String(j.job_id)));
+  const notDismissed = jobs.filter(j => !state.dismissedJobIds.has(String(j.job_id)));
   // Weak (C) matches are hidden unless the toggle is on — but a frozen C row stays.
   const visible = notDismissed.filter(j =>
-    _showWeakC || (j.grade || 'C') !== 'C' || _pinnedJobIds.has(String(j.job_id)));
+    _showWeakC || (j.grade || 'C') !== 'C' || state.pinnedJobIds.has(String(j.job_id)));
   const hiddenC = notDismissed.length - visible.length;
   const sorted = [...visible].sort((a, b) => {
     // Pinned ("frozen") results always rank first, so they stick when re-running.
-    const ap = _pinnedJobIds.has(String(a.job_id)) ? 1 : 0;
-    const bp = _pinnedJobIds.has(String(b.job_id)) ? 1 : 0;
+    const ap = state.pinnedJobIds.has(String(a.job_id)) ? 1 : 0;
+    const bp = state.pinnedJobIds.has(String(b.job_id)) ? 1 : 0;
     if (ap !== bp) return bp - ap;
     let av, bv;
-    if (sortCol === 'score') {
+    if (state.sortCol === 'score') {
       av = a.score; bv = b.score;
-    } else if (sortCol === 'location') {
+    } else if (state.sortCol === 'location') {
       av = [a.city, a.state].filter(Boolean).join(', ').toLowerCase();
       bv = [b.city, b.state].filter(Boolean).join(', ').toLowerCase();
     } else {
-      av = (a[sortCol] || '').toString().toLowerCase();
-      bv = (b[sortCol] || '').toString().toLowerCase();
+      av = (a[state.sortCol] || '').toString().toLowerCase();
+      bv = (b[state.sortCol] || '').toString().toLowerCase();
     }
-    return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    return state.sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
   });
 
   const savedIds = new Set(state.savedJobs.map(j => j.job_id));
   const tbody    = document.getElementById('resultsTbody');
   // Whole-set freeze: tint every row blue so it's clear the entire set is locked.
-  tbody.classList.toggle('all-frozen', resultsFrozen);
+  tbody.classList.toggle('all-frozen', state.resultsFrozen);
 
   if (!sorted.length) {
     tbody.innerHTML = `<tr><td colspan="8" class="no-results">
@@ -4424,8 +4414,8 @@ function renderResults(jobs) {
     const g      = job.grade || 'C';
     const loc    = [job.city, job.state].filter(Boolean).join(', ') || '—';
     const isSaved = savedIds.has(job.job_id);
-    const isPinned = _pinnedJobIds.has(String(job.job_id));
-    const isHighlighted = _highlightedJobIds.has(String(job.job_id));
+    const isPinned = state.pinnedJobIds.has(String(job.job_id));
+    const isHighlighted = state.highlightedJobIds.has(String(job.job_id));
     const sid    = storeJob({ ...job, _batch: 'search' });
     const tr     = document.createElement('tr');
     tr.id = `row-${job.job_id}`;
@@ -4436,7 +4426,7 @@ function renderResults(jobs) {
         <span class="grade ${gradeClass(g)}">${g}</span><span class="pct">${job.score_pct || ''}</span>
       </td>
       <td style="cursor:pointer" data-action="open-job-modal" data-sid="${sid}" title="Click to see details">
-        <div class="job-title-main" style="color:#1a56c4">${esc(job.title)}${isHighlighted ? `<span class="hl-badge" title="${esc(_highlightCriterion)}">✦ ${esc(_highlightCriterion.length > 22 ? _highlightCriterion.slice(0, 22) + '…' : _highlightCriterion)}</span>` : ''}</div>
+        <div class="job-title-main" style="color:#1a56c4">${esc(job.title)}${isHighlighted ? `<span class="hl-badge" title="${esc(state.highlightCriterion)}">✦ ${esc(state.highlightCriterion.length > 22 ? state.highlightCriterion.slice(0, 22) + '…' : state.highlightCriterion)}</span>` : ''}</div>
         ${job.match_reason ? `<div class="match-reason">${esc(job.match_reason)}</div>` : ''}
       </td>
       <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}</td>
@@ -4469,13 +4459,13 @@ function renderResults(jobs) {
   const nA = visible.filter(j => j.grade === 'A').length;
   const nB = visible.filter(j => j.grade === 'B').length;
   const nC = visible.filter(j => j.grade === 'C').length;
-  const nPin = visible.filter(j => _pinnedJobIds.has(String(j.job_id))).length;
-  const nHl  = visible.filter(j => _highlightedJobIds.has(String(j.job_id))).length;
+  const nPin = visible.filter(j => state.pinnedJobIds.has(String(j.job_id))).length;
+  const nHl  = visible.filter(j => state.highlightedJobIds.has(String(j.job_id))).length;
   document.getElementById('resultsStatus').innerHTML =
     `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; ${visible.length} matches found — ${nA} strong (A) · ${nB} good (B)` +
     (_showWeakC ? ` · ${nC} weak (C)` : (hiddenC ? ` · <span style="color:#9aa3b2">${hiddenC} weak (C) hidden</span>` : '')) +
     (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '') +
-    (_highlightCriterion ? ` · <span class="hl-legend"><span class="hl-dot"></span>${nHl} highlighted: “${esc(_highlightCriterion)}”<span class="hl-clear" data-action="cand-asst-clear-highlight">clear</span></span>` : '');
+    (state.highlightCriterion ? ` · <span class="hl-legend"><span class="hl-dot"></span>${nHl} highlighted: “${esc(state.highlightCriterion)}”<span class="hl-clear" data-action="cand-asst-clear-highlight">clear</span></span>` : '');
 }
 
 // Action registry for the dynamically-built results rows — clickable title
@@ -4493,8 +4483,8 @@ Object.assign(_ACTIONS, {
 //  Sort
 // ════════════════════════════════════════════════════════════
 function sortBy(col) {
-  if (sortCol === col) sortAsc = !sortAsc;
-  else { sortCol = col; sortAsc = col !== 'score'; }
+  if (state.sortCol === col) state.sortAsc = !state.sortAsc;
+  else { state.sortCol = col; state.sortAsc = col !== 'score'; }
   if (state.lastResults.length) renderResults(state.lastResults);
 }
 
@@ -4554,7 +4544,7 @@ function openExtrasPicker(jobId, sid, anchor) {
   }
   _epJobId = jobId; _epSid = sid; _epSel = {};
 
-  const hasCv = !!_lastParsedText;
+  const hasCv = !!state.lastParsedText;
   document.getElementById('extrasPickerOptions').innerHTML = _EP_OPTS.map(o => {
     const dis = o.needsCv && !hasCv ? 'disabled title="Upload a CV first"' : '';
     return `<button class="extras-picker-opt" id="epopt-${o.key}" ${dis}
@@ -4628,10 +4618,10 @@ async function doSaveWithExtras() {
         verdict: q.quality_verdict, fit: q.quality_fit, flags: q.quality_flags };
     }).catch(() => {}),
 
-    _epSel.strength && _lastParsedText && api.post('/api/candidate_strength', { job: { title: job.title, company: job.company,
+    _epSel.strength && state.lastParsedText && api.post('/api/candidate_strength', { job: { title: job.title, company: job.company,
         skills: job.skills_en || job.skills,
         description: (job.description || job.description_snippet || '').slice(0,2000) },
-        cv_text: _lastParsedText.slice(0,2000) })
+        cv_text: state.lastParsedText.slice(0,2000) })
     .then(d => {
       extras.strength = { axes: d.axes, scores: d.scores, reasons: d.reasons, overall: d.overall };
     }).catch(() => {}),
@@ -4639,8 +4629,8 @@ async function doSaveWithExtras() {
     _epSel.compact && api.post('/api/desc_compact', { description: job.description || job.description_snippet || '', lang: 'en' })
     .then(d => { extras.compact = d.text; }).catch(() => {}),
 
-    _epSel.questions && _lastParsedText && api.post('/api/desc_cv_questions', { description: job.description || job.description_snippet || '',
-        cv_text: _lastParsedText, lang: 'en' })
+    _epSel.questions && state.lastParsedText && api.post('/api/desc_cv_questions', { description: job.description || job.description_snippet || '',
+        cv_text: state.lastParsedText, lang: 'en' })
     .then(d => { extras.cv_questions = d.text; }).catch(() => {}),
 
     _epSel.outreach && api.post('/api/desc_outreach', { job: { title: job.title, company: job.company,
@@ -4648,7 +4638,7 @@ async function doSaveWithExtras() {
         salary: job.salary, skills: job.skills_en || job.skills,
         description: (job.description || job.description_snippet || '').slice(0,1500) },
         candidate_name: getCandidateName(),
-        cv_text: _lastParsedText ? _lastParsedText.slice(0,1500) : '', lang: 'en' })
+        cv_text: state.lastParsedText ? state.lastParsedText.slice(0,1500) : '', lang: 'en' })
     .then(d => { extras.outreach = d.text; }).catch(() => {}),
 
   ].filter(Boolean));
@@ -4672,10 +4662,10 @@ async function doSaveWithExtras() {
 
 function clearResults() {
   state.lastResults = [];
-  _dismissedJobIds = new Set();
-  _pinnedJobIds    = new Set();
-  _highlightCriterion = '';
-  _highlightedJobIds  = new Set();
+  state.dismissedJobIds = new Set();
+  state.pinnedJobIds    = new Set();
+  state.highlightCriterion = '';
+  state.highlightedJobIds  = new Set();
   const _hlBtn = document.getElementById('candAsstClearHlBtn');
   if (_hlBtn) _hlBtn.style.display = 'none';
   document.getElementById('resultsTbody').innerHTML = `<tr><td colspan="8" class="no-results">
@@ -6375,7 +6365,7 @@ async function sendJobChat() {
       session_id:     jobChatSessionId,
       message:        text,
       lang:           jobChatLang,
-      candidate_text: _lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
+      candidate_text: state.lastMatchText || buildCandidateText(),   // the candidate you searched with (fallback: live input)
       job_context: {
         job_id:              state.modalJob.job_id,
         title:               state.modalJob.title,
@@ -6666,7 +6656,7 @@ async function toggleAnalysisPanel(type) {
     await loadQualityAssessment(state.modalJob);
 
   } else if (type === 'strength') {
-    if (!_lastParsedText) {
+    if (!state.lastParsedText) {
       document.getElementById('modalStrengthChart').style.display = 'none';
       document.getElementById('modalStrengthDetails').innerHTML =
         '<div class="quality-loading" style="padding:16px 0">No CV loaded — upload or paste a CV to run candidate strength analysis.</div>';
@@ -6675,7 +6665,7 @@ async function toggleAnalysisPanel(type) {
     }
     document.getElementById('modalStrengthDetails').innerHTML =
       '<div class="quality-loading">Analysing candidate fit…</div>';
-    await loadStrengthAnalysis(state.modalJob, _lastParsedText);
+    await loadStrengthAnalysis(state.modalJob, state.lastParsedText);
   }
 }
 
@@ -6990,11 +6980,11 @@ function _ivOtherRecords(excludeIds) {
 }
 
 // The candidate's CV text for the interview. Prefer a raw parsed/pasted CV
-// (`_lastParsedText`), but fall back to text rebuilt from the loaded profile via
+// (`state.lastParsedText`), but fall back to text rebuilt from the loaded profile via
 // buildCandidateText() — a candidate reloaded from the database has a structured
 // profile but no raw CV text, so without this the panel wrongly says "No CV".
 function _ivCvText() {
-  const raw = (_lastParsedText || '').trim();
+  const raw = (state.lastParsedText || '').trim();
   if (raw) return raw;
   try { return (buildCandidateText() || '').trim(); } catch (_) { return ''; }
 }
@@ -7832,7 +7822,7 @@ async function descToggleOutreach() {
           description: _descOriginal.slice(0, 1500),
         },
         candidate_name: candidateName,
-        cv_text: _lastParsedText ? _lastParsedText.slice(0, 1500) : '',
+        cv_text: state.lastParsedText ? state.lastParsedText.slice(0, 1500) : '',
         lang: _modalLang,
       });
       _descOutreach = data.text;

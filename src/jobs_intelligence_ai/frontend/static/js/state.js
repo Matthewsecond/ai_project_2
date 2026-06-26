@@ -24,6 +24,21 @@ export const state = {
   activeMode: 'cv',
   // The job currently open in the detail modal — modal + quality/analysis/interview + saved.
   modalJob: null,
+
+  // ── Search result-set bookkeeping (search; read by candidate/assistant) ──
+  pinnedJobIds: new Set(),        // jobs frozen individually (kept across re-runs)
+  dismissedJobIds: new Set(),     // jobs removed from view (won't resurface on re-run)
+  resultsFrozen: false,           // whole set frozen — re-score in place, don't re-search
+  sortCol: 'score',
+  sortAsc: false,
+  // Text the current results were matched/scored against — search + per-job fit chat.
+  lastMatchText: '',
+  scoredAgainstText: '',
+  lastParsedText: '',             // last parsed CV text (candidate; read by search/modal/interview)
+
+  // ── Candidate-assistant highlight overlay (assistant; read by search/candidate) ──
+  highlightedJobIds: new Set(),
+  highlightCriterion: '',
 };
 
 // The delegated-action registry (data-action → handler). Lives here so any feature
