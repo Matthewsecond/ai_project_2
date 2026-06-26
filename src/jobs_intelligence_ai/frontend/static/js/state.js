@@ -44,6 +44,9 @@ export const state = {
   jobChatLang: 'en',
   // Per-page session id for the candidate-assistant chat (assistant + modal).
   SESSION_ID: Math.random().toString(36).slice(2) + Date.now().toString(36),
+  // Drilled from a multi-CV segment into the single-candidate workflow — clustering
+  // sets it on drill-down, candidate's clearCandidateProfile/setWorkflow clear it.
+  mcDrilledFrom: false,
 };
 
 // The delegated-action registry (data-action → handler). Lives here so any feature
