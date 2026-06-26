@@ -56,6 +56,14 @@ export const state = {
   // Saved-tab view ('table' | 'dash') — owned by saved.js, set from candidate.js's
   // _gotoSavedLocal() when jumping to the Saved → Local list after a LinkedIn import.
   savedView: 'table',
+  // Job-detail-modal description state read/written from both modal.js (the
+  // translate/compact toolbar) and interview.js (descToggleOutreach reads the
+  // source text + lang; descToggleCvQuestions toggles the questions-shown flag).
+  descOriginal: '',
+  modalLang: 'de',
+  descOutreach: null,
+  descOutreachShown: false,
+  descCvQuestionsShown: false,
 };
 
 // The delegated-action registry (data-action → handler). Lives here so any feature

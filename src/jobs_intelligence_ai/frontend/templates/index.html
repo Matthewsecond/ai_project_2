@@ -1068,6 +1068,8 @@ import "{{ url_for('static', filename='js/assistant.js') }}";
 import "{{ url_for('static', filename='js/search.js') }}";
 // Side-effect-only import: saved.js registers its own _ACTIONS + app entries.
 import "{{ url_for('static', filename='js/saved.js') }}";
+// Side-effect-only import: modal.js registers its own _ACTIONS + app entries.
+import "{{ url_for('static', filename='js/modal.js') }}";
 
 // Cross-module function registry (2.6c). These are the functions that feature
 // modules call across module boundaries; callers use app.fn(). Registered here while
@@ -1076,9 +1078,12 @@ import "{{ url_for('static', filename='js/saved.js') }}";
 Object.assign(app, {
   // boot / candidate-name
   getCandidateName, _activateTab,
-  // modal / interview
-  openJobModal,
-  _ivHasAnswers, _interviewRestore, _feedbackContext,
+  // interview (still inline here; modal.js's registry calls these via app.*)
+  _ivHasAnswers, _interviewRestore, _interviewReset, _feedbackContext,
+  descToggleCvQuestions, descToggleOutreach,
+  setIvPerspective, toggleFreezeInterview, regenerateInterview, addInterviewQuestion,
+  toggleInterviewImport, analyzeAllInterview, toggleInterviewContext,
+  _ivLoadImportFile, importInterviewQuestions,
 });
 
 // ════════════════════════════════════════════════════════════
@@ -1091,8 +1096,6 @@ let currentCandidate = '';   // name entered in the candidate bar
 function getCandidateName() {
   return document.getElementById('candidateName').value.trim() || 'Unassigned';
 }
-let jobChatSessionId   = null;
-let _jobChatLastAnswer = '';
 // The exact candidate text used for the last search — so the per-job chat can judge
 // fit for the candidate you searched with, even if the input boxes change afterward.
 // The candidate text the CURRENT scores were computed against — re-scoring a frozen
@@ -1134,714 +1137,6 @@ document.querySelectorAll('.mode-toggle-btn').forEach(btn =>
 
 document.querySelectorAll('.tab-btn[data-mode-group]').forEach(btn =>
   btn.addEventListener('click', () => _activateTab(btn.dataset.tab)));
-
-// ════════════════════════════════════════════════════════════
-//  Job-detail-modal "save with extras" panel (awaiting modal.js extraction)
-// ════════════════════════════════════════════════════════════
-function toggleExtrasPanel() {
-  const panel = document.getElementById('saveExtrasPanel');
-  const btn   = document.getElementById('modalExtrasBtn');
-  const open  = panel.style.display === 'none';
-  panel.style.display = open ? '' : 'none';
-  btn.classList.toggle('active', open);
-  if (!open) return;
-  // Enable checkboxes only for generated content
-  const compact   = _descCompact_orig || _descCompact_trans;
-  const questions = _descCvQuestions || app._ivHasAnswers();
-  const outreach  = _descOutreach;
-  const strength  = _strengthData;
-  const salaryStats = state.modalJob?._salaryStats;
-  const qualityData = state.modalJob?.quality ? {
-    grade: state.modalJob.quality, score: state.modalJob.quality_score,
-    verdict: state.modalJob.quality_verdict, fit: state.modalJob.quality_fit,
-    flags: state.modalJob.quality_flags,
-  } : null;
-  const set = (id, itemId, has) => {
-    const chk  = document.getElementById(id);
-    const item = document.getElementById(itemId);
-    chk.disabled = !has;
-    item.classList.toggle('dim', !has);
-    if (has) chk.checked = true;
-  };
-  set('extrasChkSalary',    'extrasItemSalary',    !!salaryStats);
-  set('extrasChkQuality',   'extrasItemQuality',   !!qualityData);
-  set('extrasChkCompact',   'extrasItemCompact',   !!compact);
-  set('extrasChkStrength',  'extrasItemStrength',  !!strength);
-  set('extrasChkQuestions', 'extrasItemQuestions', !!questions);
-  set('extrasChkOutreach',  'extrasItemOutreach',  !!outreach);
-}
-
-async function saveWithExtras() {
-  if (!state.modalJob) return;
-  const extras = {};
-  if (document.getElementById('extrasChkSalary').checked && state.modalJob._salaryStats)
-    extras.salary = state.modalJob._salaryStats;
-  if (document.getElementById('extrasChkQuality').checked && state.modalJob.quality)
-    extras.quality = {
-      grade: state.modalJob.quality, score: state.modalJob.quality_score,
-      verdict: state.modalJob.quality_verdict, fit: state.modalJob.quality_fit,
-      flags: state.modalJob.quality_flags,
-    };
-  if (document.getElementById('extrasChkCompact').checked)
-    extras.compact    = _descCompact_orig || _descCompact_trans || null;
-  if (document.getElementById('extrasChkStrength').checked)
-    extras.strength   = _strengthData || null;
-  if (document.getElementById('extrasChkQuestions').checked) {
-    if (_descCvQuestions) extras.cv_questions = _descCvQuestions;
-    if (app._ivHasAnswers())  extras.interview   = _interview;
-  }
-  if (document.getElementById('extrasChkOutreach').checked)
-    extras.outreach   = _descOutreach || null;
-
-  const status = document.getElementById('modalStatusSel').value;
-  try {
-    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() }, status, extras, candidate_profile: state.currentCandidateProfile || null });
-    if (data.ok) {
-      state.savedJobs = data.jobs;
-      app.updateSavedBadge();
-      const saveBtn = document.getElementById('modalSaveBtn');
-      saveBtn.textContent = '✓ Saved'; saveBtn.classList.add('saved');
-      const extrasBtn = document.getElementById('modalExtrasBtn');
-      extrasBtn.textContent = '✓ extras'; extrasBtn.disabled = true;
-      document.getElementById('saveExtrasPanel').style.display = 'none';
-      const tableBtn = document.getElementById(`save-${state.modalJob.job_id}`);
-      if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
-      app._miRefreshCurrent();
-    }
-  } catch(e) { alert('Save failed: ' + e.message); }
-}
-
-async function updateStatus(jobId, sel) {
-  sel.className = `status-select s-${sel.value}`;
-  await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { pipeline_status: sel.value } });
-}
-async function updateNotes(jobId, notes) {
-  await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { notes } });
-}
-async function removeJob(jobId) {
-  await api.raw(`/api/saved/${jobId}`, { method: 'DELETE' });
-  document.getElementById(`srow-${jobId}`)?.remove();
-  state.savedJobs = state.savedJobs.filter(j => j.job_id !== jobId);
-  app.updateSavedBadge();
-  app.loadSaved();
-}
-
-
-// ════════════════════════════════════════════════════════════
-//  Job detail modal
-// ════════════════════════════════════════════════════════════
-
-function openJobModal(storeId) {
-  const job = getStoredJob(storeId);
-  if (!job) return;
-  state.modalJob = job;
-
-  const score = job.score != null ? (job.score <= 1 ? Math.round(job.score * 100) : Math.round(job.score)) : null;
-  const g     = job.grade || (score == null ? 'C' : score >= 70 ? 'A' : score >= 50 ? 'B' : 'C');
-  const gc    = g === 'A' ? 'grade-a' : g === 'B' ? 'grade-b' : 'grade-c';
-
-  document.getElementById('modalGrade').textContent  = g;
-  document.getElementById('modalGrade').className    = `grade ${gc}`;
-  document.getElementById('modalScorePct').textContent = job.score_pct || (score != null ? score + '%' : '');
-  document.getElementById('modalGradeLabel').textContent =
-    g === 'A' ? '— Strong match' : g === 'B' ? '— Good match' : '— Weak match';
-  document.getElementById('modalTitle').textContent   = job.title   || '—';
-  document.getElementById('modalCompany').textContent = job.company || '';
-
-  // Meta grid — only rows with real values
-  const salaryDisplay = (() => {
-    if (!job.salary) return null;
-    const n = parseFloat(String(job.salary).replace(/[^\d.]/g, ''));
-    const type = job.salary_type === 'monthly' ? '/mo' : job.salary_type === 'hourly' ? '/hr' : '';
-    const wt   = job.work_time ? ` · ${job.work_time}` : '';
-    return n > 100 ? `€${n.toLocaleString('de-AT')}${type}${wt}` : job.salary;
-  })();
-
-  const metaItems = [
-    { key: 'Location',    val: [job.city, job.state].filter(Boolean).join(', ') },
-    { key: 'Salary',      val: salaryDisplay, cls: 'salary' },
-    { key: 'Portal',      val: job.portal },
-    { key: 'Category',    val: job.occ_group },
-    { key: 'Employment',  val: job.employment_relationship },
-    { key: 'Start',       val: job.start_timeline },
-    { key: 'Education',   val: job.education },
-    { key: 'Deadline',    val: job.application_deadline ? String(job.application_deadline).substring(0,10) : null },
-    { key: 'Posted',      val: job.posted ? String(job.posted).substring(0,10) : null },
-    { key: 'Job ID',      val: job.job_id && !String(job.job_id).startsWith('chat-') ? job.job_id : null },
-  ].filter(m => m.val && m.val !== 'null' && m.val !== 'undefined');
-
-  document.getElementById('modalMetaGrid').innerHTML = metaItems.map(m =>
-    `<div class="modal-meta-item">
-       <span class="modal-meta-key">${m.key}</span>
-       <span class="modal-meta-val${m.cls ? ' ' + m.cls : ''}">${esc(m.val)}</span>
-     </div>`
-  ).join('');
-
-  // Original salary text (if present and different from parsed)
-  const origSalEl = document.getElementById('modalOrigSalary');
-  if (job.original_salary) {
-    origSalEl.textContent = job.original_salary;
-    origSalEl.style.display = '';
-  } else {
-    origSalEl.style.display = 'none';
-  }
-
-  // Contacts
-  const contactsEl = document.getElementById('modalContacts');
-  if (job.contacts) {
-    document.getElementById('modalContactsText').textContent = job.contacts;
-    contactsEl.style.display = '';
-  } else {
-    contactsEl.style.display = 'none';
-  }
-
-  // Skills
-  const skillsWrap = document.getElementById('modalSkillsWrap');
-  const rawSkills  = (job.skills_en || job.skills || '').replace(/^[\s,]+/, '');
-  const skillList  = rawSkills.split(',').map(s => s.trim()).filter(s => s && s !== '-' && s.length > 1);
-  if (skillList.length) {
-    document.getElementById('modalSkills').innerHTML = skillList.map(s =>
-      `<span class="skill-chip">${esc(s)}</span>`).join('');
-    skillsWrap.style.display = '';
-  } else {
-    skillsWrap.style.display = 'none';
-  }
-
-  // Description
-  const desc = job.description || job.description_snippet || '';
-  const descWrap = document.getElementById('modalDescWrap');
-  if (desc) {
-    document.getElementById('modalDesc').textContent = desc;
-    descWrap.style.display = '';
-    _descReset(desc);
-    // Nothing shown by default — user clicks Original / Compact / Interview.
-    _interviewReset();
-    app._interviewRestore(job.job_id);
-  } else {
-    descWrap.style.display = 'none';
-    _descReset('');
-    _interviewReset();
-  }
-
-  // Match reason
-  const reasonEl = document.getElementById('modalReason');
-  if (job.match_reason && job.match_reason !== desc) {
-    reasonEl.textContent = 'Match reason: ' + job.match_reason;
-    reasonEl.style.display = '';
-  } else {
-    reasonEl.style.display = 'none';
-  }
-
-  // Analysis panels — lazy, reset state
-  _analysisBatchJobs = state.lastResults;
-  _analysisLoaded = { salary: false, quality: false, strength: false };
-  _analysisOpen   = { salary: false, quality: false, strength: false };
-  _strengthData   = null;
-  document.getElementById('saveExtrasPanel').style.display = 'none';
-  document.getElementById('modalExtrasBtn').classList.remove('active');
-  ['salary','quality','strength'].forEach(t => {
-    document.getElementById('analysisPanel' + t[0].toUpperCase() + t.slice(1)).style.display = 'none';
-    const btn = document.getElementById('analysisBtn' + t[0].toUpperCase() + t.slice(1));
-    btn.classList.remove('active');
-    btn.disabled = false;
-  });
-
-  // Job sub-chat — new session per job
-  jobChatSessionId   = 'job-' + (job.job_id || Date.now());
-  _jobChatLastAnswer = '';
-  document.getElementById('jobChatThread').innerHTML = '';
-  document.getElementById('jobChatInput').value = '';
-  document.getElementById('jobChatAddBtn').style.display = 'none';
-
-  // Link
-  const linkBtn = document.getElementById('modalLinkBtn');
-  if (job.url) {
-    linkBtn.href = job.url;
-    linkBtn.style.display = 'inline-flex';
-  } else {
-    linkBtn.style.display = 'none';
-  }
-
-  // Save button state
-  const saveBtn = document.getElementById('modalSaveBtn');
-  const alreadySaved = state.savedJobs.some(j => String(j.job_id) === String(job.job_id));
-  saveBtn.textContent = alreadySaved ? '✓ Saved' : '+ Save to pipeline';
-  saveBtn.classList.toggle('saved', alreadySaved);
-
-  document.getElementById('jobModal').classList.remove('hidden');
-  _renderJobModalLock();   // reflect the remembered lock state on the button
-}
-
-async function loadSalaryAnalysis(job, batchJobs) {
-  try {
-    const res  = await fetch(`/api/salary_stats?occ_group=${encodeURIComponent(job.occ_group)}`);
-    const data = await res.json();
-
-    const parseSal = v => { const n = parseFloat(String(v || '').replace(/[^0-9.]/g, '')); return n > 100 ? n : null; };
-    const jobSalary = parseSal(job.salary);
-
-    // Batch overlay — jobs from the same search/chat that have a salary
-    const batchPoints = (batchJobs || [])
-      .map(j => ({ sal: parseSal(j.salary), title: j.title || '—', grade: j.grade || 'C', job_id: j.job_id }))
-      .filter(p => p.sal && String(p.job_id) !== String(job.job_id));
-
-    const gradeColor = g => g === 'A' ? '#1a7a2e' : g === 'B' ? '#e8a800' : '#bbb';
-
-    if (!data.ok || !data.count) {
-      // No DB data — show batch-only chart if we have batch points
-      if (batchPoints.length) {
-        const rugY = 0;
-        Plotly.react('modalAnalysisChart',
-          [{ type:'scatter', mode:'markers',
-             x: batchPoints.map(p => p.sal), y: batchPoints.map(() => rugY),
-             text: batchPoints.map(p => p.title),
-             marker:{ size:14, symbol:'line-ns', color: batchPoints.map(p => gradeColor(p.grade)),
-                      line:{ width:2.5, color: batchPoints.map(p => gradeColor(p.grade)) } },
-             hovertemplate:'<b>%{text}</b><br>€%{x}<extra></extra>' },
-           ...(jobSalary ? [{ type:'scatter', mode:'markers',
-             x:[jobSalary], y:[rugY], name:'This job',
-             marker:{ size:16, symbol:'diamond', color:'#1a3864', line:{width:2,color:'#fff'} },
-             hovertemplate:'<b>This job</b><br>€%{x}<extra></extra>' }] : [])],
-          { margin:{t:16,r:14,b:40,l:14}, paper_bgcolor:'rgba(0,0,0,0)',
-            plot_bgcolor:'#fafaf6', showlegend:false,
-            xaxis:{ title:'EUR / month', showgrid:true, gridcolor:'#e8e7e0', zeroline:false },
-            yaxis:{ visible:false, range:[-0.5, 1] } },
-          { responsive:true, displayModeBar:false });
-      } else {
-        document.getElementById('modalAnalysisChart').innerHTML =
-          '<div style="color:#bbb;font-size:12px;padding:20px 0;text-align:center">No salary data available for this category yet.</div>';
-      }
-      return;
-    }
-
-    // Reference lines
-    const shapes = [
-      { type:'line', xref:'x', yref:'paper', x0:data.mean,   x1:data.mean,   y0:0, y1:1,
-        line:{ color:'#e8a800', width:2, dash:'dot' } },
-      { type:'line', xref:'x', yref:'paper', x0:data.median, x1:data.median, y0:0, y1:1,
-        line:{ color:'#a78bfa', width:2, dash:'dot' } },
-    ];
-    const annotations = [
-      { xref:'x', yref:'paper', x:data.mean,   y:1.07, text:`Mean €${data.mean.toLocaleString()}`,
-        showarrow:false, font:{ size:10, color:'#e8a800' }, xanchor:'center' },
-      { xref:'x', yref:'paper', x:data.median, y:1.07, text:`Median €${data.median.toLocaleString()}`,
-        showarrow:false, font:{ size:10, color:'#a78bfa' }, xanchor:'center' },
-    ];
-    if (jobSalary) {
-      shapes.push({ type:'line', xref:'x', yref:'paper', x0:jobSalary, x1:jobSalary, y0:0, y1:1,
-        line:{ color:'#1a3864', width:2.5 } });
-      annotations.push({ xref:'x', yref:'paper', x:jobSalary, y:0.75,
-        text:`This job<br>€${jobSalary.toLocaleString()}`,
-        showarrow:true, arrowhead:2, arrowsize:0.8, arrowcolor:'#1a3864',
-        font:{ size:10, color:'#fff' }, bgcolor:'#1a3864', borderpad:4,
-        ax:0, ay:-38, xanchor:'center' });
-    }
-
-    // Three traces: DB histogram + batch rug (below x-axis) + this job diamond
-    // Rug marks sit at y = RUG_Y (negative) so they don't overlap the histogram bars
-    const RUG_Y = -1.5;
-    const traces = [
-      { type:'histogram', x:data.salaries, name:'Market',
-        marker:{ color:'#dde8f4', line:{ color:'#99b8f0', width:0.5 } },
-        opacity:0.75, hovertemplate:'%{y} jobs near €%{x}<extra></extra>' },
-    ];
-    if (batchPoints.length) {
-      traces.push({
-        type:'scatter', mode:'markers', name:'This search',
-        x: batchPoints.map(p => p.sal),
-        y: batchPoints.map(() => RUG_Y),
-        text: batchPoints.map(p => `${p.title} (${p.grade})`),
-        marker:{ size:14, symbol:'line-ns',
-                 color: batchPoints.map(p => gradeColor(p.grade)),
-                 line:{ width:2.5, color: batchPoints.map(p => gradeColor(p.grade)) } },
-        hovertemplate:'<b>%{text}</b><br>€%{x}<extra></extra>',
-      });
-    }
-    if (jobSalary) {
-      traces.push({
-        type:'scatter', mode:'markers', name:'This job',
-        x:[jobSalary], y:[RUG_Y],
-        marker:{ size:16, symbol:'diamond', color:'#1a3864', line:{ width:2, color:'#fff' } },
-        hovertemplate:'<b>This job</b><br>€%{x}<extra></extra>',
-      });
-    }
-
-    Plotly.react('modalAnalysisChart', traces, {
-      margin:{ t:28, r:14, b:44, l:44 },
-      paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'#fafaf6',
-      font:{ family:"'Segoe UI',Arial,sans-serif", size:11, color:'#555' },
-      xaxis:{ title:'EUR / month', showgrid:true, gridcolor:'#e8e7e0', zeroline:false },
-      yaxis:{ title:'Job count', showgrid:true, gridcolor:'#e8e7e0',
-              zeroline:true, zerolinecolor:'#c8c7c0', zerolinewidth:1.5,
-              range:[RUG_Y * 2.5, null] },
-      shapes, annotations, showlegend: batchPoints.length > 0,
-      legend:{ orientation:'h', y:-0.32, font:{ size:10 } },
-      bargap:0.05,
-    }, { responsive:true, displayModeBar:false });
-
-    // Stats row
-    const pctBelow = jobSalary ? Math.round((data.salaries.filter(s => s < jobSalary).length / data.count) * 100) : null;
-    const diffMean = jobSalary ? Math.round(jobSalary - data.mean) : null;
-    // Store salary stats on the modal job so they can be saved as extras
-    if (state.modalJob) {
-      state.modalJob._salaryStats = {
-        occ_group: job.occ_group || '',
-        count: data.count,
-        mean: Math.round(data.mean),
-        median: Math.round(data.median),
-        job_salary: jobSalary,
-        pct_below: pctBelow,
-        diff_mean: diffMean,
-      };
-    }
-    document.getElementById('modalAnalysisStats').innerHTML = [
-      `<div class="analysis-stat"><span class="analysis-stat-key">Market sample</span><span class="analysis-stat-val">${data.count} jobs</span></div>`,
-      `<div class="analysis-stat"><span class="analysis-stat-key">Mean</span><span class="analysis-stat-val">€${data.mean.toLocaleString()}</span></div>`,
-      `<div class="analysis-stat"><span class="analysis-stat-key">Median</span><span class="analysis-stat-val">€${data.median.toLocaleString()}</span></div>`,
-      batchPoints.length ? `<div class="analysis-stat"><span class="analysis-stat-key">In this search</span><span class="analysis-stat-val">${batchPoints.length} with salary</span></div>` : '',
-      jobSalary ? `<div class="analysis-stat"><span class="analysis-stat-key">This job</span><span class="analysis-stat-val ${diffMean >= 0 ? 'above' : 'below'}">€${jobSalary.toLocaleString()} · ${diffMean >= 0 ? '+' : ''}€${diffMean.toLocaleString()} vs mean · top ${100 - pctBelow}%</span></div>` : '',
-    ].join('');
-
-  } catch(e) {
-    document.getElementById('modalAnalysisChart').innerHTML =
-      `<div style="color:#e04040;font-size:12px;padding:12px 0">Could not load salary data: ${esc(e.message)}</div>`;
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-//  Quality assessment — modal
-// ════════════════════════════════════════════════════════════
-
-async function loadQualityAssessment(job) {
-  const contentEl = document.getElementById('modalQualityContent');
-  try {
-    const payload = {
-      jobs: [job],
-      occ_group: job.occ_group || '',
-      state: job.state || null,
-    };
-    const data = await api.post('/api/quality', payload);
-    if (!data.jobs?.length) throw new Error(data.error || 'No result');
-
-    const enriched    = data.jobs[0];
-    const groupStats  = data.group_stats || {};
-
-    // Persist quality onto the stored job so re-opening is instant
-    const storedJob = state.modalJob;
-    if (storedJob) Object.assign(storedJob, {
-      quality: enriched.quality, quality_score: enriched.quality_score,
-      quality_verdict: enriched.quality_verdict, quality_fit: enriched.quality_fit,
-      quality_flags: enriched.quality_flags,
-    });
-
-    contentEl.innerHTML = renderQualitySection(enriched, groupStats);
-  } catch(e) {
-    contentEl.innerHTML = `<div class="quality-loading" style="color:#e44">Could not load quality assessment.</div>`;
-  }
-}
-
-function renderQualitySection(job, groupStats) {
-  const q     = job.quality || 'mid';
-  const score = job.quality_score != null ? Math.round(job.quality_score * 100) : null;
-  const fit   = job.quality_fit   || 'unknown';
-  const flags = job.quality_flags || [];
-  const verdict = job.quality_verdict || '';
-
-  const badgeCls = {high:'quality-high', mid:'quality-mid', low:'quality-low'}[q] || 'quality-mid';
-  const badgeTxt = {high:'🟢 High quality', mid:'🟡 Mid quality', low:'🔴 Low quality'}[q] || q;
-  const fitLabel = {fair:'Fair compensation', overpaying:'Above-market pay',
-                    underpaying:'Below-market pay', unknown:'Salary unknown'}[fit] || fit;
-
-  // Salary position bar
-  let salBarHTML = '';
-  const sal = parseFloat(job.salary || 0);
-  if (sal > 0 && groupStats.count > 0) {
-    const pos = _salaryBarPos(sal, groupStats);
-    const fmtK = v => v >= 1000 ? `€${(v/1000).toFixed(1)}k` : `€${Math.round(v)}`;
-    salBarHTML = `
-      <div class="quality-sal-wrap">
-        <div class="quality-sal-label">Salary position in <b>${esc(groupStats.occ_group||'')}</b>
-          (n=${groupStats.count} jobs)</div>
-        <div class="quality-sal-track">
-          <div class="quality-sal-dot" style="left:${pos}%"></div>
-          <div class="quality-sal-tick" style="left:25%">${fmtK(groupStats.p25)}<br>p25</div>
-          <div class="quality-sal-tick" style="left:50%">${fmtK(groupStats.median)}<br>med</div>
-          <div class="quality-sal-tick" style="left:75%">${fmtK(groupStats.p75)}<br>p75</div>
-        </div>
-      </div>`;
-  }
-
-  // Flags
-  const flagsHTML = flags.length ? `<div class="quality-flags">${
-    flags.map(f => {
-      const neg = /no |not |below|expired|vague|missing|low|poor|underpay/i.test(f);
-      return `<span class="qflag ${neg ? 'qflag-neg' : 'qflag-pos'}">${esc(f)}</span>`;
-    }).join('')
-  }</div>` : '';
-
-  return `
-    <div>
-      <div class="quality-header">
-        <span class="quality-badge ${badgeCls}">${badgeTxt}</span>
-        <span class="quality-fit">${fitLabel}</span>
-        ${score != null ? `<span class="quality-score-val">${score}/100</span>` : ''}
-      </div>
-      ${verdict ? `<div class="quality-verdict">"${esc(verdict)}"</div>` : ''}
-      ${salBarHTML}
-      ${flagsHTML}
-    </div>`;
-}
-
-function _salaryBarPos(salary, stats) {
-  // Map salary to 0-100 position using piecewise linear interpolation
-  const { min=0, p25, median: med, p75, max=p75*1.5 } = stats;
-  const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
-  if (salary <= min)  return 0;
-  if (salary >= max)  return 100;
-  if (salary <= p25)  return clamp((salary - min)  / (p25 - min)  * 25,       0, 25);
-  if (salary <= med)  return clamp(25 + (salary - p25) / (med - p25) * 25,   25, 50);
-  if (salary <= p75)  return clamp(50 + (salary - med) / (p75 - med) * 25,   50, 75);
-  return clamp(75 + (salary - p75) / (max  - p75) * 25,  75, 100);
-}
-
-function closeJobModal() {
-  document.getElementById('jobModal').classList.add('hidden');
-  state.modalJob = null;
-  if (jobChatSessionId) {
-    api.raw('/api/job_chat/reset', { method: 'POST', body: { session_id: jobChatSessionId } });
-    jobChatSessionId   = null;
-    _jobChatLastAnswer = '';
-  }
-  document.getElementById('jobChatThread').innerHTML = '';
-  document.getElementById('jobChatAddBtn').style.display = 'none';
-}
-
-// ════════════════════════════════════════════════════════════
-//  Job sub-chat
-// ════════════════════════════════════════════════════════════
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.activeElement === document.getElementById('jobChatInput'))
-    sendJobChat();
-});
-
-function setJobChatLang(lang) {
-  state.jobChatLang = lang;
-  document.querySelectorAll('.jc-lang-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.lang === lang));
-}
-_ACTIONS['job-chat-lang'] = (el) => setJobChatLang(el.dataset.lang);
-
-async function sendJobChat() {
-  if (!jobChatSessionId || !state.modalJob) return;
-  const input = document.getElementById('jobChatInput');
-  const text  = input.value.trim();
-  if (!text) return;
-
-  appendJobChatMsg(text, 'user');
-  input.value = '';
-
-  const btn = document.getElementById('jobChatSendBtn');
-  btn.disabled = true;
-
-  // Typing indicator
-  const typing = document.createElement('div');
-  typing.className = 'jcmsg ai';
-  typing.id = 'jcTyping';
-  typing.textContent = '…';
-  typing.style.color = '#bbb';
-  document.getElementById('jobChatThread').appendChild(typing);
-  scrollJobChat();
-
-  try {
-    const data = await api.post('/api/job_chat', {
-      session_id:     jobChatSessionId,
-      message:        text,
-      lang:           state.jobChatLang,
-      candidate_text: state.lastMatchText || app.buildCandidateText(),   // the candidate you searched with (fallback: live input)
-      job_context: {
-        job_id:              state.modalJob.job_id,
-        title:               state.modalJob.title,
-        company:             state.modalJob.company,
-        city:                state.modalJob.city,
-        state:               state.modalJob.state,
-        salary:              state.modalJob.salary,
-        occ_group:           state.modalJob.occ_group,
-        skills_en:           state.modalJob.skills_en,
-        skills:              state.modalJob.skills,
-        description:         state.modalJob.description,
-        description_snippet: state.modalJob.description_snippet,
-      },
-    });
-    document.getElementById('jcTyping')?.remove();
-    const answer = data.ok ? (data.text || '—') : `Error: ${data.error}`;
-    appendJobChatMsg(answer, 'ai');
-    if (data.ok) {
-      _jobChatLastAnswer = answer;
-      document.getElementById('jobChatAddBtn').style.display = '';
-    }
-  } catch(e) {
-    document.getElementById('jcTyping')?.remove();
-    appendJobChatMsg(`Network error: ${e.message}`, 'ai');
-  } finally {
-    btn.disabled = false;
-    input.focus();
-  }
-}
-
-function appendJobChatMsg(text, role) {
-  const el = document.createElement('div');
-  el.className = `jcmsg ${role}`;
-  el.textContent = text;
-  document.getElementById('jobChatThread').appendChild(el);
-  scrollJobChat();
-}
-
-function scrollJobChat() {
-  const t = document.getElementById('jobChatThread');
-  t.scrollTop = t.scrollHeight;
-}
-
-async function addLastAnswerToNotes() {
-  if (!_jobChatLastAnswer || !state.modalJob) return;
-  const jobId = state.modalJob.job_id;
-  const existing = state.savedJobs.find(j => String(j.job_id) === String(jobId));
-  const newNote = existing
-    ? (existing.notes ? existing.notes + '\n' + _jobChatLastAnswer : _jobChatLastAnswer)
-    : _jobChatLastAnswer;
-
-  // Update in-memory and on server if already saved
-  if (existing) {
-    existing.notes = newNote;
-    await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { notes: newNote } });
-    const inp = document.getElementById(`srow-${jobId}`)?.querySelector('.notes-inp');
-    if (inp) inp.value = newNote;
-  }
-
-  // Flash the button to confirm
-  const btn = document.getElementById('jobChatAddBtn');
-  btn.textContent = '✓ Added';
-  btn.style.background = '#e6f4ea';
-  setTimeout(() => {
-    btn.textContent = '↓ Add last answer to notes';
-    btn.style.background = '';
-  }, 1800);
-}
-
-// Window lock — when on, an accidental click outside (or Esc) won't close the job
-// modal; only the × does. The choice is remembered so it stays locked across opens.
-let _jobModalLocked = false;
-try { _jobModalLocked = localStorage.getItem('jobModalLocked') === '1'; } catch (_) {}
-
-function _renderJobModalLock() {
-  const b = document.getElementById('jobModalLockBtn');
-  if (!b) return;
-  b.textContent = _jobModalLocked ? '🔒' : '🔓';
-  b.style.opacity = _jobModalLocked ? '1' : '.7';
-  b.title = _jobModalLocked
-    ? "Window locked — clicks outside (and Esc) won't close it. Click to unlock."
-    : "Lock the window so an accidental click outside won't close it.";
-}
-
-function toggleJobModalLock() {
-  _jobModalLocked = !_jobModalLocked;
-  try { localStorage.setItem('jobModalLocked', _jobModalLocked ? '1' : '0'); } catch (_) {}
-  _renderJobModalLock();
-}
-
-function _flashJobModalLock() {
-  const b = document.getElementById('jobModalLockBtn');
-  if (!b) return;
-  b.style.transform = 'scale(1.4)';
-  setTimeout(() => { b.style.transform = 'scale(1)'; }, 150);
-}
-
-function closeModalOnBackdrop(e) {
-  if (e.target !== document.getElementById('jobModal')) return;
-  if (_jobModalLocked) { _flashJobModalLock(); return; }   // locked — ignore stray clicks
-  closeJobModal();
-}
-
-// Action registry for the job-detail modal markup (segment modal, job modal
-// header/lang/lock/close, description toolbar, interview scorecard controls,
-// analysis panels, job sub-chat, save/extras footer, CV preview, company panel).
-// Backdrop closers re-check e.target === el themselves, since delegation routes
-// clicks on any descendant up to the overlay's data-action.
-Object.assign(_ACTIONS, {
-  // segment + job modal shell
-  'seg-modal-backdrop':    (el, e) => { if (e.target === el) app.closeSegmentModal(); },
-  'close-segment-modal':   ()      => app.closeSegmentModal(),
-  'job-modal-backdrop':    (el, e) => closeModalOnBackdrop(e),
-  'set-modal-lang':        (el)    => setModalLang(el.dataset.lang),
-  'toggle-job-modal-lock': ()      => toggleJobModalLock(),
-  'close-job-modal':       ()      => closeJobModal(),
-  // description toolbar
-  'desc-toggle-translate': ()      => descToggleTranslate(),
-  'desc-show-original':    ()      => descShowOriginal(),
-  'desc-toggle-compact':   ()      => descToggleCompact(),
-  'desc-toggle-cv-questions': ()   => descToggleCvQuestions(),
-  'desc-toggle-outreach':  ()      => descToggleOutreach(),
-  // interview scorecard controls
-  'set-iv-perspective':    (el)    => setIvPerspective(el.dataset.persp),
-  'toggle-freeze-interview': ()    => toggleFreezeInterview(),
-  'regenerate-interview':  ()      => regenerateInterview(),
-  'add-interview-question': ()     => addInterviewQuestion(),
-  'interview-import-open': ()      => toggleInterviewImport(true),
-  'interview-import-cancel': ()    => toggleInterviewImport(false),
-  'analyze-all-interview': ()      => analyzeAllInterview(),
-  'toggle-interview-context': ()   => toggleInterviewContext(),
-  'iv-load-import-file':   (el)    => _ivLoadImportFile(el),
-  'import-interview-questions': () => importInterviewQuestions(),
-  // analysis panels + job sub-chat
-  'toggle-analysis-panel': (el)    => toggleAnalysisPanel(el.dataset.panel),
-  'send-job-chat':         ()      => sendJobChat(),
-  'add-last-answer-to-notes': ()   => addLastAnswerToNotes(),
-  // save / extras footer
-  'save-with-extras':      ()      => saveWithExtras(),
-  'save-from-modal':       ()      => saveFromModal(),
-  'toggle-extras-panel':   ()      => toggleExtrasPanel(),
-  'do-save-with-extras':   ()      => app.doSaveWithExtras(),
-  // CV preview drawer
-  'cv-preview-backdrop':   (el, e) => { if (e.target === el || e.target.classList.contains('cv-preview-backdrop')) app.closeCvPreview(); },
-  'cv-preview-remove':     ()      => { app.clearCandidateProfile(); app.closeCvPreview(); },
-  'close-cv-preview':      ()      => app.closeCvPreview(),
-  // company info modal
-  'co-modal-backdrop':     (el, e) => { if (e.target === el) app.closeCompanyPanel(); },
-  'close-company-panel':   ()      => app.closeCompanyPanel(),
-});
-
-async function saveFromModal() {
-  const saveBtn = document.getElementById('modalSaveBtn');
-  if (!state.modalJob || saveBtn.classList.contains('saved')) return;
-  const status = document.getElementById('modalStatusSel').value;
-  try {
-    const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() }, status, candidate_profile: state.currentCandidateProfile || null });
-    if (data.ok) {
-      saveBtn.textContent = '✓ Saved';
-      saveBtn.classList.add('saved');
-      state.savedJobs = data.jobs;
-      app.updateSavedBadge();
-      // Sync the results-table save button if present
-      const tableBtn = document.getElementById(`save-${state.modalJob.job_id}`);
-      if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
-    }
-  } catch(e) { alert('Save failed: ' + e.message); }
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    // Close panels in order: innermost first
-    if (!document.getElementById('coModal').classList.contains('hidden')) {
-      app.closeCompanyPanel(); return;
-    }
-    if (document.getElementById('cvPreviewOverlay').classList.contains('cvpo-open')) {
-      app.closeCvPreview(); return;
-    }
-    // Respect the window lock — don't let Esc close a locked, open job modal.
-    const jm = document.getElementById('jobModal');
-    if (_jobModalLocked && jm && !jm.classList.contains('hidden')) { _flashJobModalLock(); return; }
-    closeJobModal();
-  }
-});
 
 // ── Company link — delegated click handler ────────────────────
 // All .company-link spans use data-company instead of inline onclick
@@ -1893,321 +1188,11 @@ document.addEventListener('focusout', function(e) {
   const handler = _ACTIONS[el.dataset.blurAction];
   if (handler) handler(el, e);
 });
-
-// ════════════════════════════════════════════════════════════
-//  Session id (candidate-assistant chat)
-// ════════════════════════════════════════════════════════════
-
-// (Radar / Analytics tab — moved to static/js/radar.js in 2.6c.)
-
-// ════════════════════════════════════════════════════════════
-//  Analysis panels — salary / quality / candidate strength
-// ════════════════════════════════════════════════════════════
-
-let _analysisBatchJobs = [];
-let _analysisLoaded = { salary: false, quality: false, strength: false };
-let _analysisOpen   = { salary: false, quality: false, strength: false };
-let _strengthData   = null;
-
-async function toggleAnalysisPanel(type) {
-  const panelId = 'analysisPanel' + type[0].toUpperCase() + type.slice(1);
-  const btnId   = 'analysisBtn'  + type[0].toUpperCase() + type.slice(1);
-  const panel   = document.getElementById(panelId);
-  const btn     = document.getElementById(btnId);
-
-  if (_analysisOpen[type]) {
-    _analysisOpen[type] = false;
-    panel.style.display = 'none';
-    btn.classList.remove('active');
-    return;
-  }
-
-  _analysisOpen[type] = true;
-  panel.style.display = '';
-  btn.classList.add('active');
-
-  if (_analysisLoaded[type]) return;
-  _analysisLoaded[type] = true;
-
-  if (type === 'salary') {
-    document.getElementById('modalAnalysisGroup').textContent = state.modalJob.occ_group || '';
-    document.getElementById('modalAnalysisChart').innerHTML =
-      '<div style="color:#bbb;font-size:12px;padding:30px 0;text-align:center">Loading salary data…</div>';
-    document.getElementById('modalAnalysisStats').innerHTML = '';
-    if (state.modalJob.occ_group) {
-      await loadSalaryAnalysis(state.modalJob, _analysisBatchJobs);
-    } else {
-      document.getElementById('modalAnalysisChart').innerHTML =
-        '<div style="color:#bbb;font-size:12px;padding:30px 0;text-align:center">No occupational group — salary data unavailable.</div>';
-    }
-
-  } else if (type === 'quality') {
-    document.getElementById('modalQualityContent').innerHTML =
-      '<div class="quality-loading">Analysing responsibilities and compensation…</div>';
-    await loadQualityAssessment(state.modalJob);
-
-  } else if (type === 'strength') {
-    if (!state.lastParsedText) {
-      document.getElementById('modalStrengthChart').style.display = 'none';
-      document.getElementById('modalStrengthDetails').innerHTML =
-        '<div class="quality-loading" style="padding:16px 0">No CV loaded — upload or paste a CV to run candidate strength analysis.</div>';
-      _analysisLoaded[type] = false;
-      return;
-    }
-    document.getElementById('modalStrengthDetails').innerHTML =
-      '<div class="quality-loading">Analysing candidate fit…</div>';
-    await loadStrengthAnalysis(state.modalJob, state.lastParsedText);
-  }
-}
-
-async function loadStrengthAnalysis(job, cvText) {
-  const chartEl   = document.getElementById('modalStrengthChart');
-  const detailsEl = document.getElementById('modalStrengthDetails');
-  chartEl.style.display = '';
-  try {
-    const data = await api.post('/api/candidate_strength', {
-      job: {
-        title:       job.title,
-        company:     job.company,
-        skills:      job.skills_en || job.skills,
-        description: (job.description || job.description_snippet || '').slice(0, 2000),
-      },
-      cv_text: cvText.slice(0, 2000),
-      lang: _modalLang,
-    });
-
-    const { axes, scores, reasons, overall } = data;
-    _strengthData = { axes, scores, reasons, overall };
-
-    // Radar chart
-    Plotly.newPlot(chartEl, [{
-      type: 'scatterpolar',
-      r: [...scores, scores[0]],
-      theta: [...axes, axes[0]],
-      fill: 'toself',
-      fillcolor: 'rgba(26,56,100,0.10)',
-      line: { color: '#1a3864', width: 2 },
-      hovertemplate: '<b>%{theta}</b><br>%{r}/10<extra></extra>',
-    }], {
-      polar: {
-        radialaxis: { visible: true, range: [0, 10], tickvals: [2,4,6,8,10],
-          tickfont: { size: 8, color: '#bbb' }, gridcolor: '#e8e7e0', linecolor: '#e8e7e0' },
-        angularaxis: { tickfont: { size: 10, color: '#555' } },
-        bgcolor: 'rgba(0,0,0,0)',
-      },
-      showlegend: false,
-      margin: { t: 28, r: 48, b: 28, l: 48 },
-      paper_bgcolor: 'rgba(0,0,0,0)',
-    }, { responsive: true, displayModeBar: false });
-
-    // Detail rows
-    const rows = axes.map((ax, i) =>
-      `<div class="strength-row">
-         <span class="strength-axis">${esc(ax)}</span>
-         <span class="strength-score">${scores[i]}/10</span>
-         <span class="strength-reason">${esc(reasons[i] || '')}</span>
-       </div>`
-    ).join('');
-    detailsEl.innerHTML =
-      `<div class="strength-details">${rows}</div>` +
-      (overall ? `<div class="strength-overall">${esc(overall)}</div>` : '');
-
-  } catch(e) {
-    chartEl.style.display = 'none';
-    detailsEl.innerHTML = '<div class="quality-loading" style="color:#e44">Could not load strength analysis.</div>';
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-//  Description — translate / compact
-// ════════════════════════════════════════════════════════════
-
-let _descOriginal = '';
-let _descTranslated = null;
-let _descCompact_orig = null;
-let _descCompact_trans = null;
-let _descIsTranslated = false;
-let _descBodyView = 'none';   // 'none' | 'original' | 'compact' — what the description body shows
-let _descCvQuestions = null;
-let _descCvQuestionsShown = false;
-let _descOutreach = null;
-let _descOutreachShown = false;
-let _modalLang = 'de';
-
-function _descReset(text) {
-  _descOriginal = text;
-  _descTranslated = null;
-  _descCompact_orig = null;
-  _descCompact_trans = null;
-  _descIsTranslated = false;
-  _descBodyView = 'none';
-  _descCvQuestions = null;
-  _descCvQuestionsShown = false;
-  _descOutreach = null;
-  _descOutreachShown = false;
-  _modalLang = 'de';
-  const tb = document.getElementById('descTranslateBtn');
-  const orb = document.getElementById('descOriginalBtn');
-  const cb = document.getElementById('descCompactBtn');
-  const qb = document.getElementById('descCvQuestionsBtn');
-  const ob = document.getElementById('descOutreachBtn');
-  const de = document.getElementById('modalLangDE');
-  const en = document.getElementById('modalLangEN');
-  if (tb) { tb.textContent = 'Translate';    tb.classList.remove('active', 'applied'); tb.disabled = false; }
-  if (orb){ orb.textContent = 'Original';    orb.classList.remove('active'); orb.disabled = false; }
-  if (cb) { cb.textContent = 'Compact';      cb.classList.remove('active'); cb.disabled = false; }
-  if (qb) { qb.textContent = 'Interview'; qb.classList.remove('active'); qb.disabled = false; }
-  if (ob) { ob.textContent = 'Outreach';     ob.classList.remove('active'); ob.disabled = false; }
-  if (de) { de.classList.add('active'); }
-  if (en) { en.classList.remove('active'); }
-  const cw = document.getElementById('modalDescCompactWrap');
-  const qw = document.getElementById('modalDescCvQuestionsWrap');
-  const ow = document.getElementById('modalDescOutreachWrap');
-  const md = document.getElementById('modalDesc');
-  if (cw) cw.style.display = 'none';
-  if (qw) qw.style.display = 'none';
-  if (ow) ow.style.display = 'none';
-  if (md) md.style.display = 'none';
-}
-
-async function descToggleTranslate() {
-  await setModalLang(_modalLang === 'en' ? 'de' : 'en');
-}
-
-async function setModalLang(lang) {
-  if (lang === _modalLang) return;
-  _modalLang = lang;
-
-  // Update flags
-  document.getElementById('modalLangDE').classList.toggle('active', lang === 'de');
-  document.getElementById('modalLangEN').classList.toggle('active', lang === 'en');
-
-  // Update Translate button appearance
-  const tb = document.getElementById('descTranslateBtn');
-  if (tb) {
-    tb.classList.remove('active', 'applied');
-    if (lang === 'en') tb.classList.add('applied');
-  }
-
-  // Translate or revert description
-  if (lang === 'en') {
-    if (!_descTranslated) {
-      if (tb) { tb.disabled = true; tb.textContent = '…'; }
-      try {
-        const data = await api.post('/api/desc_translate', { description: _descOriginal });
-        _descTranslated = data.text;
-      } catch(e) {
-        if (tb) { tb.disabled = false; tb.textContent = 'Translate'; }
-        _modalLang = 'de';
-        document.getElementById('modalLangDE').classList.add('active');
-        document.getElementById('modalLangEN').classList.remove('active');
-        if (tb) tb.classList.remove('applied');
-        return;
-      }
-      if (tb) { tb.disabled = false; tb.textContent = 'Translate'; }
-    }
-    _descIsTranslated = true;
-    if (_descBodyView === 'compact') {
-      await _fetchAndShowCompact(true);
-    } else if (_descBodyView === 'original') {
-      document.getElementById('modalDesc').textContent = _descTranslated;
-    }
-  } else {
-    _descIsTranslated = false;
-    if (_descBodyView === 'compact') {
-      if (_descCompact_orig) {
-        document.getElementById('modalDescCompactText').textContent = _descCompact_orig;
-      } else {
-        await _fetchAndShowCompact(false);
-      }
-    } else if (_descBodyView === 'original') {
-      document.getElementById('modalDesc').textContent = _descOriginal;
-    }
-  }
-
-  // Clear language-dependent AI caches so next generation uses new lang.
-  // The interview (recorded answers + scores) is candidate-driven, not a
-  // re-translation of the description, so it is deliberately left untouched.
-  _descOutreach = null;
-
-  if (_descOutreachShown) {
-    _descOutreachShown = false;
-    const ob = document.getElementById('descOutreachBtn');
-    if (ob) { ob.textContent = 'Outreach'; ob.classList.remove('active'); }
-    document.getElementById('modalDescOutreachWrap').style.display = 'none';
-  }
-}
-
-async function _fetchAndShowCompact(useTranslated) {
-  const cb = document.getElementById('descCompactBtn');
-  const cached = useTranslated ? _descCompact_trans : _descCompact_orig;
-  if (cached) {
-    document.getElementById('modalDescCompactText').textContent = cached;
-    return;
-  }
-  if (cb) { cb.disabled = true; }
-  const source = useTranslated ? (_descTranslated || _descOriginal) : _descOriginal;
-  try {
-    const data = await api.post('/api/desc_compact', { description: source, lang: _modalLang });
-    if (useTranslated) _descCompact_trans = data.text;
-    else               _descCompact_orig  = data.text;
-    document.getElementById('modalDescCompactText').textContent = data.text;
-  } catch(e) {}
-  if (cb) { cb.disabled = false; }
-}
-
-// Highlight the Original / Compact buttons to match the active body view.
-function _syncDescBodyButtons() {
-  const orb = document.getElementById('descOriginalBtn');
-  const cb  = document.getElementById('descCompactBtn');
-  if (orb) orb.classList.toggle('active', _descBodyView === 'original');
-  if (cb)  cb.classList.toggle('active', _descBodyView === 'compact');
-}
-
-// Show the full original (or translated) description. Click again to hide.
-function descShowOriginal() {
-  const md = document.getElementById('modalDesc');
-  if (_descBodyView === 'original') {
-    _descBodyView = 'none';
-    md.style.display = 'none';
-    _syncDescBodyButtons();
-    return;
-  }
-  document.getElementById('modalDescCompactWrap').style.display = 'none';
-  md.textContent = _descIsTranslated ? (_descTranslated || _descOriginal) : _descOriginal;
-  md.style.display = '';
-  _descBodyView = 'original';
-  _syncDescBodyButtons();
-}
-
-async function descToggleCompact() {
-  const btn = document.getElementById('descCompactBtn');
-  if (!btn || btn.disabled) return;
-
-  if (_descBodyView === 'compact') {
-    _descBodyView = 'none';
-    document.getElementById('modalDescCompactWrap').style.display = 'none';
-    _syncDescBodyButtons();
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = '…';
-  await _fetchAndShowCompact(_descIsTranslated);
-  btn.disabled = false;
-  btn.textContent = 'Compact';
-  document.getElementById('modalDesc').style.display = 'none';
-  document.getElementById('modalDescCompactWrap').style.display = '';
-  _descBodyView = 'compact';
-  _syncDescBodyButtons();
-}
-
 // ════════════════════════════════════════════════════════════
 //  Interview scorecard — generate questions, record answers, score them
-//  State lives in `_interview` and is persisted into the saved job's
+//  State lives in `state.interview` and is persisted into the saved job's
 //  extras.interview so it restores when the candidate/job is reopened.
 // ════════════════════════════════════════════════════════════
-let _interview = { questions: [], answers: {}, overall: null, aspects: [], aspectsSummary: '', aspectsBaseline: null, frozen: false, opportunities: null };
 let _aspectsBusy = false;
 // Recruiter (scoring) vs candidate (coaching) lens over the same Q&A. Frontend-only.
 let _ivPerspective = 'recruiter';
@@ -2216,14 +1201,14 @@ let _ivPerspective = 'recruiter';
 let _ivPendingFollowup = {};
 
 function _interviewReset() {
-  _interview = { questions: [], answers: {}, overall: null, aspects: [], aspectsSummary: '', aspectsBaseline: null, frozen: false, opportunities: null };
+  state.interview = { questions: [], answers: {}, overall: null, aspects: [], aspectsSummary: '', aspectsBaseline: null, frozen: false, opportunities: null };
   _aspectsBusy = false;
   _ivPendingFollowup = {};
 }
 
 // True when at least one answer has been recorded — gates the extras checkbox.
 function _ivHasAnswers() {
-  return Object.values(_interview.answers || {}).some(a => (a.answer || '').trim());
+  return Object.values(state.interview.answers || {}).some(a => (a.answer || '').trim());
 }
 
 // Load a previously-saved interview for the job now open in the modal (if any).
@@ -2235,7 +1220,7 @@ function _interviewRestore(jobId) {
   const saved = (cand && matches.find(j => j.candidate_name === cand)) || matches[0];
   const iv = saved && saved.extras && saved.extras.interview;
   if (iv && typeof iv === 'object') {
-    _interview = {
+    state.interview = {
       questions: Array.isArray(iv.questions) ? iv.questions : [],
       answers:   (iv.answers && typeof iv.answers === 'object') ? iv.answers : {},
       overall:   iv.overall || null,
@@ -2263,9 +1248,9 @@ function _ivJob() {
 // summarizeInterview/refreshAspects, minus the excluded ids.
 function _ivOtherRecords(excludeIds) {
   const skip = new Set((excludeIds || []).map(String));
-  return (_interview.questions || [])
+  return (state.interview.questions || [])
     .filter(q => !skip.has(String(q.id)))
-    .map(q => ({ question: q.question, ...(_interview.answers[q.id] || {}) }))
+    .map(q => ({ question: q.question, ...(state.interview.answers[q.id] || {}) }))
     .filter(r => _ivAnswerComplete(r))   // only finished answers are established context
     .map(r => ({ question: r.question, answer: r.answer, score: r.score }));
 }
@@ -2281,7 +1266,7 @@ function _ivCvText() {
 }
 
 // Interview content follows the page-wide "AI lang" setting (state.jobChatLang), NOT
-// the description's display language (_modalLang defaults to DE for the source
+// the description's display language (state.modalLang defaults to DE for the source
 // posting). So selecting EN at the top of the page yields English questions.
 function _ivLang() {
   return (typeof state.jobChatLang !== 'undefined' && state.jobChatLang) ? state.jobChatLang : 'en';
@@ -2304,7 +1289,7 @@ function _ivProfile() {
 // ── Live candidate assessment (aspects) ──────────────────────
 function _renderAspects() {
   const el = document.getElementById('interviewAspects');
-  const list = _interview.aspects || [];
+  const list = state.interview.aspects || [];
   if (!list.length && !_aspectsBusy) { el.style.display = 'none'; el.innerHTML = ''; return; }
   el.style.display = ''; el.className = 'iv-aspects';
   const rows = list.map(a => {
@@ -2343,30 +1328,30 @@ async function refreshAspects() {
   if (_aspectsBusy) return;
   _aspectsBusy = true;
   _renderAspects();
-  const records = (_interview.questions || [])
-    .map(q => ({ question: q.question, ...(_interview.answers[q.id] || {}) }))
+  const records = (state.interview.questions || [])
+    .map(q => ({ question: q.question, ...(state.interview.answers[q.id] || {}) }))
     .filter(r => _ivAnswerComplete(r));   // only finished answers count as evidence
   try {
     const data = await api.post('/api/interview/assess', { job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(),
-                             records, prior_aspects: _interview.aspects || [], lang: _ivLang() });
+                             records, prior_aspects: state.interview.aspects || [], lang: _ivLang() });
     if (data.ok && Array.isArray(data.aspects)) {
       // Movement badges: cumulative vs the BASELINE (first assessment, established once
       // and kept for the whole interview) as the visible delta; per-answer step for the
       // tooltip. Matched by aspect name (kept stable via prior_aspects).
       const prior = {};
-      (_interview.aspects || []).forEach(a => { if (a.score != null) prior[a.aspect] = a.score; });
-      if (!_interview.aspectsBaseline) {
+      (state.interview.aspects || []).forEach(a => { if (a.score != null) prior[a.aspect] = a.score; });
+      if (!state.interview.aspectsBaseline) {
         const base = {};
         data.aspects.forEach(a => { if (a.score != null) base[a.aspect] = a.score; });
-        _interview.aspectsBaseline = base;
+        state.interview.aspectsBaseline = base;
       }
-      const base = _interview.aspectsBaseline || {};
+      const base = state.interview.aspectsBaseline || {};
       data.aspects.forEach(a => {
         a.delta = (a.score != null && base[a.aspect] != null) ? a.score - base[a.aspect] : null;
         a.step  = (a.score != null && prior[a.aspect] != null) ? a.score - prior[a.aspect] : null;
       });
-      _interview.aspects = data.aspects;
-      _interview.aspectsSummary = data.summary || '';
+      state.interview.aspects = data.aspects;
+      state.interview.aspectsSummary = data.summary || '';
     }
   } catch (_) { /* leave prior aspects in place */ }
   finally {
@@ -2415,10 +1400,10 @@ function _ivResultHtml(a) {
 
 function _renderInterviewOverall() {
   const el = document.getElementById('interviewOverall');
-  const answered = Object.values(_interview.answers).filter(a => _ivAnswerComplete(a)).length;
+  const answered = Object.values(state.interview.answers).filter(a => _ivAnswerComplete(a)).length;
   if (!answered) { el.style.display = 'none'; el.innerHTML = ''; return; }
   el.style.display = '';
-  const ov = _interview.overall;
+  const ov = state.interview.overall;
   el.className = ov ? 'iv-overall' : '';
   el.innerHTML = `
     <div class="iv-overall-row">
@@ -2433,9 +1418,9 @@ function _renderInterviewOverall() {
 // Reveal the model answer for one question (gated: only after it has an answer).
 // Cached on the answer object so it persists with the saved interview.
 async function revealModelAnswer(id) {
-  const q = (_interview.questions || []).find(x => String(x.id) === String(id));
+  const q = (state.interview.questions || []).find(x => String(x.id) === String(id));
   if (!q) return;
-  const a = _interview.answers[id] || {};
+  const a = state.interview.answers[id] || {};
   if (!(a.answer || '').trim()) return;   // gated
   const btn = document.getElementById('ivModelBtn-' + id);
   if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
@@ -2445,7 +1430,7 @@ async function revealModelAnswer(id) {
     if (data.ok) {
       a.modelAnswer = data.model_answer || '';
       a.modelCovers = Array.isArray(data.covers) ? data.covers : [];
-      _interview.answers[id] = a;
+      state.interview.answers[id] = a;
       if (_ivHasAnswers()) _persistInterview();
     } else if (btn) {
       btn.disabled = false; btn.textContent = '★ Reveal model answer';
@@ -2463,11 +1448,11 @@ function _renderOpportunities() {
   const el = document.getElementById('interviewOpportunities');
   if (!el) return;
   if (_ivPerspective !== 'candidate') { el.style.display = 'none'; return; }
-  const answered = Object.values(_interview.answers).filter(a => (a.answer || '').trim()).length;
+  const answered = Object.values(state.interview.answers).filter(a => (a.answer || '').trim()).length;
   if (!answered) { el.style.display = 'none'; el.innerHTML = ''; return; }
   el.style.display = '';
   el.className = 'iv-candidate-only iv-overall';
-  const opp = _interview.opportunities;
+  const opp = state.interview.opportunities;
   const head = `<div class="iv-overall-row">
       <button class="desc-action-btn" data-action="load-opportunities">${opp ? '↻ Refresh opportunities' : '✨ Show my biggest opportunities'}</button>
     </div>`;
@@ -2491,8 +1476,8 @@ function _renderOpportunities() {
 }
 
 async function loadOpportunities() {
-  const records = (_interview.questions || [])
-    .map(q => ({ question: q.question, ...(_interview.answers[q.id] || {}) }))
+  const records = (state.interview.questions || [])
+    .map(q => ({ question: q.question, ...(state.interview.answers[q.id] || {}) }))
     .filter(r => (r.answer || '').trim())
     .map(r => ({ question: r.question, answer: r.answer, score: r.score }));
   const el = document.getElementById('interviewOpportunities');
@@ -2501,7 +1486,7 @@ async function loadOpportunities() {
     const data = await api.post('/api/interview/opportunities', { records, job: _ivJob(), cv_text: _ivCvText(),
                              profile: _ivProfile(), lang: _ivLang() });
     if (data.ok) {
-      _interview.opportunities = { items: data.opportunities || [], summary: data.summary || '' };
+      state.interview.opportunities = { items: data.opportunities || [], summary: data.summary || '' };
       if (_ivHasAnswers()) _persistInterview();
     } else {
       alert(data.error || 'Could not analyze opportunities.');
@@ -2512,7 +1497,7 @@ async function loadOpportunities() {
 
 function _renderInterview() {
   const wrap = document.getElementById('interviewScorecard');
-  const qs = _interview.questions || [];
+  const qs = state.interview.questions || [];
   // Index follow-ups by their parent so each renders nested under it.
   const byParent = {};
   qs.forEach(q => { if (q.followupTo != null) (byParent[q.followupTo] = byParent[q.followupTo] || []).push(q); });
@@ -2563,7 +1548,7 @@ Object.assign(_ACTIONS, {
 
 // Render one question and (recursively) its follow-ups nested beneath it.
 function _ivRenderNode(item, byParent) {
-  const a = _interview.answers[item.id] || {};
+  const a = state.interview.answers[item.id] || {};
   const scored = a.score != null;
   const isFollowup = item.followupTo != null;
   const editable = !!item.custom;   // manual, imported and follow-up questions are editable
@@ -2647,8 +1632,8 @@ function _ivSuggestHtml(parentId, question, note) {
 function _renderInterviewControls() {
   const row = document.getElementById('interviewControls');
   row.style.display = 'flex';
-  const hasQ = !!(_interview.questions && _interview.questions.length);
-  const frozen = !!_interview.frozen;
+  const hasQ = !!(state.interview.questions && state.interview.questions.length);
+  const frozen = !!state.interview.frozen;
   const fb = document.getElementById('ivFreezeBtn');
   const rb = document.getElementById('ivRegenBtn');
   const ab = document.getElementById('ivAnalyzeAllBtn');
@@ -2664,28 +1649,28 @@ function _renderInterviewControls() {
 // Freeze locks the question set and saves it immediately, so it survives closing
 // the window and never regenerates. Unfreeze re-enables regeneration.
 async function toggleFreezeInterview() {
-  if (!_interview.questions || !_interview.questions.length) return;
-  _interview.frozen = !_interview.frozen;
+  if (!state.interview.questions || !state.interview.questions.length) return;
+  state.interview.frozen = !state.interview.frozen;
   _renderInterviewControls();
   await _persistInterview();   // persist now (saving the job) so the questions stick
 }
 
 // Discard the current questions and generate a fresh set (only when not frozen).
 async function regenerateInterview() {
-  if (_interview.frozen) return;
+  if (state.interview.frozen) return;
   if (_ivHasAnswers() &&
       !confirm('Replace the current questions and clear the recorded answers for this interview?')) return;
-  _interview.questions = [];
-  _interview.answers = {};
-  _interview.aspects = [];
-  _interview.aspectsSummary = '';
-  _interview.overall = null;
-  _descCvQuestionsShown = false;   // force descToggleCvQuestions to re-open + regenerate
+  state.interview.questions = [];
+  state.interview.answers = {};
+  state.interview.aspects = [];
+  state.interview.aspectsSummary = '';
+  state.interview.overall = null;
+  state.descCvQuestionsShown = false;   // force descToggleCvQuestions to re-open + regenerate
   await descToggleCvQuestions();
 }
 
 function _ivOnInput(id, val) {
-  (_interview.answers[id] = _interview.answers[id] || {}).answer = val;
+  (state.interview.answers[id] = state.interview.answers[id] || {}).answer = val;
   _ivSyncFollowupBtn(id);   // show/hide 💡 Suggest follow-up live as the answer changes
 }
 
@@ -2695,7 +1680,7 @@ function _ivOnInput(id, val) {
 function _ivSyncFollowupBtn(id) {
   const actions = document.querySelector(`.iv-q[data-qid="${id}"] .iv-q-actions`);
   if (!actions) return;
-  const a = _interview.answers[id] || {};
+  const a = state.interview.answers[id] || {};
   if (a.followupExhausted) return;
   // No longer exhausted (e.g. answer edited + re-analyzed) → drop any stale marker.
   actions.querySelector('.iv-followup-done')?.remove();
@@ -2712,24 +1697,24 @@ function _ivSyncFollowupBtn(id) {
 // Add an interviewer-written question (e.g. something that came up live). Allowed
 // even when frozen — freeze only stops AI regeneration, not deliberate edits.
 function addInterviewQuestion() {
-  _interview.questions = _interview.questions || [];
-  const ids = _interview.questions.map(q => q.id).filter(n => typeof n === 'number');
+  state.interview.questions = state.interview.questions || [];
+  const ids = state.interview.questions.map(q => q.id).filter(n => typeof n === 'number');
   const nid = (ids.length ? Math.max(...ids) : 0) + 1;
-  _interview.questions.push({ id: nid, question: '', note: 'Added by interviewer', custom: true });
+  state.interview.questions.push({ id: nid, question: '', note: 'Added by interviewer', custom: true });
   _renderInterview();
   setTimeout(() => document.querySelector(`.iv-q[data-qid="${nid}"] .iv-q-edit`)?.focus(), 0);
   _persistInterview();
 }
 
 function _ivEditQuestion(id, val) {
-  const q = (_interview.questions || []).find(x => x.id === id);
+  const q = (state.interview.questions || []).find(x => x.id === id);
   if (q) q.question = val;
 }
 
 function removeInterviewQuestion(id) {
   // Remove this question and every descendant follow-up (and their answers), so
   // deleting a parent never leaves orphaned follow-ups behind.
-  const qs = _interview.questions || [];
+  const qs = state.interview.questions || [];
   const doomed = new Set([id]);
   let grew = true;
   while (grew) {
@@ -2738,8 +1723,8 @@ function removeInterviewQuestion(id) {
       if (q.followupTo != null && doomed.has(q.followupTo) && !doomed.has(q.id)) { doomed.add(q.id); grew = true; }
     });
   }
-  _interview.questions = qs.filter(q => !doomed.has(q.id));
-  doomed.forEach(rid => { delete _interview.answers[rid]; delete _ivPendingFollowup[rid]; });
+  state.interview.questions = qs.filter(q => !doomed.has(q.id));
+  doomed.forEach(rid => { delete state.interview.answers[rid]; delete _ivPendingFollowup[rid]; });
   _renderInterview();
   _renderInterviewOverall();
   _persistInterview();
@@ -2750,12 +1735,12 @@ function removeInterviewQuestion(id) {
 // can judge whether the topic is exhausted or one more probe is warranted.
 function _ivThread(id) {
   const byId = {};
-  (_interview.questions || []).forEach(q => { byId[q.id] = q; });
+  (state.interview.questions || []).forEach(q => { byId[q.id] = q; });
   const chain = [];
   let cur = byId[id];
   while (cur) { chain.unshift(cur); cur = (cur.followupTo != null) ? byId[cur.followupTo] : null; }
   return chain.map(q => {
-    const a = _interview.answers[q.id] || {};
+    const a = state.interview.answers[q.id] || {};
     return { question: q.question, answer: a.answer || '', note: q.note || '' };
   });
 }
@@ -2764,7 +1749,7 @@ function _ivThread(id) {
 // thread isn't duplicated in the prompt.
 function _ivThreadIds(id) {
   const byId = {};
-  (_interview.questions || []).forEach(q => { byId[q.id] = q; });
+  (state.interview.questions || []).forEach(q => { byId[q.id] = q; });
   const ids = [];
   let cur = byId[id];
   while (cur) { ids.push(cur.id); cur = (cur.followupTo != null) ? byId[cur.followupTo] : null; }
@@ -2772,9 +1757,9 @@ function _ivThreadIds(id) {
 }
 
 async function suggestFollowup(id) {
-  const item = (_interview.questions || []).find(q => q.id === id);
+  const item = (state.interview.questions || []).find(q => q.id === id);
   if (!item) return;
-  const a = _interview.answers[id] || {};
+  const a = state.interview.answers[id] || {};
   if (!(a.answer || '').trim()) return;
   const btn = document.querySelector(`.iv-q[data-qid="${id}"] .iv-followup-btn`);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
@@ -2784,7 +1769,7 @@ async function suggestFollowup(id) {
                              others: _ivOtherRecords(_ivThreadIds(id)) });
     if (data.exhausted) {
       // Persist the "done" state so the marker survives reopening.
-      _interview.answers[id] = { ...a, followupExhausted: true, followupReason: data.reason || '' };
+      state.interview.answers[id] = { ...a, followupExhausted: true, followupReason: data.reason || '' };
       _persistInterview();
       _renderInterview();
     } else {
@@ -2802,10 +1787,10 @@ async function suggestFollowup(id) {
 function addFollowup(parentId) {
   const sug = _ivPendingFollowup[parentId];
   if (!sug) return;
-  _interview.questions = _interview.questions || [];
-  const ids = _interview.questions.map(q => q.id).filter(n => typeof n === 'number');
+  state.interview.questions = state.interview.questions || [];
+  const ids = state.interview.questions.map(q => q.id).filter(n => typeof n === 'number');
   const nid = (ids.length ? Math.max(...ids) : 0) + 1;
-  _interview.questions.push({ id: nid, question: sug.question,
+  state.interview.questions.push({ id: nid, question: sug.question,
                               note: sug.note || `Follow-up to Q${parentId}`,
                               custom: true, followupTo: parentId });
   delete _ivPendingFollowup[parentId];
@@ -2822,14 +1807,14 @@ function dismissFollowup(parentId) {
 // Every question has a COMPLETE answer — used to auto-produce the wrap-up. An open
 // (clarifying/partial) exchange doesn't count, so the summary won't fire prematurely.
 function _ivAllAnswered() {
-  const qs = (_interview.questions || []).filter(q => (q.question || '').trim());
-  return qs.length > 0 && qs.every(q => _ivAnswerComplete(_interview.answers[q.id]));
+  const qs = (state.interview.questions || []).filter(q => (q.question || '').trim());
+  return qs.length > 0 && qs.every(q => _ivAnswerComplete(state.interview.answers[q.id]));
 }
 
 // At least one answered-but-not-yet-scored question — gates the "Analyze all" button.
 function _ivHasUnscored() {
-  return (_interview.questions || []).some(q => {
-    const a = _interview.answers[q.id] || {};
+  return (state.interview.questions || []).some(q => {
+    const a = state.interview.answers[q.id] || {};
     return (a.answer || '').trim() && a.score == null;
   });
 }
@@ -2905,17 +1890,17 @@ async function importInterviewQuestions() {
     const data = await api.post('/api/interview/parse', { text });
     if (!Array.isArray(data.questions) || !data.questions.length)
       throw new Error(data.error || 'no questions found');
-    _interview.questions = _interview.questions || [];
-    const ids = _interview.questions.map(q => q.id).filter(n => typeof n === 'number');
+    state.interview.questions = state.interview.questions || [];
+    const ids = state.interview.questions.map(q => q.id).filter(n => typeof n === 'number');
     let next = (ids.length ? Math.max(...ids) : 0) + 1;
     let nq = 0, na = 0;
     data.questions.forEach(q => {
       const qtext = (q.question || '').trim();
       if (!qtext) return;
       const id = next++;
-      _interview.questions.push({ id, question: qtext, note: 'Imported', custom: true });
+      state.interview.questions.push({ id, question: qtext, note: 'Imported', custom: true });
       const ans = (q.answer || '').trim();
-      if (ans) { _interview.answers[id] = { answer: ans }; na++; }
+      if (ans) { state.interview.answers[id] = { answer: ans }; na++; }
       nq++;
     });
     _renderInterview();
@@ -2934,8 +1919,8 @@ async function analyzeAllInterview() {
   const btn = document.getElementById('ivAnalyzeAllBtn');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    for (const q of (_interview.questions || [])) {
-      const a = _interview.answers[q.id] || {};
+    for (const q of (state.interview.questions || [])) {
+      const a = state.interview.answers[q.id] || {};
       if ((a.answer || '').trim() && !_ivAnswerComplete(a)) await analyzeInterviewAnswer(q.id);
     }
   } finally {
@@ -2947,7 +1932,7 @@ async function analyzeAllInterview() {
 // Assess one turn. The model decides whether it's a complete answer (→ score) or
 // still in progress (→ guidance, no score). `final=true` is the "Score now" override.
 async function analyzeInterviewAnswer(id, final = false) {
-  const item = (_interview.questions || []).find(q => q.id === id);
+  const item = (state.interview.questions || []).find(q => q.id === id);
   if (!item) return;
   const row = document.querySelector(`.iv-q[data-qid="${id}"]`);
   const ta  = row?.querySelector('.iv-answer');
@@ -2959,8 +1944,8 @@ async function analyzeInterviewAnswer(id, final = false) {
     const data = await api.post('/api/interview/analyze', { question: item.question, answer, note: item.note,
                              job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang(),
                              others: _ivOtherRecords([id]), final });
-    const _prev = _interview.answers[id] || {};
-    _interview.answers[id] = { answer, complete: data.complete, status: data.status, needs: data.needs,
+    const _prev = state.interview.answers[id] || {};
+    state.interview.answers[id] = { answer, complete: data.complete, status: data.status, needs: data.needs,
                                score: data.score, verdict: data.verdict,
                                strengths: data.strengths, concerns: data.concerns, signals: data.signals,
                                // Keep any revealed model answer — it tracks the QUESTION, not the reply.
@@ -2971,9 +1956,9 @@ async function analyzeInterviewAnswer(id, final = false) {
     _persistInterview();
     // Only a COMPLETE answer feeds the assessment and the auto wrap-up — an open
     // exchange (clarifying/partial) must never move the candidate's numbers.
-    if (_ivAnswerComplete(_interview.answers[id])) {
+    if (_ivAnswerComplete(state.interview.answers[id])) {
       refreshAspects();
-      if (_ivAllAnswered() && !_interview.overall) summarizeInterview();
+      if (_ivAllAnswered() && !state.interview.overall) summarizeInterview();
     }
   } catch(e) {
     actionBtns.forEach(b => b.disabled = false);
@@ -2982,8 +1967,8 @@ async function analyzeInterviewAnswer(id, final = false) {
 }
 
 async function summarizeInterview() {
-  const records = (_interview.questions || [])
-    .map(q => ({ question: q.question, ...(_interview.answers[q.id] || {}) }))
+  const records = (state.interview.questions || [])
+    .map(q => ({ question: q.question, ...(state.interview.answers[q.id] || {}) }))
     .filter(r => _ivAnswerComplete(r));   // only finished answers feed the wrap-up
   if (!records.length) return;
   const el  = document.getElementById('interviewOverall');
@@ -2991,7 +1976,7 @@ async function summarizeInterview() {
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
     const data = await api.post('/api/interview/summarize', { records, job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() });
-    _interview.overall = { score: data.score, recommendation: data.recommendation, summary: data.summary };
+    state.interview.overall = { score: data.score, recommendation: data.recommendation, summary: data.summary };
     _renderInterviewOverall();
     _persistInterview();
   } catch(e) {
@@ -3008,11 +1993,11 @@ async function _persistInterview() {
   const isSaved = (state.savedJobs || []).some(j => String(j.job_id) === String(jobId));
   try {
     if (isSaved) {
-      await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: _interview } } });
+      await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: state.interview } } });
     } else {
       const status = document.getElementById('modalStatusSel')?.value || 'New';
       const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() },
-                                                  status, extras: { interview: _interview },
+                                                  status, extras: { interview: state.interview },
                                                   candidate_profile: state.currentCandidateProfile || null });
       if (data.ok) {
         state.savedJobs = data.jobs;
@@ -3034,8 +2019,8 @@ async function descToggleCvQuestions() {
   if (!btn || btn.disabled) return;
 
   // Toggle closed
-  if (_descCvQuestionsShown) {
-    _descCvQuestionsShown = false;
+  if (state.descCvQuestionsShown) {
+    state.descCvQuestionsShown = false;
     btn.textContent = 'Interview';
     btn.classList.remove('active');
     wrap.style.display = 'none';
@@ -3043,17 +2028,17 @@ async function descToggleCvQuestions() {
   }
 
   // Opening
-  _descCvQuestionsShown = true;
+  state.descCvQuestionsShown = true;
   btn.classList.add('active');
   btn.textContent = 'Hide';
   wrap.style.display = '';
 
   // Already have questions (restored from a saved interview, generated, or imported)
-  if (_interview.questions && _interview.questions.length) {
+  if (state.interview.questions && state.interview.questions.length) {
     msg.style.display = 'none';
     _renderInterview();
     _renderAspects();
-    if (_ivCvText() && !(_interview.aspects && _interview.aspects.length)) refreshAspects();
+    if (_ivCvText() && !(state.interview.aspects && state.interview.aspects.length)) refreshAspects();
     return;
   }
 
@@ -3076,7 +2061,7 @@ async function descToggleCvQuestions() {
   btn.disabled = true;
   try {
     const data = await api.post('/api/interview/questions', { job: _ivJob(), cv_text: _ivCvText(), profile: _ivProfile(), lang: _ivLang() });
-    _interview.questions = data.questions;
+    state.interview.questions = data.questions;
     _renderInterview();
     refreshAspects();   // baseline candidate assessment from CV + profile
   } catch(e) {
@@ -3090,15 +2075,15 @@ async function descToggleOutreach() {
   const btn = document.getElementById('descOutreachBtn');
   if (!btn || btn.disabled) return;
 
-  if (_descOutreachShown) {
-    _descOutreachShown = false;
+  if (state.descOutreachShown) {
+    state.descOutreachShown = false;
     btn.textContent = 'Outreach';
     btn.classList.remove('active');
     document.getElementById('modalDescOutreachWrap').style.display = 'none';
     return;
   }
 
-  if (!_descOutreach) {
+  if (!state.descOutreach) {
     btn.disabled = true;
     btn.textContent = '…';
     try {
@@ -3110,13 +2095,13 @@ async function descToggleOutreach() {
           location: [state.modalJob.city, state.modalJob.state].filter(Boolean).join(', '),
           salary:   state.modalJob.salary,
           skills:   state.modalJob.skills_en || state.modalJob.skills,
-          description: _descOriginal.slice(0, 1500),
+          description: state.descOriginal.slice(0, 1500),
         },
         candidate_name: candidateName,
         cv_text: state.lastParsedText ? state.lastParsedText.slice(0, 1500) : '',
-        lang: _modalLang,
+        lang: state.modalLang,
       });
-      _descOutreach = data.text;
+      state.descOutreach = data.text;
     } catch(e) {
       btn.disabled = false;
       btn.textContent = 'Outreach';
@@ -3125,9 +2110,9 @@ async function descToggleOutreach() {
     btn.disabled = false;
   }
 
-  document.getElementById('modalDescOutreachText').textContent = _descOutreach;
+  document.getElementById('modalDescOutreachText').textContent = state.descOutreach;
   document.getElementById('modalDescOutreachWrap').style.display = '';
-  _descOutreachShown = true;
+  state.descOutreachShown = true;
   btn.textContent = 'Hide';
   btn.classList.add('active');
 }
