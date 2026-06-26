@@ -4170,12 +4170,12 @@ async function runMatching() {
   _lastMatchText = text;   // remember who we searched with, for per-job fit chat
 
   const filters  = {};
-  const state    = document.getElementById('filterState').value;
+  const stateF   = document.getElementById('filterState').value;
   const occGroup = document.getElementById('filterOccGroup').value;
   const portal   = document.getElementById('filterPortal').value;
   const city     = document.getElementById('filterCity').value.trim();
   const keyword  = document.getElementById('filterKeyword').value.trim();
-  if (state)    filters.state     = state;
+  if (stateF)   filters.state     = stateF;
   if (occGroup) filters.occ_group = occGroup;
   if (portal)   filters.portal    = portal;
   if (city)     filters.city      = city;
@@ -4256,12 +4256,12 @@ async function findMoreJobs() {
   const prevIds = new Set(state.lastResults.map(j => String(j.job_id)));
 
   const filters  = {};
-  const state    = document.getElementById('filterState').value;
+  const stateF   = document.getElementById('filterState').value;
   const occGroup = document.getElementById('filterOccGroup').value;
   const portal   = document.getElementById('filterPortal').value;
   const city     = document.getElementById('filterCity').value.trim();
   const keyword  = document.getElementById('filterKeyword').value.trim();
-  if (state)    filters.state     = state;
+  if (stateF)   filters.state     = stateF;
   if (occGroup) filters.occ_group = occGroup;
   if (portal)   filters.portal    = portal;
   if (city)     filters.city      = city;
