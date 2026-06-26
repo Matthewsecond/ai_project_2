@@ -507,12 +507,23 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
     opens the modal — and on first run caught a real bug the migration introduced (a local `const state`
     shadowing the import in runMatching/findMoreJobs; fixed → `stateF`). Two e2e tests now: tabs + search→modal.
   - ⬜ **remaining 8 = ONE mutually-referential CORE CLUSTER** (search, candidate, saved, modal, interview,
-    clustering, assistant, guided) + boot. NOT peelable in pairs: e.g. `interview` calls `buildCandidateText`/
-    `getCandidateName` (candidate) + `updateSavedBadge` (saved) and is called by `modal`. No clean leaf
-    remains. Finishing = a **coordinated multi-module extraction**: create all ~8 core files at once, move
-    each section, wire the circular imports (valid in ESM — runtime calls), repoint externally-called fns to
-    exports. Gate per file: node --check + identifier-resolution cross-check + both e2e smokes + boot-302.
-    A larger single push — best with fresh context.
+    clustering, assistant, guided) + boot. NOT peelable in pairs. **EXECUTION SPEC (measured):** the raw
+    cross-module surface looked huge but separates into 3 buckets:
+    1. **Shared state (~18 vars)** → move to `state.js` (continue the `lastResults` pattern). These inflate
+       the "exports" but are variables, not API. Migrate FIRST — it removes most coupling and is the only
+       part that's safely incremental.
+    2. **`data-action` registrations (+36 "exports")** → NOISE. They look cross-module only because a
+       handler's registration currently sits in a neighbour's region. Keep each registration co-located with
+       its function (move it with the module) and the edge vanishes. Zero work.
+    3. **Genuine function API = 26 exports total**, small per module: candidate 8, search 7, saved 4,
+       interview 3, assistant 2, clustering 1, guided 1, **modal 0** (its 11 "exports" were all state).
+       Plus pure helpers in the wrong place (e.g. `gradeClass`) → move to `util.js`, removing the edge.
+    **Order:** (i) finish state→`state.js`; (ii) move stray pure helpers to `util.js`; (iii) then the 8
+    files. Because every core module calls ≥1 other (search↔candidate↔saved↔modal↔interview…), step (iii)
+    is irreducibly **coordinated** — extract the cluster together with circular imports (valid in ESM, calls
+    fire at runtime), OR route cross-module calls through a late-bound registry (like `_ACTIONS`) to keep it
+    one-module-per-commit. Gate per file: node --check + identifier-resolution (called idents − local −
+    imports − globals = ∅) + both e2e smokes + boot-302.
   Cut the one inline `<script>` into the files below (sizes = real line counts from the split), add
   `import`/`export` only for cross-file refs, and replace the inline block with
   `<script type="module" src="…/boot.js">`. **No logic changes** — a missed reuse/cleanup waits for 2.6f.
