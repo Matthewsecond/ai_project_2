@@ -501,15 +501,18 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   - ✅ module 5/13 `radar.js` (`f64abbc`, 1217 lines): first big feature module. Only coupling was
     `_filterOpts` (→ state); only `loadRadar` called externally. Spliced the whole section (41 fns + its
     own `_ACTIONS` blocks) via Python regex; prepend import header, `export loadRadar`, placeholder left.
-  - ⬜ **remaining 8 = the tightly-coupled CORE**: guided(290), assistant(395), clustering(650),
-    interview(930), modal(970), saved(1240), candidate(1300) + boot(120). Unlike map/export/util/state/
-    radar (clean leaves), these call EACH OTHER (modal↔interview↔saved, search↔candidate↔assistant↔
-    clustering) and share mutable state (`lastResults` 70×, `savedJobs`, `_modalJob`, `_interview`,
-    `_miCandidates`, `_currentCandidateProfile`, `activeMode`). Finishing requires: (a) migrate those
-    singletons into `state.js` (same pattern as `_filterOpts`); (b) accept **circular imports** between
-    feature modules — valid in ESM since the calls fire at runtime, but a module file must exist before
-    it's imported, so mutually-dependent ones extract together (or route the call through state). This is
-    a larger structural pass than the leaves, not a quick continuation.
+  - ✅ shared-state migration (`63cdb4b`): the 5 cross-cutting singletons → `state.*`
+    (`lastResults`/`modalJob`/`activeMode`/`currentCandidateProfile`/`savedJobs`). Cross-module *state* solved.
+  - ✅ smoke strengthened (`e1509d8`): `e2e/test_search_modal.py` runs a real search (mock `/api/match`) +
+    opens the modal — and on first run caught a real bug the migration introduced (a local `const state`
+    shadowing the import in runMatching/findMoreJobs; fixed → `stateF`). Two e2e tests now: tabs + search→modal.
+  - ⬜ **remaining 8 = ONE mutually-referential CORE CLUSTER** (search, candidate, saved, modal, interview,
+    clustering, assistant, guided) + boot. NOT peelable in pairs: e.g. `interview` calls `buildCandidateText`/
+    `getCandidateName` (candidate) + `updateSavedBadge` (saved) and is called by `modal`. No clean leaf
+    remains. Finishing = a **coordinated multi-module extraction**: create all ~8 core files at once, move
+    each section, wire the circular imports (valid in ESM — runtime calls), repoint externally-called fns to
+    exports. Gate per file: node --check + identifier-resolution cross-check + both e2e smokes + boot-302.
+    A larger single push — best with fresh context.
   Cut the one inline `<script>` into the files below (sizes = real line counts from the split), add
   `import`/`export` only for cross-file refs, and replace the inline block with
   `<script type="module" src="…/boot.js">`. **No logic changes** — a missed reuse/cleanup waits for 2.6f.
