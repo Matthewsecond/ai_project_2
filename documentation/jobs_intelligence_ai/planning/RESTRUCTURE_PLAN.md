@@ -474,7 +474,11 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   - Caveat: confirm a headless browser can launch in the dev sandbox; if not, the suite still runs in the
     normal env / CI (one command vs. manual clicking).
 
-- 2.6c **Split JS into per-feature ES modules** (Phase 1 — *pure move, behavior-preserving*). **IN PROGRESS.**
+- 2.6c **Split JS into per-feature ES modules** (Phase 1 — *pure move, behavior-preserving*). ✅ **DONE**
+  — all 16 modules extracted one-per-commit; final module `boot.js` (`346097d`) swapped the inline
+  `<script type="module">` for `<script src=".../boot.js">` and removed the `window.api` head bridge, so
+  `index.html` is now pure markup with zero inline JS. Boot-302 green. ⚠️ Owes one interactive click-test
+  (login + drive every tab/modal) before merging to `master` — static gates can't prove the page boots.
   - ✅ step 0 (`04e2f7b`): flipped the page `<script>` → `<script type="module">`. Pure scope flip; safe
     because 2.6d removed all inline handlers (recon: script reads only CDN globals `L`/`Plotly`/`XLSX` +
     `window.api`, exports nothing to window, no top-level `this`). Smoke green = HTML→global coupling
@@ -506,7 +510,7 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   - ✅ smoke strengthened (`e1509d8`): `e2e/test_search_modal.py` runs a real search (mock `/api/match`) +
     opens the modal — and on first run caught a real bug the migration introduced (a local `const state`
     shadowing the import in runMatching/findMoreJobs; fixed → `stateF`). Two e2e tests now: tabs + search→modal.
-  - ⬜ **remaining 8 = ONE mutually-referential CORE CLUSTER** (search, candidate, saved, modal, interview,
+  - ✅ **remaining 8 = ONE mutually-referential CORE CLUSTER** (search, candidate, saved, modal, interview,
     clustering, assistant, guided) + boot. NOT peelable in pairs. **EXECUTION SPEC (measured):** the raw
     cross-module surface looked huge but separates into 3 buckets:
     1. **Shared state (~18 vars)** → move to `state.js` (continue the `lastResults` pattern). These inflate
@@ -568,6 +572,21 @@ per the workflow we just used — login, reload, console clean, tabs exercised):
   (`candidate.js` 1300 / `radar.js` 1220 / `saved.js` 1240 are doing several jobs each). Gate per change:
   the 2.6e smoke + any added flow tests must stay green (this phase is exactly where click-testing is
   non-negotiable, now automated).
+  - ✅ **DESCOPED / CLOSED (2026-06-29).** One clean sub-split landed: `candidate-examples.js` extracted
+    from `candidate.js` (1420→892 lines, `a64d770`) — the bundled demo-candidate data + Examples dropdown,
+    a true leaf. `radar.js` and `saved.js` were assessed and **consciously dropped**: they're cohesive tab
+    modules with no clean leaf seam (`loadRadar` drives analytics+finder+trend through shared module state
+    + one `_ACTIONS` block; `saved.js`'s `_mi*` dashboard / table / `_ic*` chat are physically interleaved).
+    Splitting them needs shared-state migration whose only safety net is the 2.6e click-test — not worth the
+    risk/time as polish. Revisit only if those files actively get in the way, and only with the e2e smoke on.
+  - Latent bug surfaced during the split (out of scope, separate task): `{{ country_code }}` /
+    `{{ country_demonym }}` in the **static** JS (`candidate-examples.js`, `radar.js`) never render — Flask
+    serves `static/` raw — so the SK example set + radar demonym are broken since 2.6c pulled them out of the
+    Jinja-rendered inline script. Fix = inject country into the JS from the rendered `index.html`.
+
+**Stage 2.6 — ✅ CLOSED (2026-06-29):** 2.6a–2.6e done; 2.6c done (full ES-module split); 2.6f descoped to
+the one safe sub-split. Frontend is now CSS + thin `api.js` + per-feature ES modules + pure-markup
+`index.html`. Remaining owed item before `master`: the interactive click-test of the split (Stage 3 gate).
 
 Gate per step: 2.6e smoke (all five tabs, console-clean) + `boot` + `integration_tests` green.
 
