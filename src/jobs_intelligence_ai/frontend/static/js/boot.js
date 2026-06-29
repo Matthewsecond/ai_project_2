@@ -16,6 +16,9 @@ import api from "./api.js";
 import "./clustering.js";
 // Side-effect-only import: candidate.js registers its own _ACTIONS + app entries.
 import "./candidate.js";
+// Side-effect-only import: candidate-examples.js (bundled demo candidates +
+// the Examples dropdown) registers its own _ACTIONS + builds the dropdown.
+import "./candidate-examples.js";
 // Side-effect-only import: guided.js registers its own _ACTIONS + app entries.
 import "./guided.js";
 // Side-effect-only import: assistant.js registers its own _ACTIONS + app entries.
