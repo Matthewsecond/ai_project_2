@@ -86,10 +86,12 @@ def create_app() -> Flask:
             user     = verify_login(username, password)
             if user:
                 session.clear()
-                session["user_id"]      = user["id"]
-                session["username"]     = user["username"]
-                session["display_name"] = user["display_name"]
-                session["role"]         = user["role"]
+                session["user_id"]            = user["id"]
+                session["account_company_id"] = user["account_company_id"]
+                session["username"]           = user["username"]
+                session["display_name"]       = user["display_name"]
+                session["role"]               = user["role"]
+                session["visibility"]         = user["visibility"]
                 return redirect(url_for("index"))
             error = "Incorrect username or password."
         return render_template(
