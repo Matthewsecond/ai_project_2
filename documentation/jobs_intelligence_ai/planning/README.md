@@ -7,14 +7,15 @@ Reference docs (ARCHITECTURE, TESTING) and per-module docs stay outside this fol
 
 | Plan | Status |
 |---|---|
-| [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md) | **IN PROGRESS** — the modular rework + demo/production branch strategy. This is the plan we are executing now (Stage 2). |
+| [FRONTEND_DB_REWORK_PLAN.md](FRONTEND_DB_REWORK_PLAN.md) | **PLANNING** — the IC product phase: frontend rework (IC rebrand + new IA) + database layout rework (clean schema, users, collaboration). This is the plan we execute now. |
 
-> Currently the only active plan.
+> The current active plan.
 
-## Archive
+## Completed / reference
 
-Completed or superseded docs, kept for history only — **do not use for current work**.
+Done or superseded docs, kept for history only — **do not use for current work**.
 
-| Doc | Why archived |
+| Doc | Why kept |
 |---|---|
+| [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md) | **Complete.** The modular rework + two-branch demo split (Stages 1–2.6 all done). Branch strategy (§2) and the lean-`master` snapshot composition remain the operative deployment model, referenced by the active plan. |
 | [archive/CLEANUP_PLAN.md](archive/CLEANUP_PLAN.md) | **Completed.** The UX clunk-fix plan — all non-deferred items (P1–P4.1) landed. Only 4.2 (unify the `/chat` endpoints) stays deferred, and only if more chat surfaces appear. |

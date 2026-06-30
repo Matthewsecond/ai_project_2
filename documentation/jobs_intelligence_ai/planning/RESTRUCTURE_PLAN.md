@@ -1,10 +1,15 @@
 # Restructure Plan — Modular Rework + Two-Branch Demo Split
 
-> **Status:** Plan COMPLETE and execution-ready. Architecture, `shared/` (§4),
-> config (§5), execution plan (§6), testing (§10), and all structural decisions (§9)
-> agreed. Backend stages 2.0–2.5 are done (`core/` dissolved, `shared/` = llm+grading+taxonomy,
-> zero shims left); only **2.6** (frontend internal modularization — §12, native ES modules)
-> remains, then the Stage 3 production feature set (deferred). Running record.
+> **Status: ✅ COMPLETE — superseded as the active plan (2026-06-29).** The modular
+> rework is fully done (Stages 1–2.6). The product phase that this plan deferred as
+> "Stage 3" is now tracked in [FRONTEND_DB_REWORK_PLAN.md](FRONTEND_DB_REWORK_PLAN.md) —
+> **use that for current work.** Kept here as the completed record; its branch strategy
+> (§2) and lean-`master` snapshot composition are still the operative deployment model,
+> referenced by the active plan.
+>
+> _Historical status:_ Architecture, `shared/` (§4), config (§5), execution plan (§6),
+> testing (§10), and all structural decisions (§9) agreed; backend Stages 2.0–2.5 done
+> (`core/` dissolved, `shared/` = llm+grading+taxonomy, zero shims), frontend 2.6 closed.
 >
 > **STANDING RULE — docs track the code.** After each phase/step is done, update the
 > documentation to reflect it *as part of that step* (before moving on): the mirrored
