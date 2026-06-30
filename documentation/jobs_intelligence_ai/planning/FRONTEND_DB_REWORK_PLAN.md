@@ -55,53 +55,195 @@ Tables are country-prefixed and cryptic (`sk_candidate`, `sk_company`, …), the
 user/account model (only `SEED_USERS` for login), no notion of who saved what, and no audit
 trail. Matching reads from per-country views (`View_Jobs_*`).
 
-### 3.2 Target schema (the ERD)
-Single set of tables; **`country char(2)` column** instead of per-country tables.
+### 3.2 Target schema (greenfield `Jobs_Intelligence_AI`)
 
-**Accounts & access**
-- `account_company` — the tenant (the firm whose staff log in). `id, name, created_at`.
-- `app_user` — a person who logs in; belongs to an `account_company`.
-  `id, account_company_id→account_company, name, email, password_hash, role, visibility`.
-  (Named `app_user`, not `user`, to avoid the MySQL reserved word / system table.)
-- `audit_log` — `id, user_id→app_user, action, entity_type, entity_id, created_at`.
+This is a **greenfield rebuild of the app DB only** (the `Jobs_Intelligence_AI` schema, audited
+2026-06-30). The **market data stays in the per-country DBs** (`Jobs_Intelligence_Austria` /
+`Jobs_Intelligence_Slovakia`) — `jobs`, `companies`, `contacts` are the shared catalogue, fed by
+pipelines and read via the `View_Jobs_*` views. The app DB references those by id (no cross-DB FK).
 
-**Data — the searchable universe**
-- `target_company` — a company you recruit for. Shared catalogue. `id, name, country, industry, …`.
-- `job` — shared catalogue. `id, target_company_id→target_company, title, country, description, …`.
-
-**Company-owned data** (private to the company that created it; carry both owner columns)
-- `candidate` — `id, account_company_id→account_company, owner_id→app_user, name, country, profile, …`.
-- `contact` — a person at a target company.
-  `id, account_company_id→account_company, owner_id→app_user, target_company_id→target_company, name, email`.
-
-**Saved — the home base (junction tables, per user)**
-- `saved_job` — `id, user_id→app_user, job_id→job, status, saved_at`. `status` =
-  `new | in_progress | proposal_sent | won | lost` (default `new`; see §4.2 for EN/DE labels).
-- `saved_candidate` — `id, user_id→app_user, candidate_id→candidate, saved_at`.
-- `saved_contact` — `id, user_id→app_user, contact_id→contact, saved_at`.
-- `saved_company` — `id, user_id→app_user, target_company_id→target_company, saved_at`.
-- Each saved table gets `unique(user_id, item_id)`.
+Shape of the model:
+- **Tenanting:** `account_company` (the firm) → `app_user` (its staff).
+- **`saved_candidates` is a normal table** holding the **full candidate record** — staff create it
+  (CV upload); there is no external candidate catalogue to reference. Company-owned: carries
+  `account_company_id` (privacy boundary) + `owner_id` (the employee who tracks it).
+- **`saved_jobs` / `saved_companies` / `saved_contacts` are thin junction / reference tables** — they
+  don't copy catalogue data, they link a user to a market row (`owner_id` + `country` + the row's id
+  + a little metadata). `saved_jobs` also links to a `saved_candidate` ("this job, *for* this
+  candidate") and carries the Won/Lost placement `status`.
+- **Country** is a `char(2)` column (`'at'`/`'sk'`), replacing the old `sk_` table prefix.
 
 ```
+APP DB — Jobs_Intelligence_AI
+=============================
 account_company
-   ├─1:N─ app_user    (role: admin | member,  visibility: own | all)
-   │         ├─1:N─ saved_job        ─N:1─▶ job
-   │         ├─1:N─ saved_candidate  ─N:1─▶ candidate
-   │         ├─1:N─ saved_contact    ─N:1─▶ contact
-   │         ├─1:N─ saved_company    ─N:1─▶ target_company
-   │         └─1:N─ audit_log
-   ├─1:N─ candidate   (also owner_id ─▶ app_user)   company-owned
-   └─1:N─ contact     (also owner_id ─▶ app_user)   company-owned, target_company_id ─▶ target_company
+  └─(1:N)─ app_user                 role: admin|member,  visibility: own|all
+             │  owns (owner_id, 1:N):
+             ├─ saved_candidates    [NORMAL table — full candidate record]
+             ├─ saved_jobs          (saved_candidate_id -> saved_candidates,
+             │                        job_id -> jobs*, status: new..won|lost)
+             ├─ saved_companies     (target_company_id -> companies*)
+             ├─ saved_contacts      (contact_id -> contacts*)
+             ├─ audit_log           (user_id)
+             └─ feedback            (user_id)
 
-target_company (shared catalogue)
-   ├─1:N─ job        (FK target_company_id)
-   └─1:N─ contact    (FK target_company_id)
+job_vs_sync  (job_id -> file_id)    [vector-store sync — separate matching layer, kept as-is]
 
-Shared catalogue: job, target_company (no owner).  Company-owned: candidate, contact
-(account_company_id = hard boundary, owner_id = the employee; own/all filters on owner_id).
-Every data table carries a `country` column. Each saved_* is a per-user junction
-(user_id, item_id) with unique(user_id, item_id).
+MARKET CATALOGUE — per-country DBs (Jobs_Intelligence_Austria / _Slovakia)
+==========================================================================
+jobs   ·   companies   ·   contacts
+
+Legend:  ->  FK inside the app DB      *  logical ref into a market DB (country + id, no FK)
+         saved_candidates = full record;  saved_* = thin junctions (link + a little metadata)
 ```
+
+```sql
+-- Tenant + users -------------------------------------------------------------
+CREATE TABLE account_company (              -- the firm whose staff log in
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name        VARCHAR(255)    NOT NULL,
+  created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE app_user (                     -- a person who logs in; one company
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NOT NULL,
+  username           VARCHAR(128)    NOT NULL,
+  password_hash      VARCHAR(255)    NOT NULL,
+  display_name       VARCHAR(255)    NOT NULL DEFAULT '',
+  email              VARCHAR(255)    NULL,
+  role               ENUM('admin','member') NOT NULL DEFAULT 'member',
+  visibility         ENUM('own','all')      NOT NULL DEFAULT 'all',
+  created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_user_username (username),
+  CONSTRAINT fk_user_company FOREIGN KEY (account_company_id) REFERENCES account_company (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The candidate record (normal table — full data, app-owned) -----------------
+CREATE TABLE saved_candidates (             -- staff-created; company-owned, user-tracked
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NOT NULL,           -- privacy boundary
+  owner_id           BIGINT UNSIGNED NOT NULL,           -- the employee who owns it
+  country            CHAR(2)         NOT NULL,           -- 'at' | 'sk'  (replaces sk_ prefix)
+  full_name          VARCHAR(255)    NOT NULL,
+  email              VARCHAR(255)    NULL,
+  phone              VARCHAR(64)     NULL,
+  linkedin           VARCHAR(512)    NULL,
+  headline           VARCHAR(512)    NULL,
+  location           VARCHAR(255)    NULL,
+  seniority          VARCHAR(32)     NULL,
+  years_experience   INT             NULL,
+  industry           VARCHAR(255)    NULL,
+  current_company    VARCHAR(255)    NULL,
+  status             VARCHAR(32)     NOT NULL DEFAULT 'New',   -- candidate hiring status
+  source             ENUM('cv_upload','manual','imported') NOT NULL DEFAULT 'cv_upload',
+  is_template        TINYINT(1)      NOT NULL DEFAULT 0,
+  skills             JSON NULL,  experiences JSON NULL,  education JSON NULL,   -- enrichment
+  certifications     JSON NULL,  top_skills  JSON NULL,  strengths JSON NULL,   -- (carried over)
+  ai_summary         TEXT NULL,  raw_profile JSON NULL,
+  enriched_at        DATETIME NULL, ai_model VARCHAR(64) NULL,
+  created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY ix_cand_company (account_company_id),
+  KEY ix_cand_owner   (owner_id),
+  KEY ix_cand_country (country),
+  CONSTRAINT fk_cand_company FOREIGN KEY (account_company_id) REFERENCES account_company (id),
+  CONSTRAINT fk_cand_owner   FOREIGN KEY (owner_id)           REFERENCES app_user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- User-owned saved references (thin junctions into the market catalogue) -----
+CREATE TABLE saved_jobs (                   -- a job shortlisted FOR a saved candidate
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NOT NULL,
+  owner_id           BIGINT UNSIGNED NOT NULL,           -- who saved/owns it
+  saved_candidate_id BIGINT UNSIGNED NOT NULL,           -- which candidate it's for
+  country            CHAR(2)         NOT NULL,           -- which market the job is from
+  job_id             VARCHAR(64)     NOT NULL,           -- logical ref -> <country DB>.jobs (no cross-DB FK)
+  status             ENUM('new','in_progress','proposal_sent','won','lost') NOT NULL DEFAULT 'new',
+  score              DECIMAL(5,4)    NULL,
+  grade              CHAR(1)         NULL,
+  job_snapshot       JSON            NULL,               -- job fields at save time
+  notes              TEXT            NULL,
+  saved_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_saved_jobs (saved_candidate_id, country, job_id),
+  KEY ix_sj_owner (owner_id),
+  CONSTRAINT fk_sj_company   FOREIGN KEY (account_company_id) REFERENCES account_company (id),
+  CONSTRAINT fk_sj_owner     FOREIGN KEY (owner_id)           REFERENCES app_user (id),
+  CONSTRAINT fk_sj_candidate FOREIGN KEY (saved_candidate_id) REFERENCES saved_candidates (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE saved_companies (              -- a target company a user bookmarked
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NOT NULL,
+  owner_id           BIGINT UNSIGNED NOT NULL,
+  country            CHAR(2)         NOT NULL,
+  target_company_id  BIGINT UNSIGNED NOT NULL,           -- logical ref -> <country DB>.companies
+  notes              TEXT            NULL,
+  saved_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_saved_companies (owner_id, country, target_company_id),
+  CONSTRAINT fk_sc_company FOREIGN KEY (account_company_id) REFERENCES account_company (id),
+  CONSTRAINT fk_sc_owner   FOREIGN KEY (owner_id)           REFERENCES app_user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE saved_contacts (               -- a contact (person at a company) a user bookmarked
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NOT NULL,
+  owner_id           BIGINT UNSIGNED NOT NULL,
+  country            CHAR(2)         NOT NULL,
+  contact_id         BIGINT UNSIGNED NOT NULL,           -- logical ref -> <country DB>.contacts
+  notes              TEXT            NULL,
+  saved_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_saved_contacts (owner_id, country, contact_id),
+  CONSTRAINT fk_sct_company FOREIGN KEY (account_company_id) REFERENCES account_company (id),
+  CONSTRAINT fk_sct_owner   FOREIGN KEY (owner_id)           REFERENCES app_user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Cross-cutting --------------------------------------------------------------
+CREATE TABLE audit_log (
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NULL,
+  user_id            BIGINT UNSIGNED NULL,               -- the actor
+  action             VARCHAR(64)     NOT NULL,
+  entity_type        VARCHAR(64)     NULL,               -- 'saved_candidate' | 'saved_job' | ...
+  entity_id          BIGINT UNSIGNED NULL,
+  detail             TEXT            NULL,
+  created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY ix_audit_company (account_company_id),
+  KEY ix_audit_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE feedback (
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account_company_id BIGINT UNSIGNED NULL,
+  user_id            BIGINT UNSIGNED NULL,
+  message            TEXT            NOT NULL,
+  context            VARCHAR(64)     NULL,
+  created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+**Vector-store sync (matching infrastructure — kept as-is, its own layer, NOT market catalogue):**
+`job_vs_sync` + `sk_job_vs_sync` map each market `job_id` → its OpenAI vector-store `file_id`. This
+is core matching/VS functionality that sits beside the app tables; left untouched (re-syncing would
+re-upload ~11k files).
+
+**Dropped / folded in:** the old `sk_*` duplicates (→ `country` column); `candidate_company`
+(work history lives in `saved_candidates.experiences` JSON); the old empty `company` table (it was
+LinkedIn past-employers, not a target company); `target_candidate` (keep only if the
+guided-search "ideal candidate" draft feature stays — TBD).
+
+**Open on review:** (1) **contacts source** — modelled here as catalogue rows (the country-DB
+`contacts`) that users *save*; if staff need to hand-create their own contacts, we'd add a normal
+`contact` table with `owner_id`. (2) `job_id` kept `VARCHAR(64)` to match today and tolerate
+non-numeric portal ids — switch to `BIGINT` if all market ids are numeric.
 
 ### 3.3 Access & collaboration model
 The tool promotes collaboration: by default users see every other user's saved data. The
@@ -111,16 +253,16 @@ fine-grained per-member grant was dropped as unnecessary (boss decision, 2026-06
 - `app_user.visibility`: `own | all`.
   - `all` (default) — own + every other user's data **within the same `account_company`**.
   - `own` — only their own records (an opt-out switch if a user shouldn't see others).
-- **The company boundary is always enforced.** A user only ever sees candidates / contacts and
+- **The company boundary is always enforced.** A user only ever sees `saved_candidates` and the
   saved items belonging to their own `account_company` — never another company's. `all` vs `own`
   only widens/narrows visibility *within* that boundary.
-- **How the boundary is enforced depends on the data:**
-  - *Company-owned* (`candidate`, `contact`): the `account_company_id` column is the hard wall;
+- **How the boundary is enforced depends on the table:**
+  - *`saved_candidates`* (full app-owned record): the `account_company_id` column is the hard wall;
     `own` shows rows where `owner_id` = viewer, `all` shows any owner in the company.
-  - *Per-user bookmarks* (`saved_*`): scoped by joining through the owning `app_user` to the
-    viewer's `account_company`; `own`/`all` filters on that owner.
-  - *Shared catalogue* (`job`, `target_company`): visible to everyone; nothing private there —
-    what's company-private is who *owns/saved* a reference to it.
+  - *Saved junctions* (`saved_jobs` / `saved_companies` / `saved_contacts`): same rule — filter on
+    `account_company_id` + the row's `owner_id` (`own`/`all`).
+  - *Market catalogue* (`jobs`, `companies`, `contacts` in the per-country DBs): visible to everyone;
+    nothing private there — what's company-private is who *owns/saved* a reference to it.
 
 How a viewer's access to a `saved_*` row resolves:
 
@@ -275,3 +417,15 @@ Candidate-search filters expand separately (dimensions TBD).
 - 2026-06-29 — **Candidate/contact ownership: two columns** — `account_company_id` (company-owned,
   the privacy boundary) **and** `owner_id`→`app_user` (the employee who added it). Jobs +
   `target_company` stay the shared catalogue. `own`/`all` visibility filters on `owner_id`.
+- 2026-06-30 — DB audited: it's two-tier — market data in per-country DBs (Austria/Slovakia),
+  app data in `Jobs_Intelligence_AI`. **Greenfield rebuild of the app DB only**; market DBs
+  untouched. Backup taken at schema `Jobs_Intelligence_AI_prerework`.
+- 2026-06-30 — **Table names:** `saved_candidates` (renamed from `candidate`) is the only **normal
+  app-owned table** — the full candidate record (staff create it; carries `account_company_id` +
+  `owner_id`). `saved_jobs` / `saved_companies` / `saved_contacts` are **thin junction/reference
+  tables** to the market catalogue (no data copied). Jobs / companies / contacts live in the market
+  DBs, referenced by id (no cross-DB FK).
+- 2026-06-30 — `saved_jobs` is user-owned (`owner_id`) AND linked to a `saved_candidate`
+  (`saved_candidate_id`) — "shortlisting a job for a candidate"; `status` = Won/Lost sales pipeline.
+- 2026-06-30 — `job_vs_sync`/`sk_job_vs_sync` (vector-store sync) **preserved**; old `sk_*` app
+  tables, `candidate_company`, and the empty `company` table dropped/folded. Concrete DDL in §3.2.
