@@ -21,14 +21,20 @@
 --  Decisions baked in: contacts are catalogue-saved (no hand-created contact
 --  table for now); saved_jobs.job_id is BIGINT (market jobs.job_id is INT).
 --
---  STATUS: NOT YET APPLIED. Backup of the current app DB is in schema
---  `Jobs_Intelligence_AI_prerework`. Cutover (run deliberately, after backup):
---    1) drop the old app tables EXCEPT job_vs_sync / sk_job_vs_sync
---    2) run this script
---    3) seed one account_company + the app_user logins
---    4) adapt + verify the app code, then remove the backup once happy
+--  STATUS: APPLIED (live) — verified working end-to-end 2026-06-30.
+--  These tables were created INCREMENTALLY on the live `Jobs_Intelligence_AI` DB
+--  via the auth (commit 44a16e9) + store-rewrite work, NOT by running this file.
+--  The LIVE tables are AHEAD of this script (extra columns on saved_candidates/
+--  saved_jobs/saved_companies/saved_contacts — e.g. snapshot, extras, richer
+--  candidate fields; saved_jobs.status is VARCHAR not ENUM). So this file is a
+--  BASELINE/reference, not a byte-for-byte mirror — do NOT re-run it blind (plain
+--  CREATE TABLE will error: the tables already exist). Seeded: account_company
+--  id=1 'Acme Recruitment' + 3 app_user logins (admin/Monika2/hr_manager).
+--  Backup of the pre-rework app DB is in schema `Jobs_Intelligence_AI_prerework`.
+--  Still pending: the cutover that DROPS the old tables (candidate, sk_*, users,
+--  candidate_saved_job, …) — keep job_vs_sync / sk_job_vs_sync.
 --
---  Run:
+--  Run (only against a fresh/empty DB — add IF NOT EXISTS first otherwise):
 --    mysql -h <host> -P <port> -u <user> -p Jobs_Intelligence_AI < sql/app_schema_v2.sql
 -- ============================================================================
 

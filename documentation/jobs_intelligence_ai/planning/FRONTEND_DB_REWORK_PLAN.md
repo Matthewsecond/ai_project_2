@@ -452,7 +452,13 @@ Candidate-search filters expand separately (dimensions TBD).
 - 2026-06-30 — **Contacts are catalogue-saved** (`saved_contacts` → country-DB `contacts`); no
   hand-created `contact` table for now. **`saved_jobs.job_id` is `BIGINT`** (market id is `INT`).
 - 2026-06-30 — Canonical DDL committed to `data/sql/app_schema_v2.sql` (supersedes `app_schema.sql`;
-  not yet applied; backup in `Jobs_Intelligence_AI_prerework`).
+  backup in `Jobs_Intelligence_AI_prerework`).
+- 2026-06-30 — **Schema is APPLIED (live) and verified working end-to-end.** Tables were created
+  incrementally (auth + store-rewrite work), not by running the DDL file — so the *live* tables are
+  ahead of `app_schema_v2.sql` (extra columns: `snapshot`/`extras`, richer candidate fields;
+  `saved_jobs.status` is VARCHAR). Seeded: `account_company` id=1 + 3 `app_user` logins. Smoke test
+  confirmed save-company/save-contact (with snapshot) + own/all visibility. **Still pending: the
+  cutover that DROPS the old tables** (candidate/sk_*/users/…; keep `job_vs_sync`/`sk_job_vs_sync`).
 - 2026-06-30 — **Frontend IA simplified to TWO top tabs:** Search (searches jobs/companies/candidates)
   + Saved (the shared "database view" = the collaboration surface). Other tabs fold away/behind. Maps
   1:1 to `saved_*` + `account_company`/`visibility`. (Track B frontend work; backend already shaped.)
