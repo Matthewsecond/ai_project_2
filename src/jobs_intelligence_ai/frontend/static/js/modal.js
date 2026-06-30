@@ -88,7 +88,7 @@ async function saveWithExtras() {
       document.getElementById('saveExtrasPanel').style.display = 'none';
       const tableBtn = document.getElementById(`save-${state.modalJob.job_id}`);
       if (tableBtn) { tableBtn.textContent = '✓ Saved'; tableBtn.classList.add('saved'); }
-      app._miRefreshCurrent();
+      app.loadSaved();
     }
   } catch(e) { alert('Save failed: ' + e.message); }
 }

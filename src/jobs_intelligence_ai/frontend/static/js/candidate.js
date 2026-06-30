@@ -544,12 +544,9 @@ async function ensureLinkedInScraped() {
   }
 }
 
-// Jump to the Saved tab's Local list (where bulk-imported candidates wait to save).
+// Open the Saved tab (the database view of saved candidates / jobs / companies / contacts).
 function _gotoSavedLocal() {
   app._activateTab('saved');
-  state.savedView = 'table';
-  app.setSavedSource('local');
-  app._applySavedView();
 }
 
 // Activate the CV input mode (tab + zone) directly, without going through the

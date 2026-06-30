@@ -349,98 +349,10 @@
           <button class="sv-tab" data-action="set-saved-collection" data-collection="companies">Companies</button>
           <button class="sv-tab" data-action="set-saved-collection" data-collection="contacts">Contacts</button>
         </div>
-        <div class="sv-toggle" id="svViewToggle">
-          <button class="sv-tab active" id="svTabTable" data-action="set-saved-view" data-view="table">Table</button>
-          <button class="sv-tab" id="svTabDash" data-action="set-saved-view" data-view="dash">Dashboard</button>
-        </div>
-        <div class="sv-toggle sv-kind" id="svKindToggle" style="display:none" title="Switch between real (CV) candidates and template candidates built in the guided builder">
-          <button class="sv-tab active" id="svKindReal" data-action="set-saved-kind" data-kind="real">Candidates</button>
-          <button class="sv-tab" id="svKindTpl" data-action="set-saved-kind" data-kind="template">Templates</button>
-        </div>
-        <div class="sv-toggle sv-source" id="svSourceToggle" style="display:none" title="Switch between candidates saved in the database and session candidates not yet saved">
-          <button class="sv-tab active" id="svSrcDb" data-action="set-saved-source" data-source="db">Database</button>
-          <button class="sv-tab" id="svSrcLocal" data-action="set-saved-source" data-source="local">Local<span class="sv-srcnum" id="svLocalCount"></span></button>
-        </div>
         <span class="sv-spacer"></span>
         <span id="savedLoadStatus" class="sv-status"></span>
-        <button class="cs-pdf sv-saveall-btn" id="svSaveAllBtn" data-action="save-all-local-candidates" title="Save all local (session) candidates to the database" style="display:none;background:#1a7a2e">
-          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"></path></svg> Save all to database
-        </button>
-        <button class="cs-pdf sv-cols-btn" id="svColsBtn" data-action="toggle-col-chooser" title="Choose which columns to show" style="display:none;background:#5a5a52">
-          <svg viewBox="0 0 24 24"><path d="M3 4h18M3 12h18M3 20h18"></path></svg> Columns
-        </button>
-        <button class="cs-pdf" id="savedReloadBtn" data-action="reload-saved-from-db" title="Load saved candidates and jobs from the database (including previous sessions)">
-          <svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M5.5 9a7 7 0 0 1 12.4-2.3M18.5 15a7 7 0 0 1-12.4 2.3"></path></svg> Load from database
-        </button>
       </div>
-      <div class="cand-switch" id="csBar" style="display:none">
-        <button class="cs-arrow" id="csPrev" title="Previous candidate (←)">‹</button>
-        <div class="cs-list" id="csList"></div>
-        <button class="cs-arrow" id="csNext" title="Next candidate (→)">›</button>
-        <span class="cs-count" id="csCount"></span>
-        <button class="cs-pdf cs-xls" id="csXls" data-action="export-saved" title="Export pipeline to Excel">
-          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"></path></svg> Excel
-        </button>
-        <button class="cs-pdf" id="csPdf" data-action="generate-saved-report" title="Export this candidate's insights to PDF">
-          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"></path></svg> <span id="csPdfLabel">Export PDF</span>
-        </button>
-        <button class="ic-open-btn" id="icOpenBtn" data-action="ic-toggle" title="Interview notes — update candidate profile from interview observations">
-          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          <span class="ic-dot"></span> Interview
-        </button>
-      </div>
-
-      <!-- Interview chat panel -->
-      <div class="ic-panel" id="icPanel">
-        <div class="ic-header" data-action="ic-toggle-body">
-          <div class="ic-header-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
-          <span class="ic-header-title">Interview notes</span>
-          <span class="ic-header-hint">Share observations — the dashboard updates in real time</span>
-          <span class="ic-toggle">▼</span>
-        </div>
-        <div class="ic-body">
-          <div class="ic-thread" id="icThread">
-            <div class="ic-empty" id="icEmpty">No notes yet. Type an observation below — e.g. "he wants at least €4,500" or "open to relocation".</div>
-          </div>
-          <div class="ic-input-bar">
-            <input class="ic-input" id="icInput" type="text" placeholder="Add an interview observation…" autocomplete="off"/>
-            <button type="button" class="ic-send" id="icSend" data-action="ic-send">Send</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="savedDashBody">
-        <div class="cand-profile-card" id="candHeader"></div>
-        <div class="briefing" id="briefing"></div>
-        <div class="kpi-strip" id="kpiStrip"></div>
-        <div class="sec-head">
-          <span class="sec-title">Match analysis</span>
-          <span class="sec-tag now">From current data</span>
-          <span class="sec-rule"></span>
-        </div>
-        <div class="grid" id="grid1"></div>
-        <div class="sec-head" style="margin-top:22px">
-          <span class="sec-title">Extended statistics</span>
-          <span class="sec-tag">Market-derived</span>
-          <span class="sec-rule"></span>
-        </div>
-        <div class="grid" id="grid2"></div>
-      </div>
-      <div id="savedTableWrap" style="display:none;position:relative">
-        <div class="sv-table-scroll">
-          <table class="sv-table">
-            <thead><tr id="savedTableHead"></tr></thead>
-            <tbody id="savedTableBody"></tbody>
-          </table>
-        </div>
-        <div id="savedTableEmpty" class="sv-table-empty" style="display:none">No candidates match the current filters.</div>
-        <!-- Column chooser panel -->
-        <div id="svColChooser" class="sv-pop sv-chooser" style="display:none"></div>
-        <!-- Per-column filter popover -->
-        <div id="svFilterPop" class="sv-pop sv-filter" style="display:none"></div>
-      </div>
-      <!-- Generic database/grid view for the Jobs / Companies / Contacts collections -->
-      <div id="savedCollectionWrap" style="display:none;position:relative">
+      <div id="savedCollectionWrap" style="position:relative">
         <div class="sv-table-scroll">
           <table class="sv-table">
             <thead><tr id="savedCollHead"></tr></thead>
@@ -448,10 +360,6 @@
           </table>
         </div>
         <div id="savedCollEmpty" class="sv-table-empty" style="display:none"></div>
-      </div>
-      <div class="saved-empty" id="savedEmpty">
-        No saved candidates yet — run a search and save matches, or
-        <a href="#" data-action="reload-saved-from-db-link" style="color:#1a3864;font-weight:600">load from the database</a>.
       </div>
     </div>
   </div>

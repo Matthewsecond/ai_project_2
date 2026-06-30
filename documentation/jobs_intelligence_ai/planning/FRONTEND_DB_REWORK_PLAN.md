@@ -473,13 +473,17 @@ Candidate-search filters expand separately (dimensions TBD).
   saved-blueprints step; old work-history `/api/saved/companies` route retired (now empty).
 - 2026-06-30 — `job_vs_sync`/`sk_job_vs_sync` (vector-store sync) **preserved**; old `sk_*` app
   tables, `candidate_company`, and the empty `company` table dropped/folded. Concrete DDL in §3.2.
-- 2026-06-30 — **Saved tab now spans all four collections** (commit follows): added a collection
-  switcher **Candidates | Jobs | Companies | Contacts** to the Saved tab. Candidates keeps the existing
-  dashboard/table machinery untouched; Jobs/Companies/Contacts render a generic sortable database/grid
-  view (snapshot fields + notes + saved date, click-to-sort, per-row Remove) backed by the existing
-  `/api/saved`, `/api/saved/companies`, `/api/saved/contacts` endpoints. Verified in-browser (render,
-  sort, delete, empty states, candidate-view restore). **Save-INTO-these buttons still come with Piece
-  #3** (the conversational search is where you save companies/contacts).
+- 2026-06-30 — **Saved tab now spans all four collections** (commit 7e9bd8e): added a collection
+  switcher **Candidates | Jobs | Companies | Contacts**. (Superseded same day — see next entry.)
+- 2026-06-30 — **Saved tab SIMPLIFIED (user directive):** dropped the dashboard, the match-insights /
+  interview-notes panels, the Table/Dashboard + Database/Local + Candidates/Templates toggles, the
+  "Save all to database" / "Load from database" buttons, candidate inline-edit + column chooser, and the
+  Excel/PDF export — i.e. **all session/local staging**. The Saved tab is now just the four collection
+  tabs, each a plain sortable DB grid (click-header sort, per-row Remove), auto-loaded. Rationale: saving
+  already writes straight to the DB (saving a job persists the candidate+job), so local staging was
+  redundant. `saved.js` rewritten ~1180→~190 lines; `_trackLocalCandidate` kept as a no-op stub for its
+  candidate.js/guided.js callers. Candidate **status is now read-only** in this view (editing dropped —
+  can be re-added later if needed). Verified in-browser.
 - 2026-06-30 — **Piece #1 of the two-tab collapse DONE on `master`** (verified in-browser): removed the
   Candidate/Analytics mode-toggle and the radar/map/analytics-summary tabs+panels; deleted `radar.js`,
   `map.js`, `radar.py`, `analytics.py`; renamed the "Saved Jobs" tab to **"Saved"**. Guided + clustering
