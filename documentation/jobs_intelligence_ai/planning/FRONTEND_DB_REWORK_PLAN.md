@@ -161,7 +161,7 @@ CREATE TABLE saved_jobs (                   -- a job shortlisted FOR a saved can
   owner_id           BIGINT UNSIGNED NOT NULL,           -- who saved/owns it
   saved_candidate_id BIGINT UNSIGNED NOT NULL,           -- which candidate it's for
   country            CHAR(2)         NOT NULL,           -- which market the job is from
-  job_id             VARCHAR(64)     NOT NULL,           -- logical ref -> <country DB>.jobs (no cross-DB FK)
+  job_id             BIGINT UNSIGNED NOT NULL,           -- logical ref -> <country DB>.jobs (no cross-DB FK)
   status             ENUM('new','in_progress','proposal_sent','won','lost') NOT NULL DEFAULT 'new',
   score              DECIMAL(5,4)    NULL,
   grade              CHAR(1)         NULL,
@@ -240,10 +240,13 @@ re-upload ~11k files).
 LinkedIn past-employers, not a target company); `target_candidate` (keep only if the
 guided-search "ideal candidate" draft feature stays — TBD).
 
-**Open on review:** (1) **contacts source** — modelled here as catalogue rows (the country-DB
-`contacts`) that users *save*; if staff need to hand-create their own contacts, we'd add a normal
-`contact` table with `owner_id`. (2) `job_id` kept `VARCHAR(64)` to match today and tolerate
-non-numeric portal ids — switch to `BIGINT` if all market ids are numeric.
+**Resolved (2026-06-30):** (1) **contacts are catalogue-saved** — `saved_contacts` references the
+country-DB `contacts`; no hand-created `contact` table for now (add later only if staff need it).
+(2) **`job_id` is `BIGINT`** (market `jobs.job_id` is `INT`).
+
+The runnable canonical version of this DDL lives at
+[`data/sql/app_schema_v2.sql`](../../../data/sql/app_schema_v2.sql) (status: not yet applied;
+backup in schema `Jobs_Intelligence_AI_prerework`).
 
 ### 3.3 Access & collaboration model
 The tool promotes collaboration: by default users see every other user's saved data. The
@@ -427,5 +430,9 @@ Candidate-search filters expand separately (dimensions TBD).
   DBs, referenced by id (no cross-DB FK).
 - 2026-06-30 — `saved_jobs` is user-owned (`owner_id`) AND linked to a `saved_candidate`
   (`saved_candidate_id`) — "shortlisting a job for a candidate"; `status` = Won/Lost sales pipeline.
+- 2026-06-30 — **Contacts are catalogue-saved** (`saved_contacts` → country-DB `contacts`); no
+  hand-created `contact` table for now. **`saved_jobs.job_id` is `BIGINT`** (market id is `INT`).
+- 2026-06-30 — Canonical DDL committed to `data/sql/app_schema_v2.sql` (supersedes `app_schema.sql`;
+  not yet applied; backup in `Jobs_Intelligence_AI_prerework`).
 - 2026-06-30 — `job_vs_sync`/`sk_job_vs_sync` (vector-store sync) **preserved**; old `sk_*` app
   tables, `candidate_company`, and the empty `company` table dropped/folded. Concrete DDL in §3.2.
