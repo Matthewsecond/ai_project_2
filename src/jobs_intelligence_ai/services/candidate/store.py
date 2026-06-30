@@ -589,16 +589,102 @@ def delete_candidate(name: str, actor: str | None = None,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Work-history employers — RETIRED in the rework (folded into the candidate's
-#  `experiences` JSON). Kept as no-op stubs so the legacy route doesn't 500.
+#  Saved companies / contacts — user-owned bookmarks of market-catalogue rows
+#  (the country-DB `companies` / `contacts`). Thin junctions: owner + country +
+#  the market row's id + a snapshot (name etc., for display without a cross-DB join).
 # ══════════════════════════════════════════════════════════════════════════════
-def save_companies(candidate_id: int, companies: list[dict],
-                   created_by: str | None = None) -> int:
-    return 0
+def _add_saved_ref(table: str, id_col: str, ref_id, snapshot, notes: str,
+                   account_company_id: int | None, owner_id: int | None,
+                   action: str) -> bool:
+    try:
+        rid = int(ref_id)
+    except (TypeError, ValueError):
+        raise ValueError(f"{id_col} required")
+    with get_engine().begin() as conn:
+        co  = _company_id(conn, account_company_id)
+        oid = _owner_id(conn, owner_id, co)
+        exists = conn.execute(text(
+            f"SELECT 1 FROM {_DB}.{table} "
+            f"WHERE owner_id = :oid AND country = :ct AND {id_col} = :r LIMIT 1"),
+            {"oid": oid, "ct": _COUNTRY, "r": rid}).first()
+        if exists:
+            return False
+        conn.execute(text(
+            f"INSERT INTO {_DB}.{table} "
+            f"(account_company_id, owner_id, country, {id_col}, snapshot, notes) "
+            f"VALUES (:co, :oid, :ct, :r, :snap, :notes)"),
+            {"co": co, "oid": oid, "ct": _COUNTRY, "r": rid,
+             "snap": _dump(snapshot), "notes": notes or ""})
+        _audit(conn, action, table.rstrip("s"), rid, f"{id_col}={rid}", oid, co)
+    return True
 
 
-def list_companies() -> list[dict]:
-    return []
+def _list_saved_refs(table: str, id_col: str, account_company_id: int | None,
+                     owner_id: int | None, visibility: str) -> list[dict]:
+    with get_engine().connect() as conn:
+        co = _company_id(conn, account_company_id)
+        where, params = "account_company_id = :co AND country = :ct", {"co": co, "ct": _COUNTRY}
+        if (visibility or "all") == "own" and owner_id:
+            where += " AND owner_id = :viewer"; params["viewer"] = int(owner_id)
+        rows = conn.execute(text(
+            f"SELECT id, {id_col}, snapshot, notes, owner_id, saved_at "
+            f"FROM {_DB}.{table} WHERE {where} ORDER BY saved_at DESC"), params).mappings().all()
+    out = []
+    for m in rows:
+        snap = _load(m["snapshot"]) or {}
+        out.append({"id": int(m["id"]), id_col: int(m[id_col]), "notes": m["notes"] or "",
+                    "ownerId": int(m["owner_id"]), "savedAt": str(m["saved_at"]), **snap})
+    return out
+
+
+def _delete_saved_ref(table: str, saved_id, account_company_id: int | None,
+                      user_id: int | None, action: str) -> int:
+    with get_engine().begin() as conn:
+        co = _company_id(conn, account_company_id)
+        res = conn.execute(text(
+            f"DELETE FROM {_DB}.{table} WHERE id = :id AND account_company_id = :co"),
+            {"id": int(saved_id), "co": co})
+        if res.rowcount:
+            _audit(conn, action, table.rstrip("s"), int(saved_id), "", user_id, co)
+        return res.rowcount or 0
+
+
+def add_saved_company(target_company_id, snapshot: dict | None = None, notes: str = "",
+                      account_company_id: int | None = None, owner_id: int | None = None) -> bool:
+    """Bookmark a target company (market-catalogue row). False if already saved."""
+    return _add_saved_ref("saved_companies", "target_company_id", target_company_id,
+                          snapshot, notes, account_company_id, owner_id, "save_company")
+
+
+def list_saved_companies(account_company_id: int | None = None,
+                         owner_id: int | None = None, visibility: str = "all") -> list[dict]:
+    return _list_saved_refs("saved_companies", "target_company_id",
+                            account_company_id, owner_id, visibility)
+
+
+def delete_saved_company(saved_id, account_company_id: int | None = None,
+                         user_id: int | None = None) -> int:
+    return _delete_saved_ref("saved_companies", saved_id, account_company_id,
+                             user_id, "delete_company")
+
+
+def add_saved_contact(contact_id, snapshot: dict | None = None, notes: str = "",
+                      account_company_id: int | None = None, owner_id: int | None = None) -> bool:
+    """Bookmark a contact (market-catalogue row). False if already saved."""
+    return _add_saved_ref("saved_contacts", "contact_id", contact_id,
+                          snapshot, notes, account_company_id, owner_id, "save_contact")
+
+
+def list_saved_contacts(account_company_id: int | None = None,
+                        owner_id: int | None = None, visibility: str = "all") -> list[dict]:
+    return _list_saved_refs("saved_contacts", "contact_id",
+                            account_company_id, owner_id, visibility)
+
+
+def delete_saved_contact(saved_id, account_company_id: int | None = None,
+                         user_id: int | None = None) -> int:
+    return _delete_saved_ref("saved_contacts", saved_id, account_company_id,
+                             user_id, "delete_contact")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

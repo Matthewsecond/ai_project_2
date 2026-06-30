@@ -227,7 +227,9 @@ def api_cluster_candidates():
     """List saved candidates (with a profile) as a pickable pool for clustering.
     Returns: { ok, candidates: [{name, title, text, isTemplate}] }"""
     try:
-        rows = candidate_store.list_candidates_detailed()
+        rows = candidate_store.list_candidates_detailed(
+            account_company_id=session.get("account_company_id"),
+            owner_id=session.get("user_id"), visibility=session.get("visibility") or "all")
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
@@ -257,7 +259,9 @@ def api_save_persona():
     note += (": " + ", ".join(members) + "]") if members else "]"
     profile = {"title": title, "summary": persona_text + note, "source": "template"}
     try:
-        candidate_store.upsert_profile(name, profile, created_by=session.get("username"))
+        candidate_store.upsert_profile(
+            name, profile, account_company_id=session.get("account_company_id"),
+            owner_id=session.get("user_id"))
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500

@@ -1,14 +1,21 @@
 """
-tabs/saved.py — Saved Jobs tab (MySQL-backed candidate pipeline).
+tabs/saved.py — Saved tab (MySQL-backed, company-scoped pipeline).
 
-Persists to the Jobs_Intelligence_AI schema via helpers.candidate_store:
-candidates + parsed profiles + saved jobs + audit log.
+Persists to the Jobs_Intelligence_AI schema via services.candidate.store:
+saved_candidates + parsed profiles + saved_jobs + saved_companies + saved_contacts
++ audit log. Every call is scoped to the logged-in user's account_company, with
+own/all visibility (the collaboration boundary).
 
 Routes:
   GET    /api/saved              → list saved jobs
-  POST   /api/saved              → add a job
+  POST   /api/saved              → add a job (for a candidate)
   PATCH  /api/saved/<job_id>     → update status / notes / extras
   DELETE /api/saved/<job_id>     → remove a job
+  GET/POST /api/saved/companies  → list / save a target company
+  DELETE /api/saved/companies/<id>
+  GET/POST /api/saved/contacts   → list / save a contact
+  DELETE /api/saved/contacts/<id>
+  POST   /api/saved/candidate    → save a candidate (profile only)
   POST   /api/saved/observation  → HR profile-override chat (alias: /api/saved/interview)
   POST   /api/saved/report       → generate PDF report
 """
@@ -20,14 +27,25 @@ from jobs_intelligence_ai.services.candidate import store
 bp = Blueprint("saved", __name__, url_prefix="/api/saved")
 
 
-def _user() -> str | None:
-    """The logged-in user's name, for created_by / audit attribution."""
-    return session.get("display_name") or session.get("username") or None
+# ── Session context (the collaboration scope) ───────────────────────────────────
+def _aid() -> int | None:
+    """The logged-in user's account_company (the privacy boundary)."""
+    return session.get("account_company_id")
+
+
+def _uid() -> int | None:
+    """The logged-in user's id (owner of anything they create)."""
+    return session.get("user_id")
+
+
+def _vis() -> str:
+    """The user's visibility within their company: 'own' or 'all'."""
+    return session.get("visibility") or "all"
 
 
 @bp.route("", methods=["GET"])
 def api_saved_get():
-    jobs = store.list_saved_jobs()
+    jobs = store.list_saved_jobs(account_company_id=_aid(), owner_id=_uid(), visibility=_vis())
     return jsonify({"ok": True, "count": len(jobs), "jobs": jobs})
 
 
@@ -42,12 +60,13 @@ def api_saved_add():
     profile = body.get("candidate_profile")
     try:
         added = store.add_saved_job(
-            job, status=body.get("status", "New"),
-            extras=body.get("extras") or {}, profile=profile, actor=_user())
+            job, status=body.get("status", "new"),
+            extras=body.get("extras") or {}, profile=profile,
+            account_company_id=_aid(), owner_id=_uid())
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
-    jobs = store.list_saved_jobs()
+    jobs = store.list_saved_jobs(account_company_id=_aid(), owner_id=_uid(), visibility=_vis())
     if not added:
         return jsonify({"ok": True, "message": "Already saved", "count": len(jobs), "jobs": jobs})
     return jsonify({"ok": True, "count": len(jobs), "jobs": jobs})
@@ -58,7 +77,7 @@ def api_saved_update(job_id):
     """Body: { pipeline_status?, notes?, extras? }"""
     body = request.get_json(silent=True) or {}
     fields = {k: body[k] for k in ("pipeline_status", "notes", "extras") if k in body}
-    job = store.update_saved_job(job_id, fields, actor=_user())
+    job = store.update_saved_job(job_id, fields, account_company_id=_aid(), user_id=_uid())
     if job is None:
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "job": job})
@@ -77,90 +96,117 @@ def _strength(jobs: list[dict]) -> float:
 
 
 def _candidates_index() -> dict[str, list[dict]]:
-    """Group saved jobs by candidate_name (DB-backed)."""
-    return store.candidates_index()
+    """Group visible saved jobs by candidate_name (company-scoped)."""
+    return store.candidates_index(account_company_id=_aid(), owner_id=_uid(), visibility=_vis())
 
 
 @bp.route("/candidates", methods=["GET"])
 def api_saved_candidates():
-    """List saved candidates from the DB — drives both the switcher and the table
-    view (name, initials, matches, gradeA, hasProfile + title/createdBy/createdAt)."""
-    return jsonify({"ok": True, "candidates": store.list_candidates_detailed()})
+    """List saved candidates visible to the caller — drives the switcher + table view."""
+    return jsonify({"ok": True, "candidates": store.list_candidates_detailed(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
 
 
 @bp.route("/lookup", methods=["GET"])
 def api_saved_lookup():
-    """Query: ?name=<name>  OR  ?linkedin=<url>  →  { exists, candidate? }.
-
-    Lets the search/candidate tab warn when a candidate is already saved in the
-    database (returns the existing pipeline status). CV mode looks up by name;
-    LinkedIn mode looks up by profile URL so it can warn before re-scraping."""
+    """Query: ?name=<name> OR ?linkedin=<url> → { exists, candidate? } (company-scoped)."""
     name     = (request.args.get("name") or "").strip()
     linkedin = (request.args.get("linkedin") or "").strip()
     if linkedin:
-        cand = store.lookup_by_linkedin(linkedin)
+        cand = store.lookup_by_linkedin(linkedin, account_company_id=_aid())
     else:
-        cand = store.lookup_candidate(name) if name else None
+        cand = store.lookup_candidate(name, account_company_id=_aid()) if name else None
     return jsonify({"ok": True, "exists": cand is not None, "candidate": cand})
 
 
 @bp.route("/load", methods=["GET"])
 def api_saved_load():
-    """Query: ?name=<name>  →  { profile, jobs } for a saved candidate.
-
-    Powers the "Load from database" action on the duplicate warning: reload a
-    candidate's parsed profile + saved jobs into the search tab instead of
-    re-parsing a CV or paying to re-scrape a LinkedIn profile already on file."""
+    """Query: ?name=<name> → { profile, jobs } for a saved candidate (company-scoped)."""
     name = (request.args.get("name") or "").strip()
     if not name:
         return jsonify({"ok": False, "error": "name required"}), 400
-    bundle = store.get_candidate_bundle(name)
+    bundle = store.get_candidate_bundle(name, account_company_id=_aid(),
+                                        owner_id=_uid(), visibility=_vis())
     if bundle["profile"] is None and not bundle["jobs"]:
         return jsonify({"ok": False, "error": "Candidate not found"}), 404
-    store.log_access("load_candidate", name, actor=_user())
+    store.log_access("load_candidate", name, account_company_id=_aid(), user_id=_uid())
     return jsonify({"ok": True, **bundle})
 
 
-@bp.route("/companies", methods=["POST"])
-def api_save_companies():
-    """Body: { candidate, companies:[{name, linkedin_url?, title?, starts_at?,
-    ends_at?, industry?, size?, website?}], candidate_profile? }
-
-    Saves the candidate's employers into the company catalogue and links who
-    worked where. Creates/updates the candidate row so the link is valid."""
-    body      = request.get_json(silent=True) or {}
-    name      = (body.get("candidate") or "").strip()
-    companies = body.get("companies") or []
-    if not name:
-        return jsonify({"ok": False, "error": "candidate required"}), 400
-    if not companies:
-        return jsonify({"ok": False, "error": "no companies to save"}), 400
-    cid   = store.get_or_create_candidate(
-        name, body.get("candidate_profile") or None, created_by=_user())
-    saved = store.save_companies(cid, companies, created_by=_user())
-    return jsonify({"ok": True, "saved": saved, "companies": store.list_companies()})
-
-
+# ── Saved companies (bookmarked target companies) ───────────────────────────────
 @bp.route("/companies", methods=["GET"])
-def api_list_companies():
-    """List the saved employer catalogue (name, metadata, # candidates worked there)."""
-    return jsonify({"ok": True, "companies": store.list_companies()})
+def api_list_saved_companies():
+    """List the company's saved target companies (the database view)."""
+    return jsonify({"ok": True, "companies": store.list_saved_companies(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+
+
+@bp.route("/companies", methods=["POST"])
+def api_save_company():
+    """Body: { target_company_id, snapshot?: {name,...}, notes? } — bookmark a target company."""
+    body = request.get_json(silent=True) or {}
+    tcid = body.get("target_company_id")
+    if not tcid:
+        return jsonify({"ok": False, "error": "target_company_id required"}), 400
+    try:
+        added = store.add_saved_company(
+            tcid, snapshot=body.get("snapshot"), notes=body.get("notes") or "",
+            account_company_id=_aid(), owner_id=_uid())
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    return jsonify({"ok": True, "added": added, "companies": store.list_saved_companies(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+
+
+@bp.route("/companies/<int:saved_id>", methods=["DELETE"])
+def api_delete_saved_company(saved_id):
+    removed = store.delete_saved_company(saved_id, account_company_id=_aid(), user_id=_uid())
+    return jsonify({"ok": True, "removed": removed})
+
+
+# ── Saved contacts (bookmarked people at target companies) ──────────────────────
+@bp.route("/contacts", methods=["GET"])
+def api_list_saved_contacts():
+    return jsonify({"ok": True, "contacts": store.list_saved_contacts(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+
+
+@bp.route("/contacts", methods=["POST"])
+def api_save_contact():
+    """Body: { contact_id, snapshot?: {name,...}, notes? } — bookmark a contact."""
+    body = request.get_json(silent=True) or {}
+    cid = body.get("contact_id")
+    if not cid:
+        return jsonify({"ok": False, "error": "contact_id required"}), 400
+    try:
+        added = store.add_saved_contact(
+            cid, snapshot=body.get("snapshot"), notes=body.get("notes") or "",
+            account_company_id=_aid(), owner_id=_uid())
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    return jsonify({"ok": True, "added": added, "contacts": store.list_saved_contacts(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+
+
+@bp.route("/contacts/<int:saved_id>", methods=["DELETE"])
+def api_delete_saved_contact(saved_id):
+    removed = store.delete_saved_contact(saved_id, account_company_id=_aid(), user_id=_uid())
+    return jsonify({"ok": True, "removed": removed})
 
 
 @bp.route("/candidate", methods=["POST"])
 def api_candidate_create():
-    """Body: { profile: {...} } — persist a session-built ("local") candidate to
-    the candidate table, profile only (no saved jobs). Powers the "Save to
-    database" button on the Local view. Returns the refreshed candidate list."""
+    """Body: { profile: {...} } — persist a session-built candidate (profile only)."""
     body    = request.get_json(silent=True) or {}
     profile = body.get("profile") or {}
     name    = (profile.get("name") or "").strip()
     if not name:
         return jsonify({"ok": False, "error": "candidate name required"}), 400
-    store.upsert_profile(name, profile, created_by=_user())
-    store.log_access("save_candidate", name, actor=_user())
+    store.upsert_profile(name, profile, account_company_id=_aid(), owner_id=_uid())
+    store.log_access("save_candidate", name, account_company_id=_aid(), user_id=_uid())
     return jsonify({"ok": True, "name": name,
-                    "candidates": store.list_candidates_detailed()})
+                    "candidates": store.list_candidates_detailed(
+                        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
 
 
 @bp.route("/insights", methods=["GET"])
@@ -180,8 +226,8 @@ def api_saved_insights():
         return jsonify({"ok": False, "error": f"No saved jobs for '{candidate}'"}), 404
 
     all_strengths = [_strength(js) for js in by_cand.values()]
-    profile       = store.get_profile(candidate)
-    store.log_access("view_insights", candidate, actor=_user())
+    profile       = store.get_profile(candidate, account_company_id=_aid())
+    store.log_access("view_insights", candidate, account_company_id=_aid(), user_id=_uid())
     try:
         payload = build_insights(candidate, jobs, profile, all_strengths=all_strengths)
         return jsonify({"ok": True, "insights": payload})
@@ -197,7 +243,6 @@ def _compute_impact(overrides: dict, old_ins: dict, new_ins: dict) -> dict:
     impact = {}
 
     def _pot(lever_str: str):
-        # leverTotal format: "2 → 561" — extract the potential (right side)
         s = (lever_str or "").replace(" ", "")
         try:
             return int(s.split("→")[-1])
@@ -249,15 +294,7 @@ def _impact_text(impact: dict) -> str:
 @bp.route("/observation", methods=["POST"])
 @bp.route("/interview", methods=["POST"])  # legacy alias — drop once no client calls it
 def api_saved_observation():
-    """Body: { candidate, message }
-
-    An HR profile-override conversation: the recruiter notes an observation about a
-    saved candidate (e.g. "actually speaks fluent German") and we (1) extract overrides,
-    (2) compute the Python impact diff, (3) phrase the reply with impact numbers.
-
-    NB: unrelated to the interview *scorecard* under /api/interview/* — hence the
-    /observation name. /interview stays as a temporary alias for older clients.
-    """
+    """Body: { candidate, message } — HR profile-override conversation."""
     from jobs_intelligence_ai.services.enrichment import (
         build_insights, extract_profile_overrides, phrase_observation_reply,
     )
@@ -268,24 +305,21 @@ def api_saved_observation():
     if not candidate or not message:
         return jsonify({"ok": False, "error": "candidate and message required"}), 400
 
-    old_profile = dict(store.get_profile(candidate) or {})
+    old_profile = dict(store.get_profile(candidate, account_company_id=_aid()) or {})
     by_cand     = _candidates_index()
     jobs        = by_cand.get(candidate) or []
     all_strengths = [_strength(js) for js in by_cand.values()]
 
-    # ── Pass 1: extract overrides (Structured Outputs) ───────────────────────
     try:
         overrides = extract_profile_overrides(old_profile, message)
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
-    # Merge skills (extend, not replace)
     if "skills" in overrides and isinstance(overrides["skills"], list):
         existing = old_profile.get("skills") or []
         overrides["skills"] = list(dict.fromkeys(existing + overrides["skills"]))
 
-    # ── Build old + new insights, compute impact ─────────────────────────────
     try:
         old_insights = build_insights(candidate, jobs, old_profile, all_strengths=all_strengths)
         new_profile  = {**old_profile, **overrides}
@@ -295,15 +329,13 @@ def api_saved_observation():
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
     impact = _compute_impact(overrides, old_insights, new_insights)
+    reply  = phrase_observation_reply(message, overrides, _impact_text(impact))
 
-    # ── Pass 2: phrase reply naturally with impact numbers (Structured Outputs) ──
-    reply = phrase_observation_reply(message, overrides, _impact_text(impact))
-
-    # ── Persist new profile ──────────────────────────────────────────────────
     if overrides:
-        store.upsert_profile(candidate, new_profile, created_by=_user())
+        store.upsert_profile(candidate, new_profile, account_company_id=_aid(), owner_id=_uid())
         store.log_access("interview_update", candidate,
-                         detail=", ".join(sorted(overrides)), actor=_user())
+                         detail=", ".join(sorted(overrides)),
+                         account_company_id=_aid(), user_id=_uid())
 
     return jsonify({
         "ok":       True,
@@ -316,10 +348,7 @@ def api_saved_observation():
 
 @bp.route("/report", methods=["POST"])
 def api_saved_report():
-    """Body: { candidate?: <name> }  →  Match Insights PDF for that candidate.
-
-    Mirrors the on-screen Match Insights dashboard for the selected candidate.
-    """
+    """Body: { candidate?: <name> }  →  Match Insights PDF for that candidate."""
     from jobs_intelligence_ai.services.enrichment import build_insights
     from jobs_intelligence_ai.services.reporting import generate_insights_pdf
 
@@ -338,8 +367,8 @@ def api_saved_report():
         return jsonify({"ok": False, "error": f"No saved jobs for '{candidate}'"}), 404
 
     all_strengths = [_strength(js) for js in by_cand.values()]
-    profile       = store.get_profile(candidate)
-    store.log_access("export_report", candidate, actor=_user())
+    profile       = store.get_profile(candidate, account_company_id=_aid())
+    store.log_access("export_report", candidate, account_company_id=_aid(), user_id=_uid())
 
     try:
         insights  = build_insights(candidate, jobs, profile, all_strengths=all_strengths)
@@ -357,13 +386,12 @@ def api_saved_report():
 
 @bp.route("/<job_id>", methods=["DELETE"])
 def api_saved_delete(job_id):
-    removed = store.delete_saved_job(job_id, actor=_user())
-    count   = len(store.list_saved_jobs())
+    removed = store.delete_saved_job(job_id, account_company_id=_aid(), user_id=_uid())
+    count   = len(store.list_saved_jobs(account_company_id=_aid(), owner_id=_uid(), visibility=_vis()))
     return jsonify({"ok": True, "removed": removed, "count": count})
 
 
-# Candidate fields the table view may edit inline (status + contacts + the parsed
-# profile columns a recruiter might quickly tweak). `skills` is comma-separated.
+# Candidate fields the table view may edit inline.
 _CANDIDATE_EDIT_FIELDS = (
     "status", "email", "phone", "linkedin", "title", "experience_years",
     "location", "languages", "salary_expectation", "availability", "summary", "skills")
@@ -371,14 +399,12 @@ _CANDIDATE_EDIT_FIELDS = (
 
 @bp.route("/candidate/<path:name>", methods=["PATCH"])
 def api_candidate_update(name):
-    """Body: any subset of the editable candidate fields (status, contacts, and
-    parsed-profile columns like title/location/languages/skills/salary). Editing a
-    profile field changes the inputs to Match Insights, which recompute on next view."""
+    """Body: any subset of the editable candidate fields."""
     body   = request.get_json(silent=True) or {}
     fields = {k: body[k] for k in _CANDIDATE_EDIT_FIELDS if k in body}
     if not fields:
         return jsonify({"ok": False, "error": "no editable fields provided"}), 400
-    if not store.update_candidate(name, fields, actor=_user()):
+    if not store.update_candidate(name, fields, account_company_id=_aid(), user_id=_uid()):
         return jsonify({"ok": False, "error": "Candidate not found"}), 404
     return jsonify({"ok": True, "name": name, "fields": fields})
 
@@ -386,7 +412,7 @@ def api_candidate_update(name):
 @bp.route("/candidate/<path:name>", methods=["DELETE"])
 def api_candidate_erase(name):
     """GDPR erasure: remove a candidate and all their saved jobs (cascade)."""
-    erased = store.delete_candidate(name, actor=_user())
+    erased = store.delete_candidate(name, account_company_id=_aid(), user_id=_uid())
     if not erased:
         return jsonify({"ok": False, "error": "Candidate not found"}), 404
     return jsonify({"ok": True, "erased": name})
