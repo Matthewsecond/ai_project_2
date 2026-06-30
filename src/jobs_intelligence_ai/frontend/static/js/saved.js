@@ -21,6 +21,7 @@ let _savedSource  = 'db';   // 'db' (persisted) | 'local' (session, not yet save
 let _savedKind    = 'real'; // 'real' (CV candidates) | 'template' (guided builder)
 let _savedDbLoaded = false;  // has the user explicitly pulled from MySQL this session?
 let _localCandidates = [];  // session candidate profiles not yet pushed to MySQL
+let _savedCollection = 'candidates';  // candidates | jobs | companies | contacts
 
 // A template candidate is one built in the guided builder (is_template flag).
 function _isTemplate(c){ return !!c.isTemplate; }
@@ -109,6 +110,7 @@ function _miSparkPath(vals,W,H,pad){
 // on the explicit "Load from database" action, so opening the tab is predictable:
 // it shows this session's ("Local") candidates until the user asks for more.
 function openSavedTab(){
+  if (_savedCollection !== 'candidates'){ setSavedCollection(_savedCollection); return; }
   if (!_savedDbLoaded){
     state.savedView = 'table';
     setSavedSource('local');   // also flips the toggle's active state
@@ -171,9 +173,154 @@ async function loadSaved() {
 // Switch between the insights dashboard and the candidate table view.
 function setSavedView(v){ state.savedView = v; _applySavedView(); }
 
+// ════════════════════════════════════════════════════════════
+//  Saved collections — Jobs / Companies / Contacts (the database view)
+// ════════════════════════════════════════════════════════════
+// The Saved tab is a switcher over four collections. "candidates" keeps the
+// existing dashboard/table machinery; the other three render a generic sortable
+// grid backed by the saved_* endpoints (snapshot fields shown without a join).
+const SAVED_COLLECTIONS = {
+  jobs: {
+    url: '/api/saved', listKey: 'jobs', noun: 'job', empty: 'No saved jobs yet — save matches from a search.',
+    cols: [
+      { key:'title',           label:'Title',     get:r => r.title },
+      { key:'company',         label:'Company',   get:r => r.company },
+      { key:'location',        label:'Location',  get:r => r.location },
+      { key:'candidate_name',  label:'Candidate', get:r => r.candidate_name },
+      { key:'pipeline_status', label:'Status',    get:r => r.pipeline_status },
+      { key:'notes',           label:'Notes',     get:r => r.notes },
+    ],
+    delAction: 'delete-saved-job-row', delId: r => r.job_id,
+  },
+  companies: {
+    url: '/api/saved/companies', listKey: 'companies', noun: 'company',
+    empty: 'No saved companies yet — save a target company from a search.',
+    cols: [
+      { key:'name',     label:'Company',  get:r => r.name || ('#' + r.target_company_id) },
+      { key:'industry', label:'Industry', get:r => r.industry },
+      { key:'location', label:'Location', get:r => r.location || r.city },
+      { key:'notes',    label:'Notes',    get:r => r.notes },
+      { key:'savedAt',  label:'Saved',    get:r => r.savedAt },
+    ],
+    delAction: 'delete-saved-company', delId: r => r.id,
+  },
+  contacts: {
+    url: '/api/saved/contacts', listKey: 'contacts', noun: 'contact',
+    empty: 'No saved contacts yet — save a contact from a search.',
+    cols: [
+      { key:'name',    label:'Name',    get:r => r.name || ('#' + r.contact_id) },
+      { key:'title',   label:'Title',   get:r => r.title || r.position },
+      { key:'company', label:'Company', get:r => r.company },
+      { key:'email',   label:'Email',   get:r => r.email },
+      { key:'notes',   label:'Notes',   get:r => r.notes },
+      { key:'savedAt', label:'Saved',   get:r => r.savedAt },
+    ],
+    delAction: 'delete-saved-contact', delId: r => r.id,
+  },
+};
+let _collRows = [];
+let _collSort = { key: null, dir: 1 };
+
+// Switch the Saved tab between its four collections. "candidates" hands back to
+// the existing view machinery; the others swap in the generic grid.
+function setSavedCollection(kind){
+  _savedCollection = kind;
+  document.querySelectorAll('#svCollectionToggle .sv-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.collection === kind));
+  const isCand   = kind === 'candidates';
+  const collWrap = document.getElementById('savedCollectionWrap');
+  document.getElementById('svViewToggle').style.display  = isCand ? '' : 'none';
+  document.getElementById('savedReloadBtn').style.display = isCand ? '' : 'none';
+  if (isCand){
+    collWrap.style.display = 'none';
+    _applySavedView();   // restores the candidate dashboard/table/empty + its toggles
+    return;
+  }
+  // Hide every candidate-specific panel; show only the generic grid.
+  ['csBar','icPanel','savedDashBody','savedTableWrap','savedEmpty',
+   'svSourceToggle','svKindToggle','svColsBtn','svSaveAllBtn'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  _svClosePops();
+  collWrap.style.display = '';
+  _collSort = { key: null, dir: 1 };
+  loadCollection(kind);
+}
+
+async function loadCollection(kind){
+  const spec   = SAVED_COLLECTIONS[kind]; if (!spec) return;
+  const status = document.getElementById('savedLoadStatus');
+  if (status) status.textContent = 'Loading…';
+  try {
+    const res  = await fetch(spec.url);
+    const data = await res.json();
+    _collRows  = (data.ok && data[spec.listKey]) ? data[spec.listKey] : [];
+    if (status) status.textContent = `${_collRows.length} saved ${kind}`;
+  } catch(e){
+    _collRows = [];
+    if (status) status.textContent = 'Load failed: ' + (e.message || e);
+  }
+  renderCollection();
+}
+
+function sortCollection(key){
+  if (_collSort.key === key) _collSort.dir *= -1;
+  else _collSort = { key, dir: 1 };
+  renderCollection();
+}
+
+function renderCollection(){
+  const spec    = SAVED_COLLECTIONS[_savedCollection]; if (!spec) return;
+  const head    = document.getElementById('savedCollHead');
+  const body    = document.getElementById('savedCollBody');
+  const emptyEl = document.getElementById('savedCollEmpty');
+  head.innerHTML = spec.cols.map(c => {
+    const arrow = _collSort.key === c.key ? (_collSort.dir > 0 ? ' ▲' : ' ▼') : '';
+    return `<th data-action="sort-collection" data-key="${c.key}" style="cursor:pointer">${esc(c.label)}${arrow}</th>`;
+  }).join('') + '<th></th>';
+
+  let rows = _collRows.slice();
+  if (_collSort.key){
+    const col = spec.cols.find(c => c.key === _collSort.key);
+    rows.sort((a, b) => {
+      const av = (col.get(a) ?? '').toString().toLowerCase();
+      const bv = (col.get(b) ?? '').toString().toLowerCase();
+      return av < bv ? -_collSort.dir : av > bv ? _collSort.dir : 0;
+    });
+  }
+  if (!rows.length){
+    body.innerHTML = '';
+    emptyEl.textContent = spec.empty;
+    emptyEl.style.display = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  body.innerHTML = rows.map(r =>
+    '<tr>' + spec.cols.map(c => `<td>${esc((c.get(r) ?? '').toString())}</td>`).join('') +
+    `<td><button class="sv-row-del" data-action="${spec.delAction}" data-id="${esc((spec.delId(r) ?? '').toString())}">Remove</button></td></tr>`
+  ).join('');
+}
+
+async function deleteSavedRef(kind, id){
+  try { await fetch(`/api/saved/${kind}/${encodeURIComponent(id)}`, { method:'DELETE' }); }
+  catch(e){ /* reload below reflects the real state regardless */ }
+  loadCollection(_savedCollection);
+}
+
+async function deleteSavedJobRow(jobId){
+  try { await fetch(`/api/saved/${encodeURIComponent(jobId)}`, { method:'DELETE' }); }
+  catch(e){ /* reload below reflects the real state regardless */ }
+  loadCollection('jobs');
+}
+
 // Action registry for the SAVED tab static markup — view/kind/source toggles,
 // save-all, column chooser, reload, Excel/PDF export, interview-notes panel.
 Object.assign(_ACTIONS, {
+  'set-saved-collection':      (el)    => setSavedCollection(el.dataset.collection),
+  'sort-collection':           (el)    => sortCollection(el.dataset.key),
+  'delete-saved-company':      (el)    => deleteSavedRef('companies', el.dataset.id),
+  'delete-saved-contact':      (el)    => deleteSavedRef('contacts', el.dataset.id),
+  'delete-saved-job-row':      (el)    => deleteSavedJobRow(el.dataset.id),
   'set-saved-view':            (el)    => setSavedView(el.dataset.view),
   'set-saved-kind':            (el)    => setSavedKind(el.dataset.kind),
   'set-saved-source':          (el)    => setSavedSource(el.dataset.source),

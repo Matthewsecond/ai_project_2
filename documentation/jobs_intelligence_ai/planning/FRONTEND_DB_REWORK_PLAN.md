@@ -473,6 +473,13 @@ Candidate-search filters expand separately (dimensions TBD).
   saved-blueprints step; old work-history `/api/saved/companies` route retired (now empty).
 - 2026-06-30 — `job_vs_sync`/`sk_job_vs_sync` (vector-store sync) **preserved**; old `sk_*` app
   tables, `candidate_company`, and the empty `company` table dropped/folded. Concrete DDL in §3.2.
+- 2026-06-30 — **Saved tab now spans all four collections** (commit follows): added a collection
+  switcher **Candidates | Jobs | Companies | Contacts** to the Saved tab. Candidates keeps the existing
+  dashboard/table machinery untouched; Jobs/Companies/Contacts render a generic sortable database/grid
+  view (snapshot fields + notes + saved date, click-to-sort, per-row Remove) backed by the existing
+  `/api/saved`, `/api/saved/companies`, `/api/saved/contacts` endpoints. Verified in-browser (render,
+  sort, delete, empty states, candidate-view restore). **Save-INTO-these buttons still come with Piece
+  #3** (the conversational search is where you save companies/contacts).
 - 2026-06-30 — **Piece #1 of the two-tab collapse DONE on `master`** (verified in-browser): removed the
   Candidate/Analytics mode-toggle and the radar/map/analytics-summary tabs+panels; deleted `radar.js`,
   `map.js`, `radar.py`, `analytics.py`; renamed the "Saved Jobs" tab to **"Saved"**. Guided + clustering

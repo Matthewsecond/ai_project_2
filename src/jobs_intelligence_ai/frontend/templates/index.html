@@ -343,7 +343,13 @@
   <div id="tab-saved" class="tab-panel">
     <div id="savedDash">
       <div class="saved-topbar">
-        <div class="sv-toggle">
+        <div class="sv-toggle sv-collection" id="svCollectionToggle" title="Switch between the saved collections">
+          <button class="sv-tab active" data-action="set-saved-collection" data-collection="candidates">Candidates</button>
+          <button class="sv-tab" data-action="set-saved-collection" data-collection="jobs">Jobs</button>
+          <button class="sv-tab" data-action="set-saved-collection" data-collection="companies">Companies</button>
+          <button class="sv-tab" data-action="set-saved-collection" data-collection="contacts">Contacts</button>
+        </div>
+        <div class="sv-toggle" id="svViewToggle">
           <button class="sv-tab active" id="svTabTable" data-action="set-saved-view" data-view="table">Table</button>
           <button class="sv-tab" id="svTabDash" data-action="set-saved-view" data-view="dash">Dashboard</button>
         </div>
@@ -432,6 +438,16 @@
         <div id="svColChooser" class="sv-pop sv-chooser" style="display:none"></div>
         <!-- Per-column filter popover -->
         <div id="svFilterPop" class="sv-pop sv-filter" style="display:none"></div>
+      </div>
+      <!-- Generic database/grid view for the Jobs / Companies / Contacts collections -->
+      <div id="savedCollectionWrap" style="display:none;position:relative">
+        <div class="sv-table-scroll">
+          <table class="sv-table">
+            <thead><tr id="savedCollHead"></tr></thead>
+            <tbody id="savedCollBody"></tbody>
+          </table>
+        </div>
+        <div id="savedCollEmpty" class="sv-table-empty" style="display:none"></div>
       </div>
       <div class="saved-empty" id="savedEmpty">
         No saved candidates yet — run a search and save matches, or

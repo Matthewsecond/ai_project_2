@@ -92,6 +92,9 @@
   #savedDash .sv-filter input:focus,#savedDash .sv-filter select:focus{outline:none;border-color:var(--ic-blue-dark)}
   #savedDash .sv-filter-row{display:flex;justify-content:space-between;margin-top:8px}
   #savedDash .sv-table-empty{padding:24px 12px;text-align:center;color:#9ca3af;font-size:13px}
+  #savedDash .sv-collection .sv-tab.active{color:#fff;background:var(--ic-blue-dark);box-shadow:none}
+  #savedDash .sv-row-del{border:1px solid var(--ic-border);background:#fff;color:#b91c1c;font-size:11.5px;font-weight:600;font-family:inherit;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .12s}
+  #savedDash .sv-row-del:hover{background:#fef2f2;border-color:#f5c2c2}
 
   #savedDash .cand-profile-card{background:#f5f8ff;border:1px solid #c4d4f0;border-radius:12px;padding:13px 16px;margin-bottom:18px}
   #savedDash .cand-profile-top{display:flex;align-items:center;gap:12px}
