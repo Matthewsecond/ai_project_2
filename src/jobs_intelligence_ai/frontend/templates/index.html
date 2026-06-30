@@ -11,10 +11,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/saved-dashboard.css') }}"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}"/>
-{# Hide country-unsupported features (e.g. Slovakia has no guided funnel / map / analytics) #}
-{% if not has_guided %}<style>.mode-tab[data-mode="guided"]{display:none!important}</style>{% endif %}
-{% if not has_map %}<style>.tab-btn[data-tab="map"]{display:none!important}</style>{% endif %}
-{% if not has_analytics %}<style>.mode-toggle-btn[data-mode="analytics"]{display:none!important}</style>{% endif %}
+{# Hide country-unsupported features (Slovakia has no occupation-group filter) #}
 {% if not has_occ_filter %}<style>#filterOccGroup{display:none!important}</style>{% endif %}
 </head>
 <body>
@@ -30,19 +27,9 @@
       Jobs Intelligence {{ country_label }}
     </div>
     <div class="nav-area">
-      <div class="mode-toggle">
-        <button class="mode-toggle-btn active" data-mode="search">Candidate</button>
-        <button class="mode-toggle-btn" data-mode="analytics">Analytics</button>
-      </div>
-      <div class="mode-divider"></div>
       <div class="tabs">
-        <!-- Search mode tabs -->
         <button class="tab-btn active" data-tab="search" data-mode-group="search">Search</button>
-        <button class="tab-btn" data-tab="saved" data-mode-group="search">Saved Jobs <span id="savedBadgeNav" style="display:none;background:#1a56c4;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">0</span></button>
-        <!-- Analytics mode tabs (hidden by default) -->
-        <button class="tab-btn" data-tab="radar" data-mode-group="analytics" style="display:none">Opportunities Radar</button>
-        <button class="tab-btn" data-tab="map" data-mode-group="analytics" style="display:none">Map</button>
-        <button class="tab-btn" data-tab="analytics-summary" data-mode-group="analytics" style="display:none">Analytics Summary<span id="summaryBadgeNav" style="display:none" class="summary-count-badge">0</span></button>
+        <button class="tab-btn" data-tab="saved" data-mode-group="search">Saved <span id="savedBadgeNav" style="display:none;background:#1a56c4;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">0</span></button>
       </div>
     </div>
     <div class="topbar-right">
@@ -131,14 +118,6 @@
           </div>
         </div>
 
-        <div class="scope-row">
-          <span class="scope-label">Looking for</span>
-          <div class="workflow-toggle">
-            <button class="wf-btn active" data-workflow="single" data-action="set-workflow">One candidate</button>
-            <button class="wf-btn" data-workflow="multiple" data-action="set-workflow">Multiple</button>
-          </div>
-        </div>
-
         <div class="method-label" id="methodLabel">How do you want to add them</div>
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="cv">
@@ -149,10 +128,6 @@
           <button class="mode-tab" data-mode="linkedin">
             <svg viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6zM6 9H2v12h4zM4 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
             From LinkedIn
-          </button>
-          <button class="mode-tab" data-mode="guided">
-            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            Build a template
           </button>
         </div>
 
@@ -364,29 +339,6 @@
     </div>
   </div>
 
-  <!-- ═══ MAP TAB ═══ -->
-  <div id="tab-map" class="tab-panel">
-    <div class="map-wrap">
-      <div class="map-header">
-        <h2>Job distribution — {{ country_label }}</h2>
-        <span class="map-info-text" id="mapInfoText">Run a search first to see jobs on the map</span>
-        <div class="map-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#1a7a2e"></div> Grade A</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#e8a800"></div> Grade B</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div> Grade C</div>
-        </div>
-      </div>
-      <div class="map-container">
-        <div id="mapDiv"></div>
-      </div>
-      <div class="map-stats">
-        <div class="map-stat"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Jobs in current results</div></div>
-        <div class="map-stat"><div class="stat-num" id="statWien">—</div><div class="stat-lbl">Wien</div></div>
-        <div class="map-stat"><div class="stat-num" id="statOther">—</div><div class="stat-lbl">Other states</div></div>
-      </div>
-    </div>
-  </div>
-
   <!-- ═══ SAVED CANDIDATES — MATCH INSIGHTS TAB ═══ -->
   <div id="tab-saved" class="tab-panel">
     <div id="savedDash">
@@ -484,331 +436,6 @@
       <div class="saved-empty" id="savedEmpty">
         No saved candidates yet — run a search and save matches, or
         <a href="#" data-action="reload-saved-from-db-link" style="color:#1a3864;font-weight:600">load from the database</a>.
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ RADAR TAB ═══ -->
-  <div id="tab-radar" class="tab-panel">
-    <div class="radar-wrap">
-
-      <!-- Header: actions -->
-      <div class="radar-header-bar">
-        <div class="radar-header-left">
-          <button class="radar-briefing-btn" id="radarBriefingBtn" data-action="generate-briefing">
-            <span class="radar-spinner hidden" id="radarSpinner"></span>
-            <span id="radarBriefingBtnLabel">✦ Generate Briefing</span>
-          </button>
-          <button class="radar-refresh-btn" data-action="radar-refresh" title="Refresh data">↺ Refresh</button>
-          <span id="radarLastUpdate" style="font-size:11px;color:#bbb"></span>
-        </div>
-      </div>
-
-      <!-- Scope filter bar -->
-      <div class="radar-filter-bar" id="radarFilterBar">
-        <span class="radar-filter-label">Scope</span>
-        <select id="rfSector" class="radar-filter-sel" data-change-action="radar-filter-change" title="Occupational group">
-          <option value="">All sectors</option>
-        </select>
-        <select id="rfStateF" class="radar-filter-sel" data-change-action="radar-filter-change" title="State">
-          <option value="">All states</option>
-        </select>
-        <select id="rfPortalF" class="radar-filter-sel" data-change-action="radar-filter-change" title="Portal">
-          <option value="">All portals</option>
-        </select>
-        <select id="rfMinSalary" class="radar-filter-sel" data-change-action="radar-filter-change" title="Minimum salary">
-          <option value="">Any salary</option>
-          <option value="1000">€1,000+</option>
-          <option value="2000">€2,000+</option>
-          <option value="2500">€2,500+</option>
-          <option value="3000">€3,000+</option>
-          <option value="4000">€4,000+</option>
-        </select>
-        <button class="radar-filter-clear hidden" id="radarFilterClear" data-action="clear-radar-filters">✕ Clear</button>
-        <span class="radar-filter-badge hidden" id="radarFilterBadge"></span>
-      </div>
-
-      <!-- AI Filter Assistant -->
-      <div class="radar-ai-assist" id="radarAIAssist">
-        <button class="raifp-toggle" id="raifpToggleBtn" data-action="ai-filter-toggle">
-          <span>✦</span> AI Filter Assistant
-        </button>
-        <div class="raifp-panel" id="raifpPanel" style="display:none">
-          <div class="raifp-input-row">
-            <input id="raifpQuery" class="raifp-input" type="text"
-              placeholder="Describe what you want to analyse… e.g. &quot;tech roles using maths, AI and engineering certs&quot;"
-              data-keydown-action="ai-filter-enter">
-            <button class="raifp-suggest-btn" id="raifpSuggestBtn" data-action="ai-filter-suggest">
-              <span class="radar-spinner hidden" id="raifpSpinner"></span>
-              <span id="raifpSuggestLabel">Suggest filters</span>
-            </button>
-          </div>
-          <div id="raifpResult" style="display:none">
-            <div id="raifpExplanation" class="raifp-explanation"></div>
-            <div id="raifpCountHint"></div>
-            <div id="raifpCategories" class="raifp-categories"></div>
-            <div class="raifp-actions">
-              <button class="raifp-apply-btn" data-action="ai-filter-apply">Apply &amp; Generate Briefing</button>
-              <button class="raifp-clear-btn" data-action="ai-filter-clear">Clear</button>
-            </div>
-          </div>
-        </div>
-        <!-- Active AI filter strip (shown when AI filters are applied) -->
-        <div id="raifpActiveBar" class="raifp-active-bar" style="display:none"></div>
-      </div>
-
-      <!-- Summary cards (always visible) -->
-      <div class="radar-cards" id="radarCards">
-        <div class="radar-card radar-card-blue"><div class="radar-card-val" id="rc-total">—</div><div class="radar-card-lbl">Active jobs</div></div>
-        <div class="radar-card radar-card-amber"><div class="radar-card-val" id="rc-stale30">—</div><div class="radar-card-lbl">Stale 30+ d</div></div>
-        <div class="radar-card radar-card-amber"><div class="radar-card-val" id="rc-stale60">—</div><div class="radar-card-lbl">Stale 60+ d</div></div>
-        <div class="radar-card radar-card-red"><div class="radar-card-val" id="rc-urgent">—</div><div class="radar-card-lbl">Urgent ≤14 d</div></div>
-        <div class="radar-card"><div class="radar-card-val" id="rc-sectors">—</div><div class="radar-card-lbl">Sectors</div></div>
-        <div class="radar-card"><div class="radar-card-val" id="rc-states">—</div><div class="radar-card-lbl">States</div></div>
-      </div>
-
-      <!-- Sub-navigation -->
-      <div class="radar-subnav">
-        <button class="radar-sub-btn active" data-rsub="overview"      data-action="radar-sub">Overview</button>
-        <button class="radar-sub-btn"         data-rsub="opportunities" data-action="radar-sub">Top Opportunities</button>
-        <button class="radar-sub-btn"         data-rsub="underserved"  data-action="radar-sub">Underserved</button>
-        <button class="radar-sub-btn"         data-rsub="urgency"      data-action="radar-sub">Urgency Alerts</button>
-        <button class="radar-sub-btn"         data-rsub="trend"        data-action="radar-sub">Volume Trend</button>
-        <button class="radar-sub-btn"         data-rsub="analytics"    data-action="radar-sub">Analytics</button>
-        <button class="radar-sub-btn"         data-rsub="finder"       data-action="radar-sub">Quick Finder</button>
-      </div>
-
-      <!-- ── OVERVIEW subview ── -->
-      <div id="rsub-overview" class="radar-subview">
-        <div id="radarOverviewContent">
-          <div class="radar-ai-placeholder">
-            <div class="radar-ai-placeholder-icon">✦</div>
-            <h3>No briefing yet</h3>
-            <p>Click <strong>Generate Briefing</strong> above to get AI-powered market insights.</p>
-          </div>
-        </div>
-        <!-- Briefing follow-up chat -->
-        <div id="oppChatPanel" class="opp-chat-panel" style="display:none">
-          <div class="opp-chat-panel-header">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Ask a follow-up
-          </div>
-          <div id="oppChatThread" class="opp-chat-thread">
-            <div class="opp-chat-empty">Click a button on any recommendation, or type a question about the market data…</div>
-          </div>
-          <div class="opp-chat-input-bar">
-            <input id="oppChatInput" class="opp-chat-input" type="text" placeholder="e.g. Why is Vienna showing more urgency than other states?" />
-            <button id="oppChatSend" class="opp-chat-send">Ask</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── TOP OPPORTUNITIES subview ── -->
-      <div id="rsub-opportunities" class="radar-subview" style="display:none">
-        <div id="radarOppsContent">
-          <div class="radar-ai-placeholder">
-            <div class="radar-ai-placeholder-icon">🎯</div>
-            <h3>Generate a briefing first</h3>
-            <p>Top recruitment opportunities will appear here after AI analysis.</p>
-          </div>
-        </div>
-        <div id="oppsChatPanel" class="opp-chat-panel" style="display:none">
-          <div class="opp-chat-panel-header">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Ask about opportunities
-          </div>
-          <div id="oppsChatThread" class="opp-chat-thread">
-            <div class="opp-chat-empty">Click a button on any opportunity card, or type a question…</div>
-          </div>
-          <div class="opp-chat-input-bar">
-            <input id="oppsChatInput" class="opp-chat-input" type="text" placeholder="e.g. Which portal has the best coverage for this sector?" />
-            <button id="oppsChatSend" class="opp-chat-send">Ask</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── UNDERSERVED subview ── -->
-      <div id="rsub-underserved" class="radar-subview" style="display:none">
-        <div id="radarUnderContent">
-          <div class="radar-ai-placeholder">
-            <div class="radar-ai-placeholder-icon">⚠</div>
-            <h3>Generate a briefing first</h3>
-            <p>Underserved market gaps will appear here after AI analysis.</p>
-          </div>
-        </div>
-        <div id="underChatPanel" class="opp-chat-panel" style="display:none">
-          <div class="opp-chat-panel-header">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Ask about underserved markets
-          </div>
-          <div id="underChatThread" class="opp-chat-thread">
-            <div class="opp-chat-empty">Click a button on any segment card, or type a question…</div>
-          </div>
-          <div class="opp-chat-input-bar">
-            <input id="underChatInput" class="opp-chat-input" type="text" placeholder="e.g. What's making this segment so hard to fill?" />
-            <button id="underChatSend" class="opp-chat-send">Ask</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── URGENCY ALERTS subview ── -->
-      <div id="rsub-urgency" class="radar-subview" style="display:none">
-        <div id="radarUrgencyContent">
-          <div class="radar-ai-placeholder">
-            <div class="radar-ai-placeholder-icon">⏰</div>
-            <h3>Generate a briefing first</h3>
-            <p>Jobs with imminent deadlines will appear here after AI analysis.</p>
-          </div>
-        </div>
-        <div id="urgencyChatPanel" class="opp-chat-panel" style="display:none">
-          <div class="opp-chat-panel-header">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Ask about urgency alerts
-          </div>
-          <div id="urgencyChatThread" class="opp-chat-thread">
-            <div class="opp-chat-empty">Click a button on any alert card, or type a question…</div>
-          </div>
-          <div class="opp-chat-input-bar">
-            <input id="urgencyChatInput" class="opp-chat-input" type="text" placeholder="e.g. Which sector should we action first?" />
-            <button id="urgencyChatSend" class="opp-chat-send">Ask</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── VOLUME TREND subview ── -->
-      <div id="rsub-trend" class="radar-subview" style="display:none">
-        <div class="radar-trend-charts-row">
-          <div class="radar-chart-card">
-            <div class="radar-chart-title">Weekly Job Creation</div>
-            <div id="radarTrendChart" style="height:220px"></div>
-          </div>
-          <div class="radar-chart-card">
-            <div class="radar-chart-title">Week-over-Week Change</div>
-            <div id="radarMomentumChart" style="height:220px">
-              <div class="radar-ai-placeholder" style="padding:28px 12px">
-                <div class="radar-ai-placeholder-icon">📈</div>
-                <h3>Load data to see momentum</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="radar-chart-card" style="margin-top:16px">
-          <div class="radar-chart-title">AI Trend Analysis</div>
-          <div id="radarTrendAI">
-            <div class="radar-ai-placeholder" style="padding:28px 12px">
-              <div class="radar-ai-placeholder-icon">✦</div>
-              <h3>Generate briefing for analysis</h3>
-            </div>
-          </div>
-          <div id="trendBtnRow" class="radar-rec-actions" style="margin-top:14px;padding-left:0;display:none">
-            <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="trend" data-idx="0" data-act="driving">What's Driving This?</button>
-            <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="trend" data-idx="0" data-act="forecast">4-Week Forecast</button>
-            <button class="radar-rec-action-btn" data-action="tab-chat" data-tab="trend" data-idx="0" data-act="sectors">Which Sectors Lead?</button>
-          </div>
-        </div>
-        <div id="trendChatPanel" class="opp-chat-panel" style="display:none;margin-top:16px">
-          <div class="opp-chat-panel-header">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Ask about the trend
-          </div>
-          <div id="trendChatThread" class="opp-chat-thread">
-            <div class="opp-chat-empty">Click a button above or ask a question about the volume trend…</div>
-          </div>
-          <div class="opp-chat-input-bar">
-            <input id="trendChatInput" class="opp-chat-input" type="text" placeholder="e.g. Is this growth seasonal or structural?" />
-            <button id="trendChatSend" class="opp-chat-send">Ask</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── ANALYTICS subview ── -->
-      <div id="rsub-analytics" class="radar-subview" style="display:none">
-        <div class="radar-analytics-grid">
-          <div class="radar-chart-card" style="grid-column:1/-1">
-            <div class="radar-chart-title">Sector Breakdown</div>
-            <div class="radar-table-wrap" id="radarSectorTable"><div class="radar-loading">Loading…</div></div>
-          </div>
-          <div class="radar-chart-card">
-            <div class="radar-chart-title">By State (Bundesland)</div>
-            <div class="radar-table-wrap" id="radarStateTable"><div class="radar-loading">Loading…</div></div>
-          </div>
-          <div class="radar-chart-card">
-            <div class="radar-chart-title">By Portal</div>
-            <div class="radar-table-wrap" id="radarPortalTable"><div class="radar-loading">Loading…</div></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── QUICK FINDER subview ── -->
-      <div id="rsub-finder" class="radar-subview" style="display:none">
-        <div class="radar-finder-bar">
-          <select id="rfMode" data-change-action="finder-reload">
-            <option value="stale">Stale jobs (slow movers)</option>
-            <option value="urgent">Urgent deadlines</option>
-          </select>
-          <select id="rfOccGroup" data-change-action="finder-reload"><option value="">All sectors</option></select>
-          <select id="rfState"    data-change-action="finder-reload"><option value="">All states</option></select>
-          <select id="rfPortal"   data-change-action="finder-reload"><option value="">All portals</option></select>
-          <select id="rfMinDays"  data-change-action="finder-reload">
-            <option value="30">30+ days old</option>
-            <option value="45" selected>45+ days old</option>
-            <option value="60">60+ days old</option>
-          </select>
-          <span id="rfCount" style="font-size:11px;color:#888;margin-left:4px"></span>
-        </div>
-        <div id="radarFinderList" class="radar-finder-list"><div class="radar-loading">Loading…</div></div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ═══ ANALYTICS SUMMARY TAB ═══ -->
-  <div id="tab-analytics-summary" class="tab-panel">
-    <div class="summary-wrap">
-      <div class="summary-header">
-        <div class="summary-header-left">
-          <h2>Analytics Summary</h2>
-          <p>Save insights from the Opportunities Radar to build your session report</p>
-        </div>
-        <div class="summary-btn-row">
-          <button id="summaryGenCompactBtn" class="summary-generate-btn" data-action="generate-report" data-charts="0" disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            Compact Report
-          </button>
-          <button id="summaryGenChartsBtn" class="summary-generate-btn summary-generate-btn-charts" data-action="generate-report" data-charts="1" disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="3 9 9 9 9 3"/><line x1="9" y1="9" x2="15" y2="3"/><polyline points="21 15 15 15 15 21"/><line x1="15" y1="15" x2="9" y2="21"/></svg>
-            Report with Charts
-          </button>
-        </div>
-      </div>
-      <div id="summaryList">
-        <div class="summary-empty-state">
-          <div class="summary-empty-state-icon">📋</div>
-          <h3>No insights saved yet</h3>
-          <p>Use the <strong>+ Add to Summary</strong> buttons in the Opportunities Radar to save findings here</p>
-        </div>
-      </div>
-      <!-- ── Summary assistant chat ── -->
-      <div class="summary-chat-panel">
-        <div class="summary-chat-header">
-          <div class="summary-chat-header-info">
-            <h4>Report Assistant</h4>
-            <p>Ask about what to include, how to order sections, or what the key findings mean</p>
-          </div>
-        </div>
-        <div class="summary-chat-quick-btns">
-          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="What should I emphasize most in the report?">What to emphasize?</button>
-          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="Suggest a good order for the sections and explain why.">Suggest order</button>
-          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="What important topics might be missing from this report?">What\'s missing?</button>
-          <button class="summary-qbtn" data-action="summary-chat-quick" data-msg="Summarize the key themes across all saved insights in 3 sentences.">Key themes</button>
-        </div>
-        <div class="summary-chat-thread" id="summaryChatThread">
-          <div style="text-align:center;padding:20px;color:#bbb;font-size:12px">Ask the assistant to help shape your report</div>
-        </div>
-        <div class="summary-chat-input-row">
-          <input class="summary-chat-input" id="summaryChatInput" placeholder="e.g. Which finding is most urgent to highlight?" data-keydown-action="summary-chat-enter"/>
-          <button class="summary-chat-send" id="summaryChatSend" data-action="summary-chat-send">Send</button>
-        </div>
       </div>
     </div>
   </div>

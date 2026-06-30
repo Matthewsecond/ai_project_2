@@ -8,7 +8,6 @@
 import { state, _ACTIONS, app } from "./state.js";
 import { esc, gradeClass, storeJob, getStoredJob } from "./util.js";
 import api from "./api.js";
-import { updateMapStats } from "./map.js";
 import { exportResults } from "./export.js";
 
 //  Filter chip toggles (single-select per group)
@@ -271,7 +270,6 @@ async function rescoreFrozenResults() {
     state.scoredAgainstText = text;           // scores now correspond to this candidate text
     renderResults(state.lastResults);          // re-sorts into the new order
     _animateRescore(prevRects, prevScore);
-    updateMapStats(state.lastResults);
     _updateStaleNotice();                // scores fresh again — hide the warning
   } catch(e) {
     document.getElementById('resultsStatus').innerHTML =
@@ -358,7 +356,6 @@ async function runMatching() {
     state.lastResults = [...pinned, ...fresh];
     state.scoredAgainstText = text;   // these scores correspond to this candidate text
     renderResults(state.lastResults);
-    updateMapStats(state.lastResults);
     app.reapplyHighlight();   // sticky: re-evaluate the active highlight on the new set
   };
 
@@ -428,7 +425,6 @@ async function findMoreJobs() {
     if (newAB.length) {
       state.lastResults = [...state.lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
       renderResults(state.lastResults);
-      updateMapStats(state.lastResults);
       app.reapplyHighlight();
       document.getElementById('resultsStatus').innerHTML =
         `<span style="color:#1648a8;font-weight:600">➕ Added ${newAB.length} new A/B job${newAB.length !== 1 ? 's' : ''} to the frozen set.</span>`;
@@ -820,7 +816,6 @@ function clearResults() {
   </td></tr>`;
   document.getElementById('resultsStatus').innerHTML =
     '<span>Enter a candidate profile and click Run matching to see results.</span>';
-  updateMapStats([]);
 }
 
 async function loadTestData() {
@@ -830,7 +825,6 @@ async function loadTestData() {
     const data = await api.get('/api/test/match');
     state.lastResults = data.jobs;
     renderResults(state.lastResults);
-    updateMapStats(state.lastResults);
   } catch(e) {
     document.getElementById('resultsStatus').innerHTML =
       `<span style="color:#e04040">Test data error: ${esc(e.message)}</span>`;

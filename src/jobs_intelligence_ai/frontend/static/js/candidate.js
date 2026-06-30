@@ -8,7 +8,6 @@
 import { state, _ACTIONS, app } from "./state.js";
 import { esc } from "./util.js";
 import api from "./api.js";
-import { updateMapStats } from "./map.js";
 
 //  Input mode tabs
 // ════════════════════════════════════════════════════════════
@@ -252,7 +251,6 @@ async function loadCandidateFromDb(){
     if (data.jobs && data.jobs.length){
       state.lastResults = data.jobs;
       app.renderResults(state.lastResults);
-      updateMapStats(state.lastResults);
       document.getElementById('resultsStatus').innerHTML =
         `<span>Loaded ${data.jobs.length} saved job${data.jobs.length!==1?'s':''} for ${esc(name)} from the database.</span>`;
     }

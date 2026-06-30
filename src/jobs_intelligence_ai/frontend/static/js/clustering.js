@@ -8,7 +8,6 @@
 import { state, _ACTIONS, app } from "./state.js";
 import { esc, gradeClass } from "./util.js";
 import api from "./api.js";
-import { updateMapStats } from "./map.js";
 
 //  Multiple-CV mode — cluster candidates into talent segments
 // ════════════════════════════════════════════════════════════

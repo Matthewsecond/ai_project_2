@@ -6,9 +6,7 @@
 // _ACTIONS/app entries as a load-time side effect), owns the top-level tab/
 // mode-toggle routing, the central data-action dispatcher that all the other
 // modules' _ACTIONS registrations are read by, and the feedback widget.
-import { state, _ACTIONS, app } from "./state.js";
-import { initMap } from "./map.js";
-import { loadRadar } from "./radar.js";
+import { _ACTIONS, app } from "./state.js";
 import api from "./api.js";
 // Side-effect-only import: clustering.js has no page-script consumer of a bare
 // binding (the search-tab Multiple-CV markup drives it entirely through
@@ -57,9 +55,6 @@ function getCandidateName() {
 // ════════════════════════════════════════════════════════════
 //  Tab routing
 // ════════════════════════════════════════════════════════════
-let _navMode     = 'search';
-const _modeLastTab = {search: 'search', analytics: 'radar'};
-
 function _activateTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -67,26 +62,9 @@ function _activateTab(id) {
   const btn   = document.querySelector(`.tab-btn[data-tab="${id}"]`);
   if (panel) panel.classList.add('active');
   if (btn)   btn.classList.add('active');
-  // Remember last tab per mode
-  const group = btn && btn.dataset.modeGroup;
-  if (group) _modeLastTab[group] = id;
   // Side effects
   if (id === 'saved') app.openSavedTab();
-  if (id === 'map')   initMap(state.lastResults);
-  if (id === 'radar') loadRadar();
 }
-
-function switchNavMode(mode) {
-  _navMode = mode;
-  document.querySelectorAll('.mode-toggle-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.mode === mode));
-  document.querySelectorAll('.tab-btn[data-mode-group]').forEach(b =>
-    b.style.display = b.dataset.modeGroup === mode ? '' : 'none');
-  _activateTab(_modeLastTab[mode]);
-}
-
-document.querySelectorAll('.mode-toggle-btn').forEach(btn =>
-  btn.addEventListener('click', () => switchNavMode(btn.dataset.mode)));
 
 document.querySelectorAll('.tab-btn[data-mode-group]').forEach(btn =>
   btn.addEventListener('click', () => _activateTab(btn.dataset.tab)));
