@@ -66,10 +66,13 @@ Single set of tables; **`country char(2)` column** instead of per-country tables
 - `audit_log` — `id, user_id→app_user, action, entity_type, entity_id, created_at`.
 
 **Data — the searchable universe**
-- `target_company` — a company you recruit for / save. `id, name, country, industry, …`.
-- `job` — `id, target_company_id→target_company, title, country, description, …`.
-- `candidate` — `id, name, country, profile, …`.
-- `contact` — a person at a target company. `id, target_company_id→target_company, name, email`.
+- `target_company` — a company you recruit for. Shared catalogue. `id, name, country, industry, …`.
+- `job` — shared catalogue. `id, target_company_id→target_company, title, country, description, …`.
+
+**Company-owned data** (private to the company that created it; carry both owner columns)
+- `candidate` — `id, account_company_id→account_company, owner_id→app_user, name, country, profile, …`.
+- `contact` — a person at a target company.
+  `id, account_company_id→account_company, owner_id→app_user, target_company_id→target_company, name, email`.
 
 **Saved — the home base (junction tables, per user)**
 - `saved_job` — `id, user_id→app_user, job_id→job, status, saved_at`. `status` =
@@ -81,21 +84,23 @@ Single set of tables; **`country char(2)` column** instead of per-country tables
 
 ```
 account_company
-   └─1:N─ app_user    (role: admin | member,  visibility: own | all)
-             ├─1:N─ saved_job        ─N:1─▶ job
-             ├─1:N─ saved_candidate  ─N:1─▶ candidate
-             ├─1:N─ saved_contact    ─N:1─▶ contact
-             ├─1:N─ saved_company    ─N:1─▶ target_company
-             └─1:N─ audit_log
+   ├─1:N─ app_user    (role: admin | member,  visibility: own | all)
+   │         ├─1:N─ saved_job        ─N:1─▶ job
+   │         ├─1:N─ saved_candidate  ─N:1─▶ candidate
+   │         ├─1:N─ saved_contact    ─N:1─▶ contact
+   │         ├─1:N─ saved_company    ─N:1─▶ target_company
+   │         └─1:N─ audit_log
+   ├─1:N─ candidate   (also owner_id ─▶ app_user)   company-owned
+   └─1:N─ contact     (also owner_id ─▶ app_user)   company-owned, target_company_id ─▶ target_company
 
-target_company
+target_company (shared catalogue)
    ├─1:N─ job        (FK target_company_id)
    └─1:N─ contact    (FK target_company_id)
 
-candidate           standalone — shared pool, no FK
-
-Every data table (job, candidate, target_company, contact) carries a `country` column.
-Each saved_* table is a per-user junction: (user_id, item_id) with unique(user_id, item_id).
+Shared catalogue: job, target_company (no owner).  Company-owned: candidate, contact
+(account_company_id = hard boundary, owner_id = the employee; own/all filters on owner_id).
+Every data table carries a `country` column. Each saved_* is a per-user junction
+(user_id, item_id) with unique(user_id, item_id).
 ```
 
 ### 3.3 Access & collaboration model
@@ -106,12 +111,16 @@ fine-grained per-member grant was dropped as unnecessary (boss decision, 2026-06
 - `app_user.visibility`: `own | all`.
   - `all` (default) — own + every other user's data **within the same `account_company`**.
   - `own` — only their own records (an opt-out switch if a user shouldn't see others).
-- **The company boundary is always enforced.** A user only ever sees saved jobs / candidates /
-  companies (and contacts) belonging to users in their own `account_company` — never another
-  company's. `all` vs `own` only widens/narrows visibility *within* that boundary.
-- **Scoping is a query rule, not a column on the data tables.** It resolves by joining each
-  `saved_*` row through its owning `app_user` and filtering to the viewer's `account_company`
-  (+ visibility). Jobs stay a shared catalogue; what's company-private is *who saved what*.
+- **The company boundary is always enforced.** A user only ever sees candidates / contacts and
+  saved items belonging to their own `account_company` — never another company's. `all` vs `own`
+  only widens/narrows visibility *within* that boundary.
+- **How the boundary is enforced depends on the data:**
+  - *Company-owned* (`candidate`, `contact`): the `account_company_id` column is the hard wall;
+    `own` shows rows where `owner_id` = viewer, `all` shows any owner in the company.
+  - *Per-user bookmarks* (`saved_*`): scoped by joining through the owning `app_user` to the
+    viewer's `account_company`; `own`/`all` filters on that owner.
+  - *Shared catalogue* (`job`, `target_company`): visible to everyone; nothing private there —
+    what's company-private is who *owns/saved* a reference to it.
 
 How a viewer's access to a `saved_*` row resolves:
 
@@ -204,9 +213,24 @@ pipeline, distinct from the saved-candidate *hiring* pipeline (Screening/Intervi
 Tab visibility is gated by the access model ([§3.3](#33-access--collaboration-model)) — e.g.
 the user-management tab is admin-only.
 
-### 4.3 Expanded filters
-Add more filter dimensions — **primarily on jobs** (the main ask) and also candidate search.
-Exact dimensions TBD.
+### 4.3 Expanded filters (jobs tab)
+The job record carries ~28 fields (`serialize_job` in `services/search/utils.py`), but the
+jobs tab today filters on only **state, occupation group, portal** (+ the keyword/candidate
+input). Add filters drawn from columns that already exist:
+
+- **First batch — do these first** (clean categorical dropdowns, low risk):
+  `work_time` (full/part-time), `employment_relationship` (permanent/contract/temp),
+  `education` (required level), `city` (finer than `state`).
+- **Later** (need range UI / parsing / autocomplete): `salary` min–max (sparse/free-text →
+  parse first), `posted` recency (last 7/30 days), `skills` keyword match (`skills`/`skills_en`),
+  `company` (target_company) autocomplete, `municipality`.
+
+Each new filter needs three changes: the filters endpoint to return its distinct values (today
+it returns only states/occ_groups/portals), a control in the filter bar, and the query to apply
+it. **Data caveat:** a filter is only as good as the column is populated — prioritise the
+well-filled categorical columns; `salary` is sparse/free-text and needs parsing.
+
+Candidate-search filters expand separately (dimensions TBD).
 
 ### 4.4 New tabs (depend on Track A)
 - Target-companies & contacts views (browse, save).
@@ -216,14 +240,9 @@ Exact dimensions TBD.
 ---
 
 ## 5. Open decisions
-- **Candidates/contacts ownership — confirm.** Recommendation: give `candidate` and `contact`
-  an `account_company_id` so each is **owned by the company that created it** — your staff's
-  private pool (all employees of that company see it; other companies never do). Jobs +
-  `target_company` stay the shared market catalogue; `saved_*` remain per-user shortlists within
-  the company. (Alternative: fully shared records scoped only via `saved_*` — simpler, but no
-  company-owned pool.) **Awaiting confirm.**
 - **Rebrand:** logo / assets (TBD).
-- **Filters:** exact new job (and candidate) filter dimensions (TBD).
+- **Filters:** confirm/trim the proposed job filter set ([§4.3](#43-expanded-filters-jobs-tab));
+  pick candidate-search dimensions.
 
 ## 6. Decisions log
 - 2026-06-29 — **Order: database first, then frontend** (build the backend structure before
@@ -253,3 +272,6 @@ Exact dimensions TBD.
 - 2026-06-29 — `saved_job.status` = single-choice sales pipeline
   `new | in_progress | proposal_sent | won | lost`, default `new`; EN/DE labels in the UI
   (store the canonical code, not both languages).
+- 2026-06-29 — **Candidate/contact ownership: two columns** — `account_company_id` (company-owned,
+  the privacy boundary) **and** `owner_id`→`app_user` (the employee who added it). Jobs +
+  `target_company` stay the shared catalogue. `own`/`all` visibility filters on `owner_id`.
