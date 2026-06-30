@@ -331,16 +331,35 @@ preserved. Hover states were re-checked so no button has base == hover.
 **To do:** commit; logo/assets TBD. (Backgrounds nudged a touch bluer per feedback —
 `--ic-bg` `#F4F5F7` → `#EDF1F8`, kept restrained.)
 
-### 4.2 Information architecture (from the client sketch)
-The app is organised into two areas:
-- **Tables** — the data/admin side: target companies, contacts, candidates, jobs, and
-  user management. Admin-oriented.
-- **Sales View** — the day-to-day working tool: the matching tool + filters, and the
-  saved collections.
+### 4.2 Information architecture (simplified — confirmed 2026-06-30)
+Collapse the current many-tab UI (search/saved/radar/analytics/interview/clustering/guided/
+company/map) down to **two top tabs**. **On `master` these are the only two tabs** — the
+experimental ones (radar/analytics/interview/clustering/guided/map) fold away entirely, not
+behind a toggle.
 
-**The basics / home base = search + the saved trio + saved companies**
-(`saved_job`, `saved_candidate`, `saved_contact`, `saved_company`). These are the core the
-whole product is built around.
+The two tabs are **deliberately different paradigms**, not one shared layout:
+
+- **Search — conversational.** A free-text / chat-style way to look things up across the market:
+  **jobs, companies, and contacts** (and candidates — see open point). You describe what you
+  want, get results back, and save the ones worth keeping. This is the discovery/sourcing surface.
+- **Saved — the database view.** A browsable, table/grid-style view of the shared `saved_*`
+  collections (jobs / companies / candidates / contacts). This is where the *volume* of data lives,
+  so it must read like a database — sortable, scannable, filterable rows. Company-scoped + own/all
+  visibility → **this is the collaboration surface**; everyone in the company works off the same
+  saved data.
+
+This maps 1:1 onto the schema: search→save writes into `saved_*`; `account_company` + `visibility`
+make the Saved view shared within the firm. The backend is already shaped for it — the remaining work
+is the **frontend**: build the conversational search across the three entity types, build the
+database-grid Saved view, and drop the experimental tabs on `master`.
+
+**Home base = `saved_candidates` + `saved_jobs` + `saved_companies` + `saved_contacts`** — the core
+the product is built around.
+
+**Open point — "search candidates":** jobs/companies are market data (catalogue → save); candidates
+aren't in a market catalogue — they're created (CV upload) or sourced (LinkedIn). So "search
+candidates" = browse/search the company's own saved-candidate pool and/or source new ones to save.
+Confirm which (likely both).
 
 **Saved-job status pipeline.** Each saved job has a single-choice status, default `new`:
 
@@ -434,5 +453,17 @@ Candidate-search filters expand separately (dimensions TBD).
   hand-created `contact` table for now. **`saved_jobs.job_id` is `BIGINT`** (market id is `INT`).
 - 2026-06-30 — Canonical DDL committed to `data/sql/app_schema_v2.sql` (supersedes `app_schema.sql`;
   not yet applied; backup in `Jobs_Intelligence_AI_prerework`).
+- 2026-06-30 — **Frontend IA simplified to TWO top tabs:** Search (searches jobs/companies/candidates)
+  + Saved (the shared "database view" = the collaboration surface). Other tabs fold away/behind. Maps
+  1:1 to `saved_*` + `account_company`/`visibility`. (Track B frontend work; backend already shaped.)
+- 2026-06-30 — **The two tabs are different paradigms, not one shared layout:** Search is
+  **conversational** (chat/free-text discovery across jobs + companies + contacts); Saved is a
+  **database/grid view** (sortable, scannable rows — it holds the bulk of the data). On `master`
+  these are the *only* two tabs; the experimental ones (radar/analytics/interview/clustering/guided/
+  map) fold away entirely.
+- 2026-06-30 — **Search scope widened: jobs + companies + contacts** (not jobs-only) — the
+  conversational search spans all three market entity types.
+- 2026-06-30 — Save-company + save-contact to be wired (new store fns + routes + buttons) alongside the
+  saved-blueprints step; old work-history `/api/saved/companies` route retired (now empty).
 - 2026-06-30 — `job_vs_sync`/`sk_job_vs_sync` (vector-store sync) **preserved**; old `sk_*` app
   tables, `candidate_company`, and the empty `company` table dropped/folded. Concrete DDL in §3.2.
