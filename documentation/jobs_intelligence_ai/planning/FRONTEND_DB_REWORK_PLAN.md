@@ -492,6 +492,11 @@ Candidate-search filters expand separately (dimensions TBD).
   now returns `company_id` (market `companies.id`) + `contacts` (from `View_Jobs_Contacts`, guarded so a
   market DB lacking them just disables the buttons). Saves flow into `saved_candidates`/`saved_companies`/
   `saved_contacts` and show up in the Saved-tab collections. Jobs already had a save button (unchanged).
+- 2026-06-30 — **Candidate dedup (company-wide):** saving a candidate whose NAME already exists in the
+  account_company (saved by anyone) is blocked — `/api/saved/candidate` returns `already_saved:true` +
+  the owner's name instead of upserting. The run-row shows a green "✓ Candidate saved" or a red
+  "● <name> already saved by <owner>" indicator (both the auto-save and manual paths). `lookup_candidate`
+  now also returns the owner (LEFT JOIN app_user). Verified in-browser (new→green, re-save→red).
 - 2026-06-30 — **Piece #1 of the two-tab collapse DONE on `master`** (verified in-browser): removed the
   Candidate/Analytics mode-toggle and the radar/map/analytics-summary tabs+panels; deleted `radar.js`,
   `map.js`, `radar.py`, `analytics.py`; renamed the "Saved Jobs" tab to **"Saved"**. Guided + clustering

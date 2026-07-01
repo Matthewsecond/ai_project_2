@@ -191,14 +191,17 @@ def lookup_candidate(name: str, account_company_id: int | None = None) -> dict |
         co = _company_id(conn, account_company_id)
         row = conn.execute(text(
             f"SELECT c.full_name, c.status, c.is_template, "
+            f"  COALESCE(NULLIF(u.display_name, ''), u.username) AS owner_name, "
             f"  (SELECT COUNT(*) FROM {_T_SAVED} s WHERE s.saved_candidate_id = c.id) AS matches "
             f"FROM {_T_CANDIDATE} c "
+            f"LEFT JOIN {_DB}.app_user u ON u.id = c.owner_id "
             f"WHERE c.full_name = :n AND c.account_company_id = :co AND c.country = :ct LIMIT 1"),
             {"n": name, "co": co, "ct": _COUNTRY}).mappings().first()
     if not row:
         return None
     return {"name": row["full_name"], "status": row["status"] or "New",
-            "isTemplate": bool(row["is_template"]), "matches": int(row["matches"] or 0)}
+            "isTemplate": bool(row["is_template"]), "matches": int(row["matches"] or 0),
+            "owner": row["owner_name"] or ""}
 
 
 def _linkedin_slug(url: str) -> str:

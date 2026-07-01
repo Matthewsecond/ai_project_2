@@ -196,17 +196,23 @@ def api_delete_saved_contact(saved_id):
 
 @bp.route("/candidate", methods=["POST"])
 def api_candidate_create():
-    """Body: { profile: {...} } — persist a session-built candidate (profile only)."""
+    """Body: { profile: {...} } — persist a session-built candidate (profile only).
+
+    Company-wide dedup: a candidate NAME already in this account_company (saved by
+    anyone) is not added again — we return already_saved:true so the UI can flag it.
+    """
     body    = request.get_json(silent=True) or {}
     profile = body.get("profile") or {}
     name    = (profile.get("name") or "").strip()
     if not name:
         return jsonify({"ok": False, "error": "candidate name required"}), 400
+    existing = store.lookup_candidate(name, account_company_id=_aid())
+    if existing:
+        return jsonify({"ok": True, "added": False, "already_saved": True,
+                        "name": name, "owner": existing.get("owner") or ""})
     store.upsert_profile(name, profile, account_company_id=_aid(), owner_id=_uid())
     store.log_access("save_candidate", name, account_company_id=_aid(), user_id=_uid())
-    return jsonify({"ok": True, "name": name,
-                    "candidates": store.list_candidates_detailed(
-                        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+    return jsonify({"ok": True, "added": True, "name": name})
 
 
 @bp.route("/insights", methods=["GET"])

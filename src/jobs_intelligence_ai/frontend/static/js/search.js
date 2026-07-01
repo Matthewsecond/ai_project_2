@@ -288,9 +288,11 @@ async function rescoreFrozenResults() {
 
 async function runMatching() {
   const btn = document.getElementById('btnRun');
-  // Fresh run → reset the manual "Save candidate" button to its default state.
+  // Fresh run → reset the manual "Save candidate" button + status indicator.
   const scBtn = document.getElementById('btnSaveCandidate');
-  if (scBtn) { scBtn.textContent = '＋ Save candidate'; scBtn.classList.remove('saved'); scBtn.disabled = false; }
+  if (scBtn) { scBtn.textContent = '＋ Save candidate'; scBtn.classList.remove('saved', 'dup'); scBtn.disabled = false; }
+  const scStatus = document.getElementById('candSaveStatus');
+  if (scStatus) scStatus.style.display = 'none';
 
   // Frozen: don't run a fresh search — re-score the locked job set in place.
   if (state.resultsFrozen && state.lastResults.length) return rescoreFrozenResults();
@@ -400,12 +402,30 @@ async function saveCandidate(btn) {
   const name    = (profile && profile.name) || app.getCandidateName();
   if (!profile || !name || name === 'Unassigned') return;
   try {
-    await api.post('/api/saved/candidate', { profile: { ...profile, name } });
-    if (btn) { btn.textContent = '✓ Candidate saved'; btn.classList.add('saved'); btn.disabled = true; }
+    const data    = await api.post('/api/saved/candidate', { profile: { ...profile, name } });
+    const already = data.added === false || data.already_saved;
+    _setCandSaveStatus(
+      already ? `● ${name} already saved${data.owner ? ' by ' + data.owner : ''}` : '✓ Candidate saved',
+      already ? 'dup' : 'ok');
+    if (btn) {
+      btn.textContent = already ? 'Already saved' : '✓ Candidate saved';
+      btn.classList.remove('dup', 'saved');
+      btn.classList.add(already ? 'dup' : 'saved');
+      btn.disabled = true;
+    }
   } catch(e) {
     if (btn) btn.textContent = 'Save failed';
     else console.warn('Auto-save candidate failed:', e);
   }
+}
+
+// Green "saved" / red "already saved" indicator next to the Run-matching row.
+function _setCandSaveStatus(msg, kind) {
+  const el = document.getElementById('candSaveStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'cand-save-status ' + kind;   // kind: 'ok' | 'dup'
+  el.style.display = '';
 }
 
 // Frozen-set action: search again with WIDER retrieval and append any jobs not
