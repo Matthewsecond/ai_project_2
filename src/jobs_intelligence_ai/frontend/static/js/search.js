@@ -87,6 +87,12 @@ Object.assign(_ACTIONS, {
   'export-results':          ()      => exportResults(state.lastResults),
   'save-all':                ()      => saveAll(),
   'clear-results':           ()      => clearResults(),
+  'save-candidate':          ()      => saveCandidate(document.getElementById('btnSaveCandidate')),
+  // Auto-save toggle: when off, reveal the manual "Save candidate" button.
+  'toggle-autosave-candidate': (el)  => {
+    const b = document.getElementById('btnSaveCandidate');
+    if (b) b.style.display = el.checked ? 'none' : '';
+  },
   // results filter + sortable headers
   'rescore-frozen-results':  ()      => rescoreFrozenResults(),
   'toggle-freeze':           ()      => toggleFreeze(),
@@ -282,6 +288,9 @@ async function rescoreFrozenResults() {
 
 async function runMatching() {
   const btn = document.getElementById('btnRun');
+  // Fresh run → reset the manual "Save candidate" button to its default state.
+  const scBtn = document.getElementById('btnSaveCandidate');
+  if (scBtn) { scBtn.textContent = '＋ Save candidate'; scBtn.classList.remove('saved'); scBtn.disabled = false; }
 
   // Frozen: don't run a fresh search — re-score the locked job set in place.
   if (state.resultsFrozen && state.lastResults.length) return rescoreFrozenResults();
@@ -370,6 +379,8 @@ async function runMatching() {
       finalJobs = data.jobs || [];
     }
     applyFinalJobs(finalJobs);
+    // Auto-save the candidate to the database (unless the user turned it off).
+    if (document.getElementById('autosaveCandidate')?.checked) saveCandidate();
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="8" style="padding:20px">
       <div class="error-box">Error: ${esc(e.message)}</div>
@@ -378,6 +389,22 @@ async function runMatching() {
   } finally {
     btn.disabled = false;
     document.getElementById('runLabel').textContent = state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
+  }
+}
+
+// Persist the current candidate profile to the database (saved_candidates). Drives
+// both the auto-save on run-matching and the manual "Save candidate" button. Safely
+// no-ops when there's no structured profile / name to save.
+async function saveCandidate(btn) {
+  const profile = state.currentCandidateProfile;
+  const name    = (profile && profile.name) || app.getCandidateName();
+  if (!profile || !name || name === 'Unassigned') return;
+  try {
+    await api.post('/api/saved/candidate', { profile: { ...profile, name } });
+    if (btn) { btn.textContent = '✓ Candidate saved'; btn.classList.add('saved'); btn.disabled = true; }
+  } catch(e) {
+    if (btn) btn.textContent = 'Save failed';
+    else console.warn('Auto-save candidate failed:', e);
   }
 }
 

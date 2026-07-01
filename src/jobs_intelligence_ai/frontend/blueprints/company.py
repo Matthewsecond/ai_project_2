@@ -118,6 +118,33 @@ def api_company():
             for row in rows[:10]
         ]
 
+        # Market company id (so the panel can save it) + the company's contacts
+        # (people linked to its jobs via View_Jobs_Contacts). Guarded: a country
+        # whose market DB lacks these just returns no id / no contacts, and the
+        # client disables the corresponding Save button.
+        company_id = None
+        contacts   = []
+        try:
+            with get_engine().connect() as conn:
+                cid = conn.execute(text(
+                    "SELECT id FROM companies WHERE company_crawler_name = :n LIMIT 1"),
+                    {"n": company_name}).scalar()
+                company_id = int(cid) if cid is not None else None
+                crows = conn.execute(text(
+                    "SELECT DISTINCT contact_id, contact_name, contact_email, "
+                    "contact_phone, contact_linkedin FROM View_Jobs_Contacts "
+                    "WHERE company_crawler_name = :n AND contact_id IS NOT NULL "
+                    "ORDER BY contact_name LIMIT 50"), {"n": company_name}).mappings().all()
+                contacts = [{
+                    "contact_id": int(r["contact_id"]),
+                    "name":       r["contact_name"]     or "",
+                    "email":      r["contact_email"]    or "",
+                    "phone":      r["contact_phone"]    or "",
+                    "linkedin":   r["contact_linkedin"] or "",
+                } for r in crows]
+        except Exception:
+            pass  # market DB without companies / View_Jobs_Contacts → no id / contacts
+
         from jobs_intelligence_ai.services.reporting import summarize_company
         summary = summarize_company(
             company_name=company_name,
@@ -133,6 +160,8 @@ def api_company():
         return jsonify({
             "ok":           True,
             "company":      company_name,
+            "company_id":   company_id,
+            "contacts":     contacts,
             "total_jobs":   len(rows),
             "salary_stats": sal_stats,
             "locations":    cities[:12],

@@ -655,8 +655,16 @@ function _renderCompanyPanel(d) {
     return;
   }
 
+  // ── Save company ───────────────────────────────────────────
+  let html = '';
+  if (d.company_id) {
+    html += `<div class="co-save-row">
+      <button class="co-save-btn" data-action="save-company" data-cid="${d.company_id}" data-cname="${esc(d.company)}">＋ Save company</button>
+    </div>`;
+  }
+
   // ── Stats row ──────────────────────────────────────────────
-  let html = `<div class="co-stats-row">
+  html += `<div class="co-stats-row">
     <div class="co-stat"><div class="co-stat-num">${d.total_jobs}</div><div class="co-stat-lbl">Active jobs</div></div>
     <div class="co-stat"><div class="co-stat-num" style="font-size:${avg.length > 9 ? '14px' : '20px'}">${avg}</div><div class="co-stat-lbl">Avg salary</div></div>
     <div class="co-stat"><div class="co-stat-num">${d.states?.length || 0}</div><div class="co-stat-lbl">State${(d.states?.length || 0) !== 1 ? 's' : ''}</div></div>
@@ -747,7 +755,52 @@ function _renderCompanyPanel(d) {
     html += `</div>`;
   }
 
+  // ── Contacts (people linked to this company's jobs) ─────────
+  if (d.contacts?.length) {
+    html += `<div class="co-section-hdr" style="margin-top:18px">Contacts <span class="co-contact-count">${d.contacts.length}</span></div><div class="co-contact-list">`;
+    d.contacts.forEach(ct => {
+      const meta = [ct.email, ct.phone].filter(Boolean).join('  ·  ');
+      html += `<div class="co-contact-row">
+        <div class="co-contact-info">
+          <div class="co-contact-name">${esc(ct.name || 'Unknown')}</div>
+          ${meta ? `<div class="co-contact-meta">${esc(meta)}</div>` : ''}
+        </div>
+        <button class="co-save-btn co-contact-save" data-action="save-contact"
+          data-ctid="${ct.contact_id}" data-ctname="${esc(ct.name || '')}"
+          data-ctemail="${esc(ct.email || '')}" data-ctphone="${esc(ct.phone || '')}"
+          data-ctlinkedin="${esc(ct.linkedin || '')}">Save</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
   body.innerHTML = html;
+}
+
+// Save the company (from the panel) into saved_companies via the market company id.
+async function saveCompanyFromPanel(el) {
+  el.disabled = true;
+  const prev = el.textContent;
+  try {
+    const data = await api.post('/api/saved/companies', {
+      target_company_id: el.dataset.cid, snapshot: { name: el.dataset.cname } });
+    el.textContent = (data.added === false) ? '✓ Already saved' : '✓ Saved';
+    el.classList.add('saved');
+  } catch(e) { el.disabled = false; el.textContent = prev; alert('Save failed: ' + (e.message || e)); }
+}
+
+// Save a contact (from the panel) into saved_contacts via the market contact id.
+async function saveContactFromPanel(el) {
+  el.disabled = true;
+  const prev = el.textContent;
+  try {
+    const data = await api.post('/api/saved/contacts', {
+      contact_id: el.dataset.ctid,
+      snapshot: { name: el.dataset.ctname, email: el.dataset.ctemail,
+                  phone: el.dataset.ctphone, linkedin: el.dataset.ctlinkedin } });
+    el.textContent = (data.added === false) ? '✓ Saved' : '✓ Saved';
+    el.classList.add('saved');
+  } catch(e) { el.disabled = false; el.textContent = prev; alert('Save failed: ' + (e.message || e)); }
 }
 
 // Lighter reset used when switching input mode: drops the derived candidate identity
@@ -872,6 +925,8 @@ Object.assign(_ACTIONS, {
   'candidate-name-enter':    (el, e) => { if (e.key === 'Enter') confirmCandidateName(); },
   'confirm-candidate-name':  ()      => confirmCandidateName(),
   'clear-candidate-profile': ()      => clearCandidateProfile(),
+  'save-company':            (el)    => saveCompanyFromPanel(el),
+  'save-contact':            (el)    => saveContactFromPanel(el),
   'set-workflow':            (el)    => setWorkflow(el.dataset.workflow),
   // CV zone — browse link (preserve the original preventDefault + stopPropagation)
   'browse-cv':               (el, e) => { e.preventDefault(); e.stopPropagation(); document.getElementById('cvFileInput').click(); },

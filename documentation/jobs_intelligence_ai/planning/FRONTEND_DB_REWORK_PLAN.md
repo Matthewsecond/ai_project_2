@@ -484,6 +484,14 @@ Candidate-search filters expand separately (dimensions TBD).
   redundant. `saved.js` rewritten ~1180→~190 lines; `_trackLocalCandidate` kept as a no-op stub for its
   candidate.js/guided.js callers. Candidate **status is now read-only** in this view (editing dropped —
   can be re-added later if needed). Verified in-browser.
+- 2026-06-30 — **Search-side save wiring DONE** (verified in-browser): (1) **candidate auto-save** —
+  a checkbox by "Run matching" (default on) persists the candidate to the DB on each run; toggle it off
+  and a manual "Save candidate" button appears. (2) **company + contact save from the company panel** —
+  clicking a company name opens the panel, which now shows a **Save company** button and a **Contacts**
+  section (people linked to the company's jobs) each with a **Save** button. Backend: `/api/company`
+  now returns `company_id` (market `companies.id`) + `contacts` (from `View_Jobs_Contacts`, guarded so a
+  market DB lacking them just disables the buttons). Saves flow into `saved_candidates`/`saved_companies`/
+  `saved_contacts` and show up in the Saved-tab collections. Jobs already had a save button (unchanged).
 - 2026-06-30 — **Piece #1 of the two-tab collapse DONE on `master`** (verified in-browser): removed the
   Candidate/Analytics mode-toggle and the radar/map/analytics-summary tabs+panels; deleted `radar.js`,
   `map.js`, `radar.py`, `analytics.py`; renamed the "Saved Jobs" tab to **"Saved"**. Guided + clustering
