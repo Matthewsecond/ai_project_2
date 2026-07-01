@@ -618,7 +618,7 @@ function renderResults(jobs) {
         <div class="job-title-main" style="color:#1a56c4">${esc(job.title)}${isHighlighted ? `<span class="hl-badge" title="${esc(state.highlightCriterion)}">✦ ${esc(state.highlightCriterion.length > 22 ? state.highlightCriterion.slice(0, 22) + '…' : state.highlightCriterion)}</span>` : ''}</div>
         ${job.match_reason ? `<div class="match-reason">${esc(job.match_reason)}</div>` : ''}
       </td>
-      <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}</td>
+      <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}<span class="job-contacts" id="jc-${job.job_id}"></span></td>
       <td>${esc(loc)}</td>
       <td>${esc(job.salary || '—')}</td>
       <td>${job.portal ? `<span class="tag tag-portal">${esc(job.portal)}</span>` : '—'}</td>
@@ -655,6 +655,8 @@ function renderResults(jobs) {
     (_showWeakC ? ` · ${nC} weak (C)` : (hiddenC ? ` · <span style="color:#9aa3b2">${hiddenC} weak (C) hidden</span>` : '')) +
     (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '') +
     (state.highlightCriterion ? ` · <span class="hl-legend"><span class="hl-dot"></span>${nHl} highlighted: “${esc(state.highlightCriterion)}”<span class="hl-clear" data-action="cand-asst-clear-highlight">clear</span></span>` : '');
+
+  _loadJobContacts(sorted);
 }
 
 // Action registry for the dynamically-built results rows — clickable title
@@ -666,6 +668,58 @@ Object.assign(_ACTIONS, {
   'toggle-pin-job':    (el, e) => { e.stopPropagation(); togglePinJob(el.dataset.jobId); },
   'open-extras-picker':(el, e) => { e.stopPropagation(); openExtrasPicker(el.dataset.jobId, el.dataset.sid, el); },
   'dismiss-job':       (el, e) => { e.stopPropagation(); dismissJob(el.dataset.jobId); },
+});
+
+// ════════════════════════════════════════════════════════════
+//  Per-job contacts (shown in the result row → panel to save them)
+// ════════════════════════════════════════════════════════════
+let _jobContacts = {};   // job_id (string) → [ {contact_id, name, email, phone, linkedin} ]
+
+// After results render, batch-fetch the contacts for the shown jobs and drop a
+// small indicator into each row's company cell (name if one, "N contacts" if more).
+async function _loadJobContacts(jobs) {
+  const ids = jobs.map(j => j.job_id).filter(Boolean);
+  if (!ids.length) return;
+  try {
+    const data = await api.post('/api/jobs/contacts', { job_ids: ids });
+    _jobContacts = (data && data.contacts) || {};
+  } catch(e) { return; }
+  Object.entries(_jobContacts).forEach(([jid, cts]) => {
+    const el = document.getElementById('jc-' + jid);
+    if (!el || !cts.length) return;
+    const label = cts.length === 1 ? `👤 ${esc(cts[0].name || 'Contact')}` : `👤 ${cts.length} contacts`;
+    el.innerHTML = `<span class="job-contact-chip" data-action="open-job-contacts" data-job-id="${esc(jid)}" title="View & save contact${cts.length !== 1 ? 's' : ''}">${label}</span>`;
+  });
+}
+
+// Open the contacts panel for one job — each contact gets a Save button that
+// reuses the save-contact action (→ saved_contacts).
+function openJobContacts(jobId) {
+  const cts  = _jobContacts[String(jobId)] || [];
+  const body = document.getElementById('jcModalBody');
+  document.getElementById('jcModalSub').textContent = `${cts.length} contact${cts.length !== 1 ? 's' : ''} for this job`;
+  body.innerHTML = cts.length
+    ? `<div class="co-contact-list">` + cts.map(ct => {
+        const meta = [ct.email, ct.phone].filter(Boolean).join('  ·  ');
+        return `<div class="co-contact-row">
+          <div class="co-contact-info">
+            <div class="co-contact-name">${esc(ct.name || 'Unknown')}</div>
+            ${meta ? `<div class="co-contact-meta">${esc(meta)}</div>` : ''}
+          </div>
+          <button class="co-save-btn co-contact-save" data-action="save-contact"
+            data-ctid="${esc(String(ct.contact_id))}" data-ctname="${esc(ct.name || '')}"
+            data-ctemail="${esc(ct.email || '')}" data-ctphone="${esc(ct.phone || '')}"
+            data-ctlinkedin="${esc(ct.linkedin || '')}">Save</button>
+        </div>`;
+      }).join('') + `</div>`
+    : `<div class="co-no-data" style="padding:20px">No contacts for this job.</div>`;
+  document.getElementById('jcModal').classList.remove('hidden');
+}
+
+Object.assign(_ACTIONS, {
+  'open-job-contacts': (el)    => openJobContacts(el.dataset.jobId),
+  'jc-modal-close':    ()      => document.getElementById('jcModal').classList.add('hidden'),
+  'jc-modal-backdrop': (el, e) => { if (e.target === el) document.getElementById('jcModal').classList.add('hidden'); },
 });
 
 // ════════════════════════════════════════════════════════════

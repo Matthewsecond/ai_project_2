@@ -492,6 +492,13 @@ Candidate-search filters expand separately (dimensions TBD).
   now returns `company_id` (market `companies.id`) + `contacts` (from `View_Jobs_Contacts`, guarded so a
   market DB lacking them just disables the buttons). Saves flow into `saved_candidates`/`saved_companies`/
   `saved_contacts` and show up in the Saved-tab collections. Jobs already had a save button (unchanged).
+- 2026-06-30 — **Per-job contacts in search results + robust company save:** (1) each result row now
+  shows a contact indicator in the company cell (name if one, "N contacts" if several) — batch-loaded
+  after render via a new `POST /api/jobs/contacts` (from `View_Jobs_Contacts`); clicking opens a small
+  panel (`#jcModal`) listing the contacts each with a Save button (reuses the `save-contact` action →
+  `saved_contacts`). ~51k active jobs carry contacts. (2) The company panel's **Save company** button
+  is now reliable — `company_id` falls back to `View_Jobs_Full.company_id` when the exact companies-table
+  name lookup misses. Verified in-browser (endpoint, chip render, modal, save).
 - 2026-06-30 — **Candidate dedup (company-wide):** saving a candidate whose NAME already exists in the
   account_company (saved by anyone) is blocked — `/api/saved/candidate` returns `already_saved:true` +
   the owner's name instead of upserting. The run-row shows a green "✓ Candidate saved" or a red

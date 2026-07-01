@@ -10,9 +10,45 @@ from collections import Counter
 from flask import Blueprint, request, jsonify
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.database import get_engine
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 
 bp = Blueprint("company", __name__, url_prefix="/api")
+
+
+@bp.route("/jobs/contacts", methods=["POST"])
+def api_jobs_contacts():
+    """Body: { job_ids: [..] } → { ok, contacts: { <job_id>: [ {contact_id, name,
+    email, phone, linkedin} ] } }. The contacts linked to each job via
+    View_Jobs_Contacts; guarded so a market DB without that view returns {}."""
+    body = request.get_json(silent=True) or {}
+    ids  = [int(j) for j in (body.get("job_ids") or []) if str(j).isdigit()][:200]
+    out: dict = {}
+    if not ids:
+        return jsonify({"ok": True, "contacts": out})
+    try:
+        with get_engine().connect() as conn:
+            rows = conn.execute(text(
+                "SELECT job_id, contact_id, contact_name, contact_email, "
+                "  contact_phone, contact_linkedin "
+                "FROM View_Jobs_Contacts "
+                "WHERE job_id IN :ids AND contact_id IS NOT NULL"
+            ).bindparams(bindparam("ids", expanding=True)), {"ids": ids}).mappings().all()
+        seen = set()
+        for r in rows:
+            jid, cid = str(r["job_id"]), r["contact_id"]
+            if (jid, cid) in seen:
+                continue
+            seen.add((jid, cid))
+            out.setdefault(jid, []).append({
+                "contact_id": int(cid),
+                "name":       r["contact_name"]     or "",
+                "email":      r["contact_email"]    or "",
+                "phone":      r["contact_phone"]    or "",
+                "linkedin":   r["contact_linkedin"] or "",
+            })
+    except Exception:
+        pass  # market DB without View_Jobs_Contacts → no contacts
+    return jsonify({"ok": True, "contacts": out})
 
 
 @bp.route("/company", methods=["GET"])
@@ -126,9 +162,17 @@ def api_company():
         contacts   = []
         try:
             with get_engine().connect() as conn:
+                # Prefer the exact companies-table id; fall back to the id the shown
+                # jobs carry in the view (so the Save button works even when the
+                # display name doesn't exactly match a companies row).
                 cid = conn.execute(text(
                     "SELECT id FROM companies WHERE company_crawler_name = :n LIMIT 1"),
                     {"n": company_name}).scalar()
+                if cid is None:
+                    cid = conn.execute(text(
+                        "SELECT company_id FROM View_Jobs_Full "
+                        "WHERE company_crawler_name = :n AND company_id IS NOT NULL LIMIT 1"),
+                        {"n": company_name}).scalar()
                 company_id = int(cid) if cid is not None else None
                 crows = conn.execute(text(
                     "SELECT DISTINCT contact_id, contact_name, contact_email, "

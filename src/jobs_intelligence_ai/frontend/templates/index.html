@@ -587,6 +587,21 @@
   </div>
 </div>
 
+<!-- Per-job contacts panel (opened from a result row's contact indicator) -->
+<div class="modal-overlay hidden" id="jcModal" data-action="jc-modal-backdrop">
+  <div class="co-modal" style="max-width:520px">
+    <div class="co-modal-header">
+      <span class="co-modal-icon">👤</span>
+      <div class="co-modal-info">
+        <div class="co-modal-name">Job contacts</div>
+        <div class="co-modal-sub" id="jcModalSub"></div>
+      </div>
+      <button class="co-modal-close" data-action="jc-modal-close">×</button>
+    </div>
+    <div class="co-body" id="jcModalBody"></div>
+  </div>
+</div>
+
 <!-- Extras picker popup — shared, positioned on open -->
 <div id="extrasPickerPopup" class="extras-picker-popup">
   <div class="extras-picker-title">Save with extras</div>
