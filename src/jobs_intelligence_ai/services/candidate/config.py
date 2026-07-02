@@ -15,12 +15,26 @@ CHAT_MODEL = config.CHAT_MODEL
 CLASSIFIER_MODEL = config.CLASSIFIER_MODEL
 
 
+# ── Demo reset ─────────────────────────────────────────────────────────────────
+# The bundled example candidates shipped for the demo (mirror of the name set in
+# frontend/static/js/candidate-examples.js). On app startup these are wiped from the
+# DB so each demo run starts clean — see store.reset_demo_candidates(), called from
+# frontend/app.py::create_app(). Keep in sync with the JS example list.
+DEMO_CANDIDATE_NAMES = {
+    "at": ["Roman Labuš", "Max Weber", "Julia Reiter", "Sophie Wagner", "Nina Fuchs",
+           "Felix Kraus", "Stefan Hofer", "Thomas Gruber", "Anna Bauer"],
+    "sk": ["Roman Labuš", "Marek Novák", "Lucia Horváthová", "Tomáš Kováč",
+           "Zuzana Krajčíová", "Martin Šimko", "Peter Varga", "Eva Tóthová", "Jana Kováčová"],
+}
+
+
 # ── profile_parser.parse_candidate_profile ─────────────────────────────────────
 # Extract a structured profile from a raw CV / pasted text (the "Paste CV" path on the
 # search tab). Converted to Structured Outputs in rework 2.4; the model fills CandidateProfile.
 PROFILE_PARSE_PROMPT = """You are a CV parser. Extract structured information from the candidate text.
 - skills: up to 8 key skills.
 - experience_years: a phrase like "8 years".
+- seniority: infer ONE of exactly: Junior, Mid, Senior, Lead, Executive (from titles, years and scope of work).
 - languages: a phrase like "German (native), English B2".
 - salary_expectation: a phrase like "€2,800–3,400/month".
 - availability: a phrase like "Immediately".
@@ -32,6 +46,7 @@ class CandidateProfile(BaseModel):
     """Structured profile extracted from a candidate's raw CV text."""
     name: Optional[str]
     title: Optional[str]
+    seniority: Optional[str]
     experience_years: Optional[str]
     skills: list[str]
     location: Optional[str]
@@ -94,11 +109,14 @@ class LinkedInProfile(BaseModel):
 ASSISTANT_PROMPT = """You are an AI recruitment assistant helping a recruiter work with ONE specific candidate \
 for the {label} job market.
 
-You can do two things:
+You can do three things:
 1. DISCUSS — answer the recruiter's questions about this candidate, their profile, and the job offers that have been \
 matched for them (fit, comparisons, which to prioritise, skill gaps, salary, location, next steps, etc.).
 2. EDIT THE CV — when the recruiter asks to add, change or remove a detail about the candidate (a skill, language, \
 certification/licence, availability, salary expectation, location, job title, seniority, or a summary point).
+3. SUGGEST A SEARCH — when the recruiter wants to steer the job search toward a different or broader set of roles \
+(e.g. "the candidate would prefer logistics roles", "find more warehouse jobs", "widen the search"), propose the role \
+direction to search for. This re-aims the matching; it does NOT change the candidate's CV facts.
 
 {lang_instruction}
 
@@ -118,7 +136,12 @@ OUTPUT RULES:
       skills, top_skills, strengths, certifications
 - "cv_note": when profile_updates is set, a concise statement of what was added/changed, phrased so it can be appended \
 to the candidate's CV text for re-matching (e.g. "Holds a valid forklift licence." or "Available from July 2026."). \
-Otherwise an empty string."""
+Otherwise an empty string.
+- "search_suggestion": fill this ONLY when the recruiter wants to broaden or re-aim the job search toward different roles \
+(capability 3). Give a concise phrase, written so it can be appended to the candidate's search text, that names the target \
+roles/direction — e.g. "Also open to logistics-oriented roles such as Logistics Data Analyst, Supply Chain Analyst, \
+Warehouse Automation Developer and Transport Data Engineer." Otherwise an empty string. Do NOT put a role direction into \
+profile_updates — a search re-aim is not a CV fact."""
 
 LANG_INSTRUCTIONS = {
     "en":   "Always respond in English, regardless of the job description language or what language the user writes in.",
@@ -147,10 +170,11 @@ class ProfileUpdates(BaseModel):
 
 
 class CandidateReply(BaseModel):
-    """The assistant's reply, plus optional CV edits when the recruiter asked for them."""
+    """The assistant's reply, plus optional CV edits and/or a search re-aim when the recruiter asked."""
     reply: str
     profile_updates: Optional[ProfileUpdates] = None
     cv_note: str = ""
+    search_suggestion: str = ""
 
 
 # ── guided_builder (2.4) ─────────────────────────────────────────────────────────

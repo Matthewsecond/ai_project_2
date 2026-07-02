@@ -57,13 +57,28 @@ def test_edit_returns_only_changed_fields(monkeypatch):
 
 
 def test_pure_discussion_has_no_updates(monkeypatch):
-    """When profile_updates is null (just discussion), updates is an empty dict."""
+    """When profile_updates is null (just discussion), updates is an empty dict and there is
+    no search re-aim."""
     parsed = CandidateReply(reply="They look like a strong fit for role 2.",
                             profile_updates=None, cv_note="")
     _patch(monkeypatch, parsed)
     out = send_candidate_message("s1", "which role fits best?", {"name": "Ann"}, [])
     assert out["profile_updates"] == {}
+    assert out["search_suggestion"] == ""
     assert out["text"].startswith("They look like")
+
+
+def test_search_suggestion_surfaces(monkeypatch):
+    """A request to steer/widen the search surfaces search_suggestion and makes no CV edit."""
+    parsed = CandidateReply(
+        reply="I'd broaden the search toward logistics data roles.",
+        profile_updates=None, cv_note="",
+        search_suggestion="Also open to logistics-oriented roles such as Logistics Data Analyst "
+                          "and Supply Chain Analyst.")
+    _patch(monkeypatch, parsed)
+    out = send_candidate_message("s1", "look for logistics roles", {"name": "Ann"}, [])
+    assert "logistics" in out["search_suggestion"].lower()
+    assert out["profile_updates"] == {} and out["cv_note"] == ""
 
 
 def test_session_continuity(monkeypatch):

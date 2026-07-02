@@ -32,7 +32,8 @@ def _patch(monkeypatch, parsed=None, exc=None):
 def _profile(**over):
     """A fully-populated CandidateProfile, with per-test overrides."""
     base = dict(
-        name="Peter Varga", title="B2B Sales Manager", experience_years="10 years",
+        name="Peter Varga", title="B2B Sales Manager", seniority="Senior",
+        experience_years="10 years",
         skills=["B2B Sales", "SaaS", "Enterprise"], location="Bratislava",
         languages="Slovak (native), English C1", salary_expectation="€2,800–3,400/month",
         availability="Immediately", email="peter@example.com", phone="+421900000000",

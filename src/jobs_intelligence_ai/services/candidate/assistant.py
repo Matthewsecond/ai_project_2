@@ -51,7 +51,7 @@ def send_candidate_message(session_id: str, user_message: str, profile: dict | N
     failure it returns an error message with no profile edits."""
     if not config.OPENAI_API_KEY:
         return {"text": "The candidate assistant requires an OpenAI API key — add OPENAI_API_KEY to your .env file.",
-                "profile_updates": {}, "cv_note": ""}
+                "profile_updates": {}, "cv_note": "", "search_suggestion": ""}
 
     previous_id = _candidate_sessions.get(session_id)
 
@@ -83,22 +83,24 @@ def send_candidate_message(session_id: str, user_message: str, profile: dict | N
         return _shape_reply(response.output_parsed)
     except Exception as e:
         logger.error("Candidate chat error (session=%s): %s", session_id, e)
-        return {"text": f"Sorry, something went wrong: {e}", "profile_updates": {}, "cv_note": ""}
+        return {"text": f"Sorry, something went wrong: {e}", "profile_updates": {}, "cv_note": "",
+                "search_suggestion": ""}
 
 
 def _shape_reply(parsed) -> dict:
-    """CandidateReply → {text, profile_updates, cv_note}, dropping unset (null/blank) update
-    fields so only the fields the recruiter actually changed reach the front-end."""
+    """CandidateReply → {text, profile_updates, cv_note, search_suggestion}, dropping unset
+    (null/blank) update fields so only the fields the recruiter actually changed reach the front-end."""
     if parsed is None:
-        return {"text": "", "profile_updates": {}, "cv_note": ""}
+        return {"text": "", "profile_updates": {}, "cv_note": "", "search_suggestion": ""}
     updates = {}
     if parsed.profile_updates is not None:
         updates = {k: v for k, v in parsed.profile_updates.model_dump().items()
                    if v not in (None, "", [])}
     return {
-        "text":            (parsed.reply or "").strip(),
-        "profile_updates": updates,
-        "cv_note":         (parsed.cv_note or "").strip(),
+        "text":              (parsed.reply or "").strip(),
+        "profile_updates":   updates,
+        "cv_note":           (parsed.cv_note or "").strip(),
+        "search_suggestion": (parsed.search_suggestion or "").strip(),
     }
 
 

@@ -275,6 +275,16 @@ function candAsstAppendAi(text, opts) {
       <button type="button" class="cand-asst-rerun" data-action="cand-asst-rerun">Re-run matching</button>
     </div>`;
   }
+  // A suggested search direction (e.g. "logistics roles") — one click folds it into the
+  // matching text and re-runs, widening/re-aiming the search without editing the CV.
+  if (opts.searchSuggestion) {
+    html += `<div class="cand-asst-update">
+      <span class="cand-asst-update-label">🔎 Widen the search</span>
+      <span class="cand-asst-update-note">${esc(opts.searchSuggestion)}</span>
+      <button type="button" class="cand-asst-rerun" data-action="cand-asst-search"
+        data-suggestion="${esc(opts.searchSuggestion)}">Search these roles →</button>
+    </div>`;
+  }
   if (Array.isArray(opts.chips) && opts.chips.length) {
     html += `<div class="cand-asst-chips">` +
       opts.chips.map(c => `<button type="button" class="cand-asst-chip" data-action="cand-asst-chip">${esc(c)}</button>`).join('') +
@@ -284,11 +294,23 @@ function candAsstAppendAi(text, opts) {
   document.getElementById('candAsstThread').appendChild(el);
   candAsstScroll();
 }
-// Candidate-assistant dynamic chips (rerun / quick-reply chip).
+// Candidate-assistant dynamic chips (rerun / re-aimed search / quick-reply chip).
 Object.assign(_ACTIONS, {
-  'cand-asst-rerun': (el) => candAsstRerun(el),
-  'cand-asst-chip':  (el) => candAsstChip(el),
+  'cand-asst-rerun':  (el) => candAsstRerun(el),
+  'cand-asst-search': (el) => candAsstSearch(el),
+  'cand-asst-chip':   (el) => candAsstChip(el),
 });
+
+// Fold the assistant's suggested role direction into the matching text (so it sticks
+// across future re-runs, like a CV detail) and run a fresh search steered toward it.
+function candAsstSearch(btn) {
+  const suggestion = (btn.dataset.suggestion || '').trim();
+  if (suggestion && !state.candAsstNotes.includes(suggestion)) state.candAsstNotes.push(suggestion);
+  btn.disabled = true;
+  btn.textContent = 'Searching…';
+  document.querySelector('.results-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  app.runMatching();
+}
 
 // A quick-reply chip: drop its text into the input and send it.
 function candAsstChip(btn) {
@@ -379,7 +401,10 @@ async function candAsstSend() {
     if (data.profile_updates && Object.keys(data.profile_updates).length) {
       applied = candAsstApplyUpdates(data.profile_updates, data.cv_note);
     }
-    candAsstAppendAi(data.reply || 'Done.', { cvNote: applied ? data.cv_note : '' });
+    candAsstAppendAi(data.reply || 'Done.', {
+      cvNote:           applied ? data.cv_note : '',
+      searchSuggestion: data.search_suggestion || '',
+    });
   } catch(e) {
     document.getElementById('candAsstTyping')?.remove();
     candAsstAppendAi('Network error: ' + e.message);

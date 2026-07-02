@@ -65,6 +65,23 @@ def create_app() -> Flask:
     # ── Auth ──────────────────────────────────────────────────────────────────
     init_db()
 
+    # ── Demo reset ─────────────────────────────────────────────────────────────
+    # Wipe the bundled example candidates on startup so each demo run starts clean
+    # (their saved jobs cascade). Only the known demo names are removed — anything
+    # saved under a different name persists across restarts. We match against the
+    # union of both countries' demo names (the saved demo data isn't cleanly
+    # partitioned by country), still scoped to the active country column. See
+    # services/candidate/config.DEMO_CANDIDATE_NAMES.
+    try:
+        from jobs_intelligence_ai.services.candidate import store as _cand_store
+        from jobs_intelligence_ai.services.candidate.config import DEMO_CANDIDATE_NAMES
+        _demo_names = sorted({n for names in DEMO_CANDIDATE_NAMES.values() for n in names})
+        _n = _cand_store.reset_demo_candidates(_demo_names)
+        if _n:
+            print(f"  Demo reset: cleared {_n} demo candidate(s)")
+    except Exception as _e:
+        print(f"  Demo reset skipped: {_e}")
+
     _PUBLIC_ENDPOINTS = {"login", "static"}
 
     @app.before_request
