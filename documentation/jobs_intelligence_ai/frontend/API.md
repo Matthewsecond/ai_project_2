@@ -1,228 +1,169 @@
 # API Reference
 
-Base URL: `http://localhost:5000`
+Base URL: `http://localhost:5000` (port = `FLASK_PORT`).
+
+**Auth:** every route except `/login` and static files requires a logged-in session. An
+unauthenticated request to any `/api/*` route (or a JSON request) returns `401
+{ "ok": false, "error": "Unauthorized" }`; a browser request to an HTML route redirects to
+`/login`. Log in via `POST /login` (form `username`/`password`); seed logins are
+`admin`/`admin`, `Monika2`, `hr_manager`.
+
+**Country:** the running process serves one country (Austria or Slovakia), fixed at startup by
+`COUNTRY` / `--sk`. All market data reflects that country; saved data is tagged with it.
+
+Most responses are `{ "ok": true, ... }` or `{ "ok": false, "error": "..." }` with a 4xx/5xx
+status. Routes are grouped by blueprint below.
 
 ---
 
-## GET `/`
-Returns the main SPA (`index.html`).
+## App routes (`app.py`)
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/login` | GET, POST | Login page / submit credentials |
+| `/logout` | GET | Clear session |
+| `/` | GET | The SPA shell (`index.html`) |
+| `/debug/schema` | GET | `DESCRIBE` the active `read_view` — verify column names after a DB change |
 
 ---
 
-## GET `/api/filters`
-Returns distinct dropdown values for the filter bar.
+## Search — `search` blueprint (`/api`)
 
-**Response:**
-```json
-{
-    "ok": true,
-    "data": {
-        "states":     ["Wien", "Niederösterreich", ...],
-        "occ_groups": ["Softwareentwickler", "LagerarbeiterIn", ...],
-        "portals":    ["ams", "karriere", "stepstone", ...]
-    }
-}
-```
-
----
-
-## POST `/api/match`
+### POST `/api/match`
 Runs AI vector matching for a candidate profile.
 
-**Request:**
-```json
-{
-    "candidate_text": "Senior Python developer, 5 years experience, Vienna...",
-    "filters": {
-        "state":     "Wien",
-        "occ_group": "Softwareentwickler",
-        "portal":    "ams",
-        "city":      "Wien"
-    },
-    "top_n": 20
-}
-```
-All filter fields are optional. `top_n` defaults to 20, max 50.
+**Request:** `{ candidate_text, filters?, top_n?, max_results? }` — `candidate_text` required;
+`filters` may contain `state`, `city`, `keywords`, `portal` (and `occ_group` for Austria);
+`top_n` folds in as a result `limit`; `max_results` widens Stage-1 retrieval (capped at 50, used
+by "find more jobs").
 
-**Response:**
-```json
-{
-    "ok":    true,
-    "count": 15,
-    "top_n": 20,
-    "jobs": [
-        {
-            "job_id":       "84291",
-            "title":        "Software Developer",
-            "company":      "Siemens AG",
-            "state":        "Wien",
-            "city":         "Wien",
-            "salary":       "4200",
-            "url":          "https://...",
-            "portal":       "ams",
-            "occ_group":    "Softwareentwickler",
-            "posted":       "2026-05-20",
-            "lat":          48.2082,
-            "lon":          16.3738,
-            "skills":       ", Python, Docker, SQL",
-            "skills_en":    ", Python, Docker, SQL",
-            "score":        0.87,
-            "score_pct":    "87%",
-            "grade":        "A",
-            "match_reason": "Strong Python and cloud skills match"
-        }
-    ]
-}
-```
+**Response:** `{ ok, count, jobs: [ { job_id, title, company, state, city, salary, url, portal,
+occ_group, posted, score, score_pct, grade, match_reason, ... } ] }`.
 
-**Matching pipeline:**
-1. OpenAI Responses API with `file_search` on vector store
-2. Model returns `[{ job_id, position, score, match_reason }]`
-3. IDs resolved against MySQL `View_Jobs_Full`
-4. Unresolved IDs retried via position-name `LIKE` query
-5. Hard filters applied; results sorted by score
+**Pipeline:** OpenAI Responses API + `file_search` on the country's vector store → job ids →
+resolved against the market DB (`Profile.read_view`) → hard filters → sorted by score.
+**Fallback:** with no OpenAI key, keyword similarity against MySQL.
 
-**Fallback:** If no OpenAI key, Jaccard keyword similarity is used instead.
+### Other search routes
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/filters` | GET | Distinct dropdown values `{ states, occ_groups, portals }` for the filter bar |
+| `/api/match/url` | POST | Match a candidate against ONE job by posting URL (`{ candidate_text, url }`); `{ in_db }` flag |
+| `/api/match/stream` | POST | Streaming (SSE) variant of `/api/match` — emits `cycle` progress then a `done` event |
+| `/api/match/rescore` | POST | Re-score a frozen result set against edited candidate text |
+| `/api/match/highlight` | POST | Per-job highlight of why it matches |
+| `/api/match/analyze` | POST | Analysis over the current result set |
+| `/api/quality` | POST | Match-quality scoring |
 
 ---
 
-## GET `/api/saved`
-Returns all saved pipeline jobs.
+## Company — `company` blueprint (`/api`)
 
-**Response:**
-```json
-{
-    "ok":    true,
-    "count": 3,
-    "jobs":  [ { ...job fields..., "pipeline_status": "New", "notes": "", "candidate_name": "Jan Novak" } ]
-}
-```
+### GET `/api/company/id`
+Lightweight companion to `/api/company` — resolves **only** the market company id (no jobs
+fan-out, no LLM), so the company panel's Save button can enable immediately.
 
----
+**Query:** `name` (company crawler name). **Response:** `{ ok, company_id }` (`company_id` is
+`null` if none resolves — see [DATABASE.md](../infra/DATABASE.md) company-identity tiers).
 
-## POST `/api/saved`
-Adds a job to the pipeline.
+### GET `/api/company`
+Full company hiring profile.
 
-**Request:**
-```json
-{
-    "job":    { ...full job object... },
-    "status": "New"
-}
-```
-Duplicate `job_id` is silently ignored.
+**Query:** `name`. **Response:** `{ ok, company, company_id, contacts: [ { contact_id, name,
+email, phone, linkedin } ], total_jobs, salary_stats, locations, states, top_titles, top_occ,
+portals, date_range, work_types, recent_jobs, summary }`. `summary` is an AI hiring-profile blurb
+(`services/reporting.summarize_company`) — the slow part of this call; it degrades to `""` on
+error. `company_id` / `contacts` are best-effort (empty if the market DB lacks the source).
 
-**Response:** Same as `GET /api/saved`.
+### POST `/api/jobs/contacts`
+Batch-load contacts for job rows in search results.
 
----
+**Request:** `{ job_ids: [..] }`. **Response:** `{ ok, contacts: { "<job_id>": [ { contact_id,
+name, email, phone, linkedin } ] } }`.
 
-## PATCH `/api/saved/<job_id>`
-Updates status or notes for a saved job.
+### GET `/api/contact/jobs`
+The active jobs a contact is linked to (drives the **Jobs** section of the saved-contact detail modal).
 
-**Request:**
-```json
-{ "pipeline_status": "Contacted" }
-```
-or
-```json
-{ "notes": "Called on Monday, interested" }
-```
+**Query:** `contact_id`. **Response:** `{ ok, jobs: [ { job_id, title, company, city, state, salary,
+portal, posted, url, occ_group } ] }`. Read from `View_Jobs_Contacts` joined to `View_Jobs_Full`,
+with a base-junction-table fallback (Slovakia); returns `{ jobs: [] }` if neither path exists.
+
+### GET `/api/salary_stats`
+Salary distribution for an occupational group.
+
+**Query:** `occ_group`. **Response:** `{ ok, count, salaries: [...], mean, median }`. Excludes
+`< €200`, trims the top 2%. Returns `{ count: 0, salaries: [] }` if no data.
 
 ---
 
-## DELETE `/api/saved/<job_id>`
-Removes a job from the pipeline.
+## Saved — `saved` blueprint (`/api/saved`)
+
+Everything here is scoped to the caller's `account_company` with `own`/`all` visibility. Backed by
+`services/candidate/store.py`.
+
+### Saved jobs (for a candidate)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/saved` | GET | List saved jobs → `{ ok, count, jobs }` |
+| `/api/saved` | POST | Add a job: `{ job, status?, extras?, candidate_profile? }` (dup → `message: "Already saved"`) |
+| `/api/saved/<job_id>` | PATCH | Edit `{ pipeline_status?, notes?, grade?, extras?, + snapshot fields: title, company, location, salary, url, portal, posted }` (inline Saved-tab editing) |
+
+### Saved candidates
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/saved/candidate` | POST | Save a candidate (profile record). Company-wide name dedup → `{ already_saved, owner }` |
+| `/api/saved/candidate/<name>` | PATCH | Edit candidate fields (title, seniority, status, location, contacts, languages, salary, availability, summary, skills) |
+| `/api/saved/candidate/<name>` | DELETE | GDPR erasure — remove a candidate + their saved jobs (cascade) |
+| `/api/saved/candidates` | GET | List saved candidates (drives the switcher + table; includes `createdBy` = who saved it) |
+| `/api/saved/lookup` | GET | `?name=` or `?linkedin=` → `{ exists, candidate? }` |
+| `/api/saved/load` | GET | `?name=` → `{ profile, jobs }` for one candidate (powers the detail modal) |
+| `/api/saved/insights` | GET | Aggregate insights over saved data |
+
+### Saved companies / contacts
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/saved/companies` | GET | List bookmarked target companies |
+| `/api/saved/companies` | POST | `{ target_company_id, snapshot?, notes? }` → `{ ok, added, companies }` (`added:false` = already saved) |
+| `/api/saved/companies/<id>` | PATCH | Edit a saved company's fields (name, industry, location, notes) |
+| `/api/saved/companies/<id>` | DELETE | Remove a saved company |
+| `/api/saved/contacts` | GET | List bookmarked contacts |
+| `/api/saved/contacts` | POST | `{ contact_id, snapshot?, notes? }` → `{ ok, added, contacts }` |
+| `/api/saved/contacts/<id>` | PATCH | Edit a saved contact's fields (name, title, company, email, notes) |
+| `/api/saved/contacts/<id>` | DELETE | Remove a saved contact |
 
 ---
 
-## POST `/api/chat`
-Sends a chat message and returns AI response + any found jobs.
+## Candidate input — `candidate` blueprint (`/api/candidate`)
 
-**Request:**
-```json
-{
-    "session_id": "abc123",
-    "message":    "Find IT developer jobs in Vienna"
-}
-```
-
-**Response:**
-```json
-{
-    "ok":   true,
-    "text": "Found 8 matching positions in the IT sector in Vienna...",
-    "jobs": [
-        {
-            "title":               "Software Developer",
-            "company":             "Siemens AG",
-            "city":                "Wien",
-            "state":               "Wien",
-            "salary":              "4200",
-            "portal":              "ams",
-            "occ_group":           "Softwareentwickler",
-            "description_snippet": "We are looking for a senior developer...",
-            "score":               0.87
-        }
-    ]
-}
-```
-
-`jobs` is empty if the AI found no relevant postings or the query was not job-search related.
-
-**Multi-turn memory:** The server maps `session_id → last_response_id`. Each request
-passes `previous_response_id` to the Responses API so the model has full conversation history.
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/candidate/example-pdf`, `-2`, `-sk` | GET | Sample candidate CV PDFs for the demo |
+| `/api/candidate/parse-pdf` | POST | Extract text from an uploaded CV PDF |
+| `/api/candidate/parse-profile` | POST | Structured candidate profile from raw CV text |
+| `/api/candidate/enrich-linkedin` | POST | AI-normalize a raw LinkedIn scrape |
+| `/api/candidate/assistant` | POST | Candidate-assistant chat — discuss, edit the CV, or suggest a re-aimed search (returns `reply`, `profile_updates`, `cv_note`, `search_suggestion`) |
+| `/api/candidate/assistant/reset` | POST | Reset the assistant session |
 
 ---
 
-## POST `/api/chat/reset`
-Clears conversation history for a session.
+## Job detail — `job_detail` blueprint (`/api`)
 
-**Request:**
-```json
-{ "session_id": "abc123" }
-```
-
----
-
-## GET `/api/salary_stats`
-Returns salary distribution for an occupational group.
-
-**Query params:** `occ_group` (required)
-
-**Example:** `/api/salary_stats?occ_group=Softwareentwickler`
-
-**Response:**
-```json
-{
-    "ok":       true,
-    "count":    312,
-    "salaries": [1800, 2100, 2250, 2400, 2600, 3000, 3200, 3500, 4200],
-    "mean":     3247.0,
-    "median":   3100.0
-}
-```
-
-Salaries below €200 are excluded. Top 2% are trimmed to remove outliers
-(annual salaries stored as monthly equivalents, etc.).
-
-Returns `{ count: 0, salaries: [] }` if no salary data exists for that group.
+`/api/job_chat` (+ `/job_chat/reset`), `/api/desc_translate`, `/api/desc_compact`,
+`/api/desc_cv_questions`, `/api/desc_outreach`, `/api/candidate_strength` — all POST. Per-job
+detail-modal helpers: chat about a posting, translate/compact the description, generate CV
+questions / outreach, and score candidate strength against the job.
 
 ---
 
-## GET `/debug/schema`
-Returns `DESCRIBE View_Jobs_Full` — useful for verifying column names after DB changes.
+## Other blueprints
 
-**Response:**
-```json
-{
-    "ok": true,
-    "columns": [
-        { "Field": "id",           "Type": "int(11)",    ... },
-        { "Field": "position",     "Type": "varchar(255)",...},
-        { "Field": "salary",       "Type": "varchar(50)", ...},
-        { "Field": "skills",       "Type": "text",        ...},
-        { "Field": "skills_english","Type": "text",       ...},
-        ...
-    ]
-}
-```
+| Blueprint | Prefix | Routes |
+|-----------|--------|--------|
+| `guided` | `/api/guided` | `/chat`, `/save`, `/targets` — the guided "target candidate" builder (Austria only) |
+| `cluster` | `/api` | `/cluster`, `/cluster/overview`, `/cluster/rank`, `/cluster/grade_job`, `/cluster/chat`, `/cluster/candidates`, `/cluster/save_persona` — multi-CV persona clustering |
+| `interview` | `/api/interview` | `/questions`, `/extract`, `/parse`, `/analyze`, `/context`, `/followup`, `/summarize`, `/model_answer`, `/opportunities`, `/assess` |
+| `feedback` | `/api/feedback` | `POST` (submit) / `GET` (list) in-app feedback |
+
+> `guided` and `cluster` are wired but **folded away from the UI** on `master` (their entry points
+> were removed in the two-tab collapse); the routes still exist. See
+> [planning/FRONTEND_DB_REWORK_PLAN.md](../planning/FRONTEND_DB_REWORK_PLAN.md).

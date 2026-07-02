@@ -1,168 +1,176 @@
-# Frontend Design — index.html
+# Frontend Design
 
 ## Structure
 
-Single HTML file, no build step. All JS is inline at the bottom of the file.
-CSS is in a `<style>` block in `<head>`.
+The frontend is an `index.html` shell (pure markup, served by Flask) plus **ES modules** under
+`static/js/`. No build step — the browser loads the modules directly. Styling is plain CSS in
+`static/css/` (`app.css` is the main sheet, in the IC brand palette; `feedback.css`,
+`saved-dashboard.css` are add-ons).
+
+`static/js/boot.js` is the entry point (`<script type="module">`). It imports every feature
+module — most register their handlers and `app` methods as a **load-time side effect** — and owns
+tab routing, the global delegated-action dispatcher, the feedback widget, and init
+(`DOMContentLoaded → app.loadFilters()`).
+
+### Modules
+
+| Module | Responsibility |
+|--------|----------------|
+| `boot.js` | Entry: imports modules, tab routing, action dispatch, feedback widget, init |
+| `state.js` | The shared `app` object and the `_ACTIONS` handler registry |
+| `api.js` | `fetch` wrapper (`api.get` / `api.post`, JSON + error handling) |
+| `search.js` | Search tab: run matching, results table, streaming meter, filters |
+| `candidate.js` | Candidate input zones, profile card, **company panel** (`openCompanyPanel`), save company/contact |
+| `candidate-examples.js` | Bundled demo candidates + the "Example candidates" dropdown |
+| `assistant.js` | Candidate-assistant chat — discuss, edit the CV, or widen/re-aim the search (one-click re-search) |
+| `saved.js` | Saved tab — the four collections |
+| `modal.js` | Job-detail modal |
+| `interview.js` | Interview tools |
+| `export.js` | Result export — CSV + Excel (matching results), XLSX pipeline, PDF report |
+| `util.js` | Helpers (`esc`, formatting, …) |
+| `guided.js`, `clustering.js` | Guided builder / multi-CV clustering — **folded away from the UI**, imported for side-effect registration only |
 
 ---
 
-## Tab Layout
+## Action dispatch (no inline `onclick`)
 
-```
-[ Search ] [ Chat ] [ Map ] [ Saved jobs ]
-```
-
-Each tab is a `.tab-panel` div. Switching tabs adds/removes the `.active` class.
-The `Saved jobs` tab badge shows a live count of saved items.
-
----
-
-## Search Tab
-
-### Filter bar
-Single row of functional filters — all wired to the `/api/match` API:
-
-```
-State (dropdown) | City (text) | Keywords (text) | Category (dropdown) | Portal (dropdown)
-```
-
-Populated on page load via `/api/filters`.
-
-### Input modes
-Three modes for entering a candidate profile, selected via `.mode-tab` buttons:
-
-| Mode    | Element            | What it sends                          |
-|---------|--------------------|----------------------------------------|
-| CV      | textarea + file    | Raw CV text (PDF parsed client-side)   |
-| Free    | textarea           | Plain natural language description     |
-| Guided  | Grid of inputs     | Assembled into a structured text blob  |
-
-`buildCandidateText()` reads the active mode and returns a single string.
-
-### Results table
-Columns: Score · Job title (clickable) · Company · Location · Salary · Portal · Posted · Actions
-
-Clicking a job title calls `openJobModal(storeId)`.
-The Actions column has a Save button and an external link icon.
-
----
-
-## Chat Tab
-
-```
-┌─ toolbar: "AI recruiter assistant" ─────────── [New conversation] ─┐
-│                                                                      │
-│  [AI bubble] Hello! I'm your...                                      │
-│                                                                      │
-│  [User bubble] Find IT jobs in Vienna                                │
-│                                                                      │
-│  [AI bubble] Found 8 matching positions...                           │
-│  ┌──────────────────────────────┐                                    │
-│  │ A  87%  Software Developer   │  ← clickable → opens modal        │
-│  │  Siemens · Vienna · €4,200   │                                    │
-│  └──────────────────────────────┘                                    │
-│  [ Load 8 jobs into results → ]                                      │
-│                                                                      │
-│  [ quick chips: Forklift Vienna · IT & Dev · ... ]                  │
-├── [type message…] ────────────────────────── [Send] ───────────────┤
-```
-
-Chat messages are appended to `#chatThread`. The AI response is parsed by
-`_parse()` in `chat.py` to split plain text from a trailing `json` block
-containing the job array.
-
----
-
-## Job Store Pattern
-
-Job data is never serialised into HTML attributes (avoids quote-escaping bugs).
-Instead, every job object is stored in a JS `Map` and referenced by a short ID:
+Markup never references global function names. Instead elements carry `data-action="name"` (plus
+`data-*` params), and `boot.js` runs a single delegated listener per event type that looks the name
+up in the `_ACTIONS` registry:
 
 ```javascript
-const _jobStore = new Map();      // 'jb1' → { title, salary, skills_en, ... }
-let _jobStoreSeq = 0;
-
-function storeJob(job) {
-    const id = 'jb' + (++_jobStoreSeq);
-    _jobStore.set(id, job);
-    return id;                    // returned ID goes into onclick="openJobModal('jb1')"
-}
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const handler = _ACTIONS[el.dataset.action];
+  if (handler) handler(el, e);
+});
 ```
 
-Jobs are tagged with `_batch` when stored:
-- Search results → `_batch: 'search'`
-- Chat cards     → `_batch: 'chat'`
+Parallel registries exist for `data-input-action` (input), `data-change-action` (change),
+`data-keydown-action` (keydown), and `data-blur-action` (focusout). Each feature module registers
+its handlers into `_ACTIONS` next to its own code. This decoupling is what allowed the old single
+inline `<script>` to be split into ES modules.
 
-This lets the modal know which batch array to use for the salary overlay chart.
+Company names are a small special case: any `.company-link[data-company]` (e.g. in a results row)
+is handled by a dedicated delegated click in `boot.js` that calls `app.openCompanyPanel(name)`.
 
 ---
 
-## Job Detail Modal
-
-Opened by `openJobModal(storeId)`. Sections rendered dynamically:
+## Tabs
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  [ A ] 87%  — Strong match              [ × close ]     │
-│  Software Developer                                      │
-│  Siemens AG                                              │
-├─────────────────────────────────────────────────────────┤
-│  Location      Salary       Portal                       │
-│  Wien          €4,200       AMS                          │
-│  Category      Posted       Job ID                       │
-│  IT Dev...     2026-05-20   84291                        │
-├── Skills ───────────────────────────────────────────────┤
-│  [Python] [SQL] [Docker] [Agile] [Git] ...              │
-├── Description ──────────────────────────────────────────┤
-│  We are looking for a senior software developer...       │
-├── Salary analysis — Softwareentwickler ─────────────────┤
-│  [Plotly histogram — see SALARY_ANALYSIS.md]             │
-│  Sample: 312 jobs · Mean: €3,800 · Median: €3,500        │
-│  This job: €4,200 (+€400 vs mean · top 62%)             │
-├─────────────────────────────────────────────────────────┤
-│  [+ Save to pipeline] [New ▾]     [Open posting ↗]      │
-└─────────────────────────────────────────────────────────┘
+[ Search ] [ Saved ]
 ```
 
-Skills are parsed from `job.skills_en` (comma-separated string from DB).
-The salary analysis section is only shown when `job.occ_group` is set.
+Two top tabs (`.tab-btn[data-tab]` → `.tab-panel#tab-<id>`). `_activateTab('saved')` also calls
+`app.openSavedTab()`. The old Chat / Map / Analytics / Radar tabs were removed in the two-tab
+collapse; `guided` and `clustering` code remains but has no UI entry point.
 
 ---
 
-## Saved Jobs Tab
+## Search tab
 
-Jobs are grouped by `candidate_name` (entered in the candidate bar before saving).
+**Candidate input** — the recruiter describes the candidate via one of the input zones (CV upload
+/ paste, free-text description, or LinkedIn import; the guided funnel is folded away). A checkbox by
+"Run matching" auto-saves the candidate on each run.
 
-```
-┌─ Saved Pipeline  [3] ───────────────────────────────────┐
-│                                                          │
-│  Jan Novak          3 jobs   [A×2] [B×1]                │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │ A  Software Dev  · Wien  · €4,200  [New ▾]  [↗][✕]│ │
-│  │ A  Backend Eng   · Graz  · —       [New ▾]  [↗][✕]│ │
-│  │ B  DevOps Eng    · Wien  · €3,800  [New ▾]  [↗][✕]│ │
-│  └────────────────────────────────────────────────────┘ │
-│                                                          │
-│  Maria Hofer        1 job    [B×1]                       │
-│  ...                                                     │
-└──────────────────────────────────────────────────────────┘
-```
+**Filter bar** — `State · City · Keywords · (Category, Austria only) · Portal`, populated on load
+via `/api/filters`, sent with `/api/match`.
 
-Pipeline statuses: `New · Contacted · Placed · Rejected`
-Each status has a distinct colour class: `.s-New`, `.s-Contacted`, etc.
+**Results table** — Score · Job title · Company · Location · Salary · Portal · Posted · Actions.
+- The job title opens the **job-detail modal** (`modal.js`).
+- The company cell is a `.company-link` → opens the **company panel**, and shows a contact
+  indicator (batch-loaded via `POST /api/jobs/contacts`) that opens a per-job contacts panel
+  (`#jcModal`).
 
 ---
 
-## State Variables
+## Company panel (`#coModal`, `candidate.js`)
 
-| Variable        | Type          | Purpose                                         |
-|-----------------|---------------|-------------------------------------------------|
-| `lastResults`   | `array`       | Jobs from the last Search run                   |
-| `savedJobs`     | `array`       | Mirror of server `_saved_jobs`                  |
-| `chatLastJobs`  | `array`       | Jobs from the last Chat AI response             |
-| `_modalJob`     | `object`      | Job currently open in the modal                 |
-| `_jobStore`     | `Map`         | storeId → full job object                       |
-| `SESSION_ID`    | `string`      | Random ID for chat session continuity           |
-| `sortCol/Asc`   | `string/bool` | Current sort state for results table            |
-| `leafletMap`    | `object`      | Leaflet map instance (lazy init)                |
+Opened by `openCompanyPanel(name)`. Layout:
+
+```
+┌─ 🏢  Swiss Re                         [＋ Save company] [×] ─┐   ← header (persistent)
+│      100 active jobs · Bratislavský kraj                     │
+├──────────────────────────────────────────────────────────────┤
+│  100 Active jobs   €2,366 Avg salary   1 State                │
+│  Hiring profile:  <AI summary>                                │
+│  Top roles · Sectors · Salary range · Active in · Posted on   │
+│  Recent postings: …                                           │
+│  Contacts (13):  <name>  [Save]  …                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The **Save company** button lives in the modal **header** so it's available the instant the panel
+opens — it doesn't wait for the full profile. On open, `_prepCompanySaveBtn(name)` reveals it and
+kicks off `GET /api/company/id?name=` (fast: id only, no LLM) to enable it, while the heavy
+`GET /api/company` (which includes the AI hiring-profile summary — the slow part) fills in the body
+in the background. Save posts `{ target_company_id, snapshot }` to `POST /api/saved/companies`;
+`added:false` shows "✓ Already saved". Each contact row has its own Save button
+(`save-contact` → `POST /api/saved/contacts`).
+
+---
+
+## Job-detail modal (`modal.js`)
+
+Opened from a result's job title. Sections: header (grade · score · title · company), a
+location/salary/portal/category/posted/id grid, skills, description (with translate/compact),
+a salary-analysis chart for the occupational group (see [SALARY_ANALYSIS.md](../services/stats/SALARY_ANALYSIS.md)),
+and actions (save to a candidate, open posting). Per-job AI helpers call the `job_detail`
+blueprint (`/api/job_chat`, `/api/desc_*`, `/api/candidate_strength`).
+
+---
+
+## Saved tab (`saved.js`)
+
+The shared, company-scoped database view — a collection switcher over four `saved_*` tables:
+
+```
+[ Candidates ] [ Jobs ] [ Companies ] [ Contacts ]
+```
+
+Each button is `data-action="set-saved-collection" data-collection="…"`. Rows are scoped to the
+caller's `account_company` with `own`/`all` visibility, read from `/api/saved`,
+`/api/saved/candidates`, `/api/saved/companies`, `/api/saved/contacts`. This is the collaboration
+surface — everyone in the company works off the same saved data. The Candidates collection includes
+a **Saved by** column (which user saved the row).
+
+The Jobs collection's **Status** cell is an always-live dropdown (no row-Edit needed) over the
+sales pipeline `new → in_progress → proposal_sent → won | lost` — changing it PATCHes
+`/api/saved/<job_id>` immediately and tints the select per stage. Canonical codes are stored in
+`saved_jobs.status`; the UI maps them to labels (i18n-ready). The job-detail modal's footer select
+(`#modalStatusSel`) sets the initial status with the same codes, and the saved blueprint rejects
+anything outside the five codes (400).
+
+### Candidate detail modal (`#candModal`, `candidate.js`)
+
+Clicking a candidate name (`.cand-name-link`) opens `openCandidateDetail(name, row)` — a large modal
+(same styling as the company panel). The grid row fills the header instantly; `GET
+/api/saved/load?name=` fetches the full parsed profile (contacts, skills, experience, education,
+certifications, summary) plus the candidate's **saved matched jobs**. An inline **Edit** toggle turns
+the key fields (title, seniority, status, location, contacts, languages, salary, availability, skills,
+summary) into a form and `PATCH`es `/api/saved/candidate/<name>` on save, then refreshes the grid.
+
+### Detail views for Jobs / Companies / Contacts
+
+The first column of each of the other three collections is also a `.cand-name-link`
+(`data-action="open-saved-detail"`); clicking it opens a detail view for that row via
+`openSavedDetail(key)` in `saved.js`, which dispatches by collection:
+
+- **Jobs** → reuse the search tab's **job-detail modal** (`app.openJobModal`, `modal.js`). The saved
+  row already carries the full `job_snapshot`, so it's stored via `storeJob` and handed to the modal.
+- **Companies** → reuse the **company panel** (`app.openCompanyPanel(name)`, `candidate.js`), which
+  loads the live market profile (jobs, salary stats, contacts) from `/api/company?name=`.
+- **Contacts** → a small dedicated modal (`#ctModal`, `openContactDetail`) summarising the saved
+  snapshot (title, company, email/phone/LinkedIn, notes), plus a **Jobs** section listing the active
+  jobs the contact is linked to — loaded from `/api/contact/jobs?contact_id=` (View_Jobs_Contacts).
+
+---
+
+## Shared state (`state.js`)
+
+State and cross-module wiring hang off the `app` object (assigned to by each module) rather than
+loose globals. `_ACTIONS` is the delegated-handler registry described above. `boot.js` also stores
+the current candidate name and exposes `getCandidateName` / `_activateTab` / `_feedbackContext` on
+`app` so other modules can call them without a circular import.

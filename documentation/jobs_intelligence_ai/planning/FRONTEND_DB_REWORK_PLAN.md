@@ -512,3 +512,62 @@ Candidate-search filters expand separately (dimensions TBD).
   to be deleted in Piece #3** (the conversational-search rebuild) since it's coupled to `candidate.js`'s
   input orchestration. Remaining: Piece #2 (Saved → grid view), Piece #3 (conversational Search across
   jobs/companies/contacts).
+- 2026-07-01 — **Save-company works for Slovakia + button available immediately (verified in-browser).**
+  Two problems fixed in `blueprints/company.py` + the company panel:
+  (1) **SK never showed the Save button.** The `company_id` resolver only tried `companies.id` and
+  `View_Jobs_Full.company_id` — Slovakia's market DB has *neither* table/column, and each failed lookup
+  threw an exception that aborted the whole `try` block (silently killing the **Contacts** query too).
+  Fix: the 3-tier resolver is extracted to `_resolve_company_id(conn, name)` with **each attempt isolated
+  in its own try/except**, plus a **third SK-specific tier** reading `jobs.companies_finstat_id`
+  (FK → `companies_finstat.id`) directly from the base `jobs` table — fast, and it covers ~99.7% of active
+  SK jobs (the slow `View_Jobs_Full` fan-out is avoided). Contacts get the same treatment: when
+  `View_Jobs_Contacts` is absent (SK), they fall back to the base `contact_jobs_junction` + `contacts` +
+  `jobs` tables. So `/api/company` now returns a real `company_id` + `contacts` on both markets (AT
+  unchanged — verified no regression).
+  (2) **Button waited for the slow profile load.** The Save button used to render inside `/api/company`'s
+  response, which includes the LLM `summarize_company` call (~25–30 s), so it only appeared once everything
+  finished. It's now a **persistent button in the modal header** (`#coSaveBtn`, `templates/index.html`),
+  shown the moment the panel opens; a new **lightweight `GET /api/company/id?name=`** (id resolution only,
+  no jobs fan-out, no LLM — ~250 ms) runs in the background to enable it while the full profile still loads.
+  `candidate.js`: `_prepCompanySaveBtn()` reveals + enables the header button; the old in-body `.co-save-row`
+  block (and its CSS) is removed. Verified in-browser (SK "Swiss Re"): button usable at ~1.2 s while the body
+  still shows the spinner, `company_id` 47980 + 13 contacts resolve, save → `saved_companies`.
+- 2026-07-01 — **Saved → Candidates: owner column, seniority fix, edit, detail modal (verified in-browser).**
+  Four changes to the candidates collection:
+  (1) **"Saved by" column.** `list_candidates_detailed` now `LEFT JOIN app_user` and returns
+  `createdBy` = `COALESCE(display_name, username)` (was hardcoded `""`); a "Saved by" column shows who
+  originally saved each candidate.
+  (2) **Seniority was always blank for CV candidates.** Root cause: the CV-text parser schema
+  `CandidateProfile` (`services/candidate/config.py`) had no `seniority` field, so only LinkedIn imports
+  (whose `LinkedInProfile` has it) ever got one. Added `seniority` to the schema + parse prompt; the DB
+  column and grid column already existed. (Pre-existing rows stay blank until re-parsed or edited.)
+  (3) **Editable details.** `seniority` added to the editable field sets (`store._EDITABLE_FIELDS` +
+  `saved.py::_CANDIDATE_EDIT_FIELDS`); the `PATCH /api/saved/candidate/<name>` route already existed.
+  (4) **Candidate detail modal.** Clicking a name in the grid opens `#candModal` (large modal, like the
+  company panel) via `candidate.js::openCandidateDetail(name, row)` — the grid row fills the header
+  instantly, `GET /api/saved/load?name=` fetches the full parsed profile (skills, experience, education,
+  certifications, contacts, summary) + the candidate's **saved matched jobs**. An inline **Edit** mode
+  turns the key fields into a form and PATCHes on save, then refreshes the grid. Verified in-browser (SK):
+  Saved-by shows "Administrator", name opens the modal with profile + 1 matched job, editing seniority
+  persists and reflects in the grid. Also fixed a latent bug — there was no global `.hidden{display:none}`,
+  so header Save buttons relied on a class that didn't hide; added a scoped `.co-modal-save.hidden` rule
+  (also hardens the company Save button's no-id case).
+- 2026-07-02 — **Saved-job pipeline status is now editable in the Saved grid (verified in-browser).**
+  The Status cell in the Jobs collection is an always-live dropdown (no row-Edit needed) over the
+  canonical sales pipeline `new | in_progress | proposal_sent | won | lost`; changing it PATCHes
+  immediately, tinted per stage. Codes are now stored canonically end-to-end: the job-detail modal's
+  initial-status select (`#modalStatusSel`) sends codes instead of the old `New/Contacted/Placed/
+  Rejected` labels, and the saved blueprint **validates** the code on POST + PATCH (400 otherwise).
+  Dead dashboard leftovers `updateStatus`/`updateNotes`/`removeJob` removed from `modal.js`.
+  (`saved_jobs` was empty, so no legacy-value migration was needed.)
+- 2026-07-02 — **Conversational search (Piece #3) moves to `develop`, not `master`.** The
+  chat-style search across jobs/companies/contacts is the risky unbuilt part; it will be built and
+  hardened on `develop` and promoted only when it's trustworthy. `master` keeps the current
+  structured search (candidate input + filters). The inert `guided.js`/`clustering.js` code kept
+  for Piece #3 stays parked on `master` until that work lands on `develop`.
+- 2026-07-02 — **SK descriptions exist — the app just doesn't read them.** ~45% of active SK jobs
+  (19.6k / 43.6k) have a scraped `description` via `description_jobs_junction` + `descriptions`;
+  the RAG pipeline embeds them from `View_Jobs_Descriptions`. That view is too slow to scan
+  (window fn + GROUP BYs — COUNT(*) times out), but per-id lookups on the base tables are fast
+  (~60 ms/10 ids). Planned fix: per-id description fetch in the SK job-detail path, keep
+  `View_Jobs_Full` as the read view.

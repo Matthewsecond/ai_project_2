@@ -1,25 +1,28 @@
-# Jobs Intelligence Austria — Architecture Overview
+# Jobs Intelligence AI — Architecture Overview
 
 ## System Summary
 
-A Flask web application for recruitment agencies. Recruiters enter a candidate profile
-(CV text, free-text, or guided form), the system finds matching job postings from a live
-Austrian job database, and the recruiter saves matches into a candidate pipeline.
+A Flask web application for a recruitment agency (Acme Recruitment). Staff log in,
+enter a candidate profile (CV upload, free text, or LinkedIn import), and the system finds
+matching job postings from a live market database. Staff then **save** the things worth
+keeping — candidates, jobs, companies, and contacts — into a shared, company-scoped database
+their colleagues also work from.
 
-A conversational chat mode lets recruiters search the same database using natural language.
+The app is **multi-country**: the same code serves Austria and Slovakia, selected at startup by
+the `COUNTRY` env var (default `at`) or a CLI flag (`--sk` / `--country sk`). Everything
+market-specific lives in a `Profile` (see `config/profiles.py`).
 
 ---
 
 ## Stack
 
-| Layer       | Technology                                      |
-|-------------|-------------------------------------------------|
-| Backend     | Python 3.11 · Flask                             |
-| Database    | AWS RDS MySQL · SQLAlchemy (QueuePool)          |
-| AI matching | OpenAI Responses API · file_search tool         |
-| Vector store| OpenAI Vector Store `vs_69ef6c6e9ef88191b08dc04ef28cf76e` |
-| Frontend    | Vanilla JS · Leaflet.js (map) · Plotly (charts) |
-| Styling     | Plain CSS (no framework) · warm beige design    |
+| Layer        | Technology                                                        |
+|--------------|-------------------------------------------------------------------|
+| Backend      | Python 3.11+ · Flask (app factory + blueprints)                   |
+| Databases    | AWS RDS MySQL · SQLAlchemy (`QueuePool`) — one market DB per country + one shared app DB |
+| AI           | OpenAI Responses API (`responses.parse`, Structured Outputs) · `file_search` on a per-country vector store |
+| Frontend     | Vanilla JS (ES modules, no build step) · plain CSS (IC brand palette) |
+| Auth         | Session login · `account_company` (tenant) + `app_user` (staff) · `own`/`all` visibility |
 
 ---
 
@@ -27,102 +30,110 @@ A conversational chat mode lets recruiters search the same database using natura
 
 ```
 src/jobs_intelligence_ai/
-├── frontend/               # renamed from web/
-│   ├── app.py              # create_app() factory, auth, login, main page
-│   ├── blueprints/         # one module per tab (route definitions)
-│   └── templates/
-│       └── index.html      # Single-page app (all JS inline)
+├── __main__.py             # `python -m jobs_intelligence_ai [--sk|--at|--country xx]`
 ├── config/
-│   ├── settings.py         # Environment config, models, thresholds
-│   └── profiles.py         # Per-country COL mapping, read_view, feature flags
-├── core/
-│   ├── database.py         # SQLAlchemy engine, query helpers
-│   ├── matching.py         # AI vector matching + keyword fallback
-│   └── chat.py             # Multi-turn chat via Responses API
-├── services/               # auth, reports, classifiers, enrichers
-├── stats/                  # salary stats, opportunity radar, quality scoring
-├── integrations/           # external APIs (LinkedIn via Apify)
-└── rag/                    # vector-store chat + example extraction tooling
+│   ├── settings.py         # env config; resolves the active Profile, re-exports COL/DB_URL/…
+│   └── profiles.py         # per-country Profile: COL map, read_view, vector store env, feature flags
+├── frontend/
+│   ├── app.py              # create_app() factory: auth, login/logout, index, /debug/schema
+│   ├── __init__.py         # register_blueprints()
+│   ├── blueprints/         # route modules: search, saved, company, candidate, job_detail,
+│   │                       #   guided, cluster, interview, feedback
+│   ├── templates/          # index.html (SPA shell), login.html
+│   └── static/
+│       ├── js/             # ES modules — boot.js is the entry point (see FRONTEND.md)
+│       └── css/            # app.css (+ feedback.css, saved-dashboard.css)
+├── infra/
+│   └── database.py         # SQLAlchemy engine(s) + query helpers (get_engine, describe_view)
+├── services/               # business logic, one package per concern:
+│   │                       #   auth, candidate (incl. store.py), search, reporting,
+│   │                       #   clustering, interview, enrichment, geo, stats, job_detail
+│   └── …
+└── shared/                 # cross-service helpers (e.g. shared.llm.get_client)
 
-.env                        # API keys, DB URL — repo root, not committed
+.env                        # API keys, DB URLs (DATABASE_URL / DATABASE_URL_SK), vector store ids — repo root, not committed
+data/sql/app_schema_v2.sql  # canonical DDL for the app DB (see DATABASE.md)
 ```
+
+There is **no** `core/`, `stats/` (top-level), `rag/`, `integrations/`, or `helpers/` package —
+that was the pre-rework layout. Persistence lives in `services/candidate/store.py`, matching in
+`services/search/`, and LLM report/summary code in `services/reporting/`.
+
+---
+
+## Two databases
+
+The app talks to **two logical databases** over the same MySQL server:
+
+1. **Market catalogue — one per country** (`Jobs_Intelligence_Austria` / `Jobs_Intelligence_Slovakia`).
+   Holds the crawled market data: `jobs`, company data (`companies` in AT, `companies_finstat` in
+   SK), `contacts`, and the `View_Jobs_*` read views the app queries. Fed by pipelines, read-only
+   from the app's perspective. Selected per country via `Profile.db_schema` / `db_url_env`.
+
+2. **App database — shared** (`Jobs_Intelligence_AI`, `config.APP_SCHEMA`). Holds everything the
+   staff create: `account_company`, `app_user`, `saved_candidates`, `saved_jobs`,
+   `saved_companies`, `saved_contacts`, `audit_log`, `feedback`. A `country` CHAR(2) **column**
+   (not a table prefix) keeps Austrian and Slovak rows apart. Saved-* rows reference a market row
+   by `(country, id)` — no cross-DB foreign key.
+
+See [DATABASE.md](infra/DATABASE.md) for the full schema and column mappings.
 
 ---
 
 ## High-Level Data Flow
 
 ```
-Recruiter browser
+Staff browser (two tabs: Search · Saved)
       │
-      │  POST /api/match  { candidate_text, filters, top_n }
+      │  Search: POST /api/match  { candidate_text, filters, top_n }
       ▼
-  app.py  ──►  matching.py
-                   │
-                   ├─► OpenAI Responses API
-                   │       file_search on Vector Store
-                   │       returns: [{ job_id, position, score, match_reason }]
-                   │
-                   ├─► database.py  fetch_jobs_by_ids()
-                   │       MySQL: SELECT * FROM View_Jobs_Full WHERE id IN (...)
-                   │
-                   └─► returns ranked job list to browser
-                           [{ job_id, title, company, salary, skills, score, grade, ... }]
+  search blueprint ──► services/search
+        │  OpenAI Responses API + file_search on the country's vector store
+        │  → job ids resolved against the market DB (Profile.read_view)
+        └► ranked jobs [{ job_id, title, company, salary, score, grade, … }]
 
-      │
-      │  POST /api/chat  { session_id, message }
+      │  Click a company name → company panel
       ▼
-  app.py  ──►  chat.py
-                   │
-                   └─► OpenAI Responses API (same vector store)
-                           multi-turn via previous_response_id
-                           returns: { text, jobs[] }
+  company blueprint
+        ├─ GET /api/company/id?name=…   → { company_id }         (fast: id only, no LLM)
+        └─ GET /api/company?name=…      → stats + AI hiring-profile summary + contacts
+                                          (services/reporting.summarize_company — the slow call)
 
-      │
-      │  GET /api/salary_stats?occ_group=X
+      │  Save something (candidate / job / company / contact)
       ▼
-  app.py  ──►  database.py
-                   │
-                   └─► MySQL: salary distribution for occupational group
-                           returns: { salaries[], mean, median, count }
+  saved blueprint ──► services/candidate/store
+        └► INSERT into the app DB (owner_id + account_company_id + country + market row id),
+           deduped; shows up in the Saved tab for the whole company (own/all visibility)
 ```
 
 ---
 
 ## Key Design Decisions
 
-### Column name mapping (`config.COL`)
-All SQL column references go through `config.COL` so if the DB view is renamed,
-only one dict needs updating. Example:
-```python
-COL = {
-    "job_id":    "id",
-    "title":     "position",
-    "occ_group": "occupational_group",
-    "skills_en": "skills_english",
-    ...
-}
-```
+### Per-country profiles (`config/profiles.py`)
+All market-specific config lives in a frozen `Profile`: the `COL` map (internal key → DB column),
+the `read_view` / `jobs_table` to query, the DB-URL and vector-store env var names, the filter
+dropdown SQL, and feature flags (`has_guided`, `has_map`, `has_analytics`, `has_occ_filter`).
+`config.settings` picks the active profile from `COUNTRY` and re-exports its fields, so the rest of
+the app uses `config.COL` / `config.DATABASE_URL` / `config.VECTOR_STORE_ID` unchanged. Austria and
+Slovakia have genuinely different schemas — SK has no `occupational_group`, no `description`
+(only `summary`), a different company table, and reads from `View_Jobs_Test` rather than
+`View_Jobs_Full`. Columns absent in a country's view are listed in `Profile.absent_cols` and
+gated by `col_present()` so a query never names a column that doesn't exist.
+
+### Saved data is company-scoped + owner-tracked
+Every saved row carries `account_company_id` (the hard privacy boundary — you never see another
+company's data) and `owner_id` (the staff member who saved it). A user's `visibility` (`own`/`all`)
+decides whether the Saved tab shows just their rows or all colleagues' rows within the company.
+Dedup is enforced server-side by a `UNIQUE(owner_id, country, <ref_id>)` key plus a pre-insert
+existence check.
+
+### LLM calls use Structured Outputs
+Service code calls the OpenAI Responses API via `shared.llm.get_client` and
+`responses.parse(text_format=<schema>)`, returning validated objects — no hand-rolled JSON
+parsing or "respond with ONLY JSON" prompts. Prompts and schemas live in each service's
+`config.py`. See the per-service READMEs (e.g. `services/reporting/`, `services/candidate/`).
 
 ### Keyword fallback
-If no OpenAI API key is set, `matching.py` falls back to Jaccard keyword similarity
-computed entirely against the MySQL data. No AI dependency for basic demos.
-
-### Candidate pipeline (MySQL-backed)
-Saved jobs, candidate profiles, guided-builder specs, and an access audit trail
-persist to the shared `Jobs_Intelligence_AI` schema (`config.APP_SCHEMA`) via
-`helpers/candidate_store.py`. Austria and Slovakia use the **same schema but
-separate tables**, kept apart by a per-country table prefix (`config.TABLE_PREFIX`
-— `""` for Austria, `"sk_"` for Slovakia): `candidate` / `sk_candidate`,
-`candidate_saved_job` / `sk_candidate_saved_job`, `company`, `candidate_company`,
-`target_candidate`, `audit_log`, plus `feedback`. This per-country split is what
-stops Austrian and Slovak candidates from mixing (see `sql/app_schema.sql` for the
-SK tables). `users` (login) is deliberately shared across both markets.
-Real-candidate personal data is GDPR-shaped: profiles/saved jobs are keyed by a
-surrogate `candidate_id`, erasing a candidate cascades to their saved jobs, and
-the audit log retains the id (no FK) so the trail survives erasure. The guided
-builder's `target_candidate` specs are search templates, not personal data.
-
-### Session continuity in chat
-`chat.py` keeps a `_sessions` dict mapping `session_id → last_response_id`.
-Each new chat turn passes `previous_response_id` to the Responses API so the
-model has full conversation context without re-sending the whole history.
+If no OpenAI key is configured, matching falls back to keyword similarity computed against the
+market DB, so basic demos work with no AI dependency.
