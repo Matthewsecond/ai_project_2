@@ -115,6 +115,11 @@ Key points:
 - Seeded: `account_company` id=1 "Acme Recruitment" + three logins
   (`admin`/`Monika2`/`hr_manager`). A backup of the pre-rework app DB is in schema
   `Jobs_Intelligence_AI_prerework`.
+- **Cutover complete (2026-07-02):** the old tables (`candidate`, `sk_candidate`,
+  `candidate_saved_job`, `sk_candidate_saved_job`, `candidate_company`, `sk_candidate_company`,
+  `company`, `sk_company`, `target_candidate`, `sk_target_candidate`, `users`, `sk_feedback`,
+  `sk_audit_log`) were dropped after checksum-verification against the prerework backup. The
+  live schema is mirrored byte-for-byte in [`data/sql/app_schema_v2.sql`](../../../data/sql/app_schema_v2.sql).
 
 Persistence layer: `services/candidate/store.py` (`add_saved_company` / `add_saved_contact` /
 `list_saved_*` / `delete_saved_*`, plus the candidate + saved-job functions).

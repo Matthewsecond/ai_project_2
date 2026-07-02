@@ -578,3 +578,20 @@ Candidate-search filters expand separately (dimensions TBD).
   prefers it over `COL['description']` (which stays mapped to `summary` as the fallback for
   the ~55% of SK jobs without one). Verified: SK jobs with junction rows serialize the full
   scraped text, jobs without fall back to summary, AT unchanged; fetch+enrich ~100 ms/3 ids.
+- 2026-07-02 — **TRACK A CUTOVER COMPLETE — old tables DROPPED.** All 13 legacy tables
+  (`candidate`, `sk_candidate`, `candidate_saved_job`, `sk_candidate_saved_job`,
+  `candidate_company`, `sk_candidate_company`, `company`, `sk_company`, `target_candidate`,
+  `sk_target_candidate`, `users`, `sk_feedback`, `sk_audit_log`) checksum-verified identical to
+  the `Jobs_Intelligence_AI_prerework` backup, then dropped (junctions before parents; no FK from
+  any kept table). 10 tables remain: account_company, app_user, saved_* ×4, audit_log, feedback,
+  job_vs_sync, sk_job_vs_sync. Pre-drop code fixes: the feedback blueprint now writes the unified
+  `feedback` table with account/user attribution (was `{prefix}feedback` → `sk_feedback` on SK);
+  `target_candidate` dropped per the TBD (guided doesn't ship on `master`; its `save_target`/
+  `list_targets` store fns go with the guided removal). `app_schema_v2.sql` regenerated from
+  SHOW CREATE TABLE — now a byte-for-byte mirror of live. Verified: app boots, login + feedback +
+  saved endpoints exercised, full suite green (185 tests incl. e2e).
+- 2026-07-02 — **Guided/clustering: keep on `develop`, remove from `master`** (user decision).
+  Not a hard delete — `develop` gets `master` merged in (so it stays current AND keeps the
+  guided/clustering code); `master` then drops guided.js/clustering.js/guided.py/cluster.py,
+  their zone markup and candidate.js/boot.js hooks. Piece #3 (conversational search) is built
+  on `develop` and promoted when trustworthy.

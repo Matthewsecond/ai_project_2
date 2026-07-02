@@ -1,15 +1,17 @@
 """
 tabs/feedback.py — Lightweight user feedback.
 
-Stores free-text feedback ("things to improve or fix") in the Jobs_Intelligence_AI
-schema. Not personal data; no candidate linkage. Austria and Slovakia use separate
-tables (config.TABLE_PREFIX → `feedback` / `sk_feedback`) so they don't mix.
+Stores free-text feedback ("things to improve or fix") in the shared `feedback`
+table of the Jobs_Intelligence_AI schema, attributed to the logged-in user and
+their account company. Not personal candidate data. One table for both markets
+(the old per-country `feedback` / `sk_feedback` split was retired with the
+country-column rework).
 
 Routes:
   POST /api/feedback        body: { message, context? } → { ok, id }
   GET  /api/feedback        → { ok, feedback: [...] }   (newest first)
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from sqlalchemy import text
 
 from jobs_intelligence_ai import config
@@ -17,7 +19,7 @@ from jobs_intelligence_ai.infra.database import get_engine
 
 bp = Blueprint("feedback", __name__, url_prefix="/api/feedback")
 
-_T_FEEDBACK = f"{config.APP_SCHEMA}.{config.TABLE_PREFIX}feedback"
+_T_FEEDBACK = f"{config.APP_SCHEMA}.feedback"
 
 
 @bp.route("", methods=["POST"])
@@ -31,8 +33,12 @@ def api_feedback_add():
 
     with get_engine().begin() as conn:
         res = conn.execute(text(
-            f"INSERT INTO {_T_FEEDBACK} (message, context) VALUES (:m, :c)"),
-            {"m": message[:5000], "c": context})
+            f"INSERT INTO {_T_FEEDBACK} "
+            f"(account_company_id, user_id, message, context, created_by) "
+            f"VALUES (:co, :uid, :m, :c, :by)"),
+            {"co": session.get("account_company_id"), "uid": session.get("user_id"),
+             "m": message[:5000], "c": context,
+             "by": session.get("display_name") or session.get("username")})
         return jsonify({"ok": True, "id": int(res.lastrowid)})
 
 
@@ -41,8 +47,8 @@ def api_feedback_list():
     """List feedback, newest first."""
     with get_engine().connect() as conn:
         rows = conn.execute(text(
-            f"SELECT id, message, context, created_at "
+            f"SELECT id, message, context, created_by, created_at "
             f"FROM {_T_FEEDBACK} ORDER BY id DESC LIMIT 500")).mappings().all()
     return jsonify({"ok": True, "feedback": [
         {"id": m["id"], "message": m["message"], "context": m["context"],
-         "created_at": str(m["created_at"])} for m in rows]})
+         "created_by": m["created_by"], "created_at": str(m["created_at"])} for m in rows]})
