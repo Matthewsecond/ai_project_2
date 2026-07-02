@@ -142,6 +142,24 @@ sales pipeline `new → in_progress → proposal_sent → won | lost` — changi
 (`#modalStatusSel`) sets the initial status with the same codes, and the saved blueprint rejects
 anything outside the five codes (400).
 
+### "Browse market" mode (Companies / Contacts only)
+
+A second toggle — `[ My saved ] [ Browse market ]` (`#svModeToggle`, `data-action="set-saved-mode"`)
+— appears only when the Companies or Contacts collection is active; switching collections always
+resets back to "My saved". In Browse mode the grid's data source swaps from the saved_* endpoints
+to the live market catalogue: a search box (`#svBrowseSearch`, debounced 250ms) hits
+`GET /api/market/companies?q=`/`GET /api/market/contacts?q=`, and each row gets a **+ Save** button
+(`market-save-company`/`market-save-contact` in `saved.js`) that POSTs to the same
+`/api/saved/companies`/`/api/saved/contacts` endpoints the company panel uses, with a snapshot
+built from the row's visible fields. This is the browse/search view for the market catalogue
+(companies + contacts) that doesn't require going through a job search first — see
+`FRONTEND_DB_REWORK_PLAN.md` §4.4.
+
+Implementation-wise this reuses the exact same grid (`SAVED_COLLECTIONS`, `renderCollection`,
+`_renderRow`) as the saved collections: `companies_browse`/`contacts_browse` are sibling specs
+with `search: true` (so `loadCollection()` waits for a query instead of auto-fetching) and a
+`rowActions(r, key)` hook that swaps the normal Edit/Remove buttons for the Save button.
+
 ### Candidate detail modal (`#candModal`, `candidate.js`)
 
 Clicking a candidate name (`.cand-name-link`) opens `openCandidateDetail(name, row)` — a large modal

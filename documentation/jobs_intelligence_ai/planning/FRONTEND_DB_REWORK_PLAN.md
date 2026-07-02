@@ -398,9 +398,12 @@ well-filled categorical columns; `salary` is sparse/free-text and needs parsing.
 
 Candidate-search filters expand separately (dimensions TBD).
 
-### 4.4 New tabs (depend on Track A)
-- Target-companies & contacts views (browse, save).
-- Saved-contacts and saved-companies collections (extend the existing Saved tab).
+### 4.4 New tabs (depend on Track A) — DONE (2026-07-02)
+- Target-companies & contacts views (browse, save) — **done as a "Browse market" mode inside the
+  existing Saved tab's Companies/Contacts panels**, not a new top-level tab (keeps the two-tab IA
+  intact; see the decisions log).
+- Saved-contacts and saved-companies collections (extend the existing Saved tab) — done earlier
+  (2026-06-30, the four-collection switcher).
 - ~~User-management / access-control admin tab~~ — **dropped 2026-07-02** (user decision):
   `app_user` rows are managed by hand directly in the `Jobs_Intelligence_AI` DB, not through
   an in-app screen. `create_user()` in `services/auth/accounts.py` stays as a DB-facing helper
@@ -676,3 +679,20 @@ Candidate-search filters expand separately (dimensions TBD).
 - 2026-07-02 — **User-management admin tab DROPPED from §4.4** (user decision). `app_user`
   accounts are provisioned by hand directly against the `Jobs_Intelligence_AI` DB — no in-app
   add-user screen. Remaining §4.4 scope: target-companies/contacts browse view only.
+- 2026-07-02 — **Companies/contacts browse view placement: inside the Saved tab, not a third
+  top-level tab** (user decision, keeps the two-tab IA from §4.2 intact). Landed as a "Browse
+  market" mode toggle on the Saved tab's Companies/Contacts panels, reusing the existing grid.
+- 2026-07-02 — **§4.4 companies/contacts browse view SHIPPED (verified live, both markets).**
+  Two new routes in `frontend/blueprints/company.py`: `GET /api/market/companies?q=` (ranked by
+  active-job count; Austria via `companies`+`jobs.company_id`, Slovakia falls back to
+  `jobs.company_crawler_name`+`companies_finstat_id` — same try/except isolation pattern as
+  `_resolve_company_id`) and `GET /api/market/contacts?q=` (name search across `contacts`, joined
+  through `contact_jobs_junction`→`jobs` for a best-effort company name). **Data-scale finding:**
+  AT alone has 56,881 companies / 53,839 contacts, so browsing is necessarily search-driven (no
+  useful "list everything" view) — a plain `LIKE '%q%'` scan is fast enough at this table size
+  (65–165ms) without an index. `saved.js`: `companies_browse`/`contacts_browse` are sibling specs
+  to the existing `SAVED_COLLECTIONS` entries (`search: true` → `loadCollection()` waits for a
+  query instead of auto-fetching; a `rowActions(r, key)` hook swaps the normal Edit/Remove buttons
+  for a `+ Save`). Save reuses the existing `POST /api/saved/companies`/`/contacts` endpoints
+  unchanged — no new save path. Verified: searching "bank" (AT) and "müller" surfaces real
+  catalogue rows, Save round-trips into "My saved" correctly, full suite green (147 tests).

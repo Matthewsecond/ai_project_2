@@ -272,6 +272,12 @@
           <button class="sv-tab" data-action="set-saved-collection" data-collection="companies">Companies</button>
           <button class="sv-tab" data-action="set-saved-collection" data-collection="contacts">Contacts</button>
         </div>
+        <div class="sv-toggle sv-mode" id="svModeToggle" style="display:none" title="Your saved records, or search the whole market catalogue">
+          <button class="sv-tab active" data-action="set-saved-mode" data-mode="saved">My saved</button>
+          <button class="sv-tab" data-action="set-saved-mode" data-mode="browse">Browse market</button>
+        </div>
+        <input type="text" id="svBrowseSearch" class="sv-browse-search" style="display:none"
+          autocomplete="off" placeholder="Search…" data-input-action="sv-browse-search-input">
         <span class="sv-spacer"></span>
         <span id="savedLoadStatus" class="sv-status"></span>
       </div>

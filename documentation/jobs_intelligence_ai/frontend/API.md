@@ -91,6 +91,22 @@ Salary distribution for an occupational group.
 **Query:** `occ_group`. **Response:** `{ ok, count, salaries: [...], mean, median }`. Excludes
 `< €200`, trims the top 2%. Returns `{ count: 0, salaries: [] }` if no data.
 
+### GET `/api/market/companies`
+Browse the market catalogue's actively-hiring companies by name — independent of a job search.
+Backs the Saved tab's Companies "Browse market" mode.
+
+**Query:** `q` (optional name substring; empty returns the top companies overall).
+**Response:** `{ ok, companies: [ { company_id, name, job_count } ] }`, ranked by open-job count,
+max 20. Austria queries `companies` + `jobs.company_id`; Slovakia (no `companies` table) falls
+back to `jobs.company_crawler_name` + `jobs.companies_finstat_id`.
+
+### GET `/api/market/contacts`
+Name search across the market catalogue's contacts — independent of a job/company lookup. Backs
+the Saved tab's Contacts "Browse market" mode.
+
+**Query:** `q` (required, 2+ chars). **Response:** `{ ok, contacts: [ { contact_id, name, email,
+phone, company } ] }`, max 20. `company` is best-effort — one of the contact's linked jobs.
+
 ---
 
 ## Saved — `saved` blueprint (`/api/saved`)

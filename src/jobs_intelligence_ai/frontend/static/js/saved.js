@@ -9,9 +9,19 @@ import { state, _ACTIONS, app } from "./state.js";
 import { esc, storeJob } from "./util.js";
 
 let _savedCollection = 'candidates';   // candidates | jobs | companies | contacts
+let _savedMode = 'saved';               // 'saved' | 'browse' — browse only applies to companies/contacts
 let _collRows = [];
 let _collSort = { key: null, dir: 1 };
 let _editKey  = null;                   // row currently in inline-edit mode (its delId), or null
+let _browseTimer = null;
+
+// The key into SAVED_COLLECTIONS for whatever's on screen right now — the four saved
+// collections, or a company/contact's sibling "_browse" spec that searches the market
+// catalogue instead of the app's saved_* tables.
+function _specKey(){
+  return (_savedMode === 'browse' && (_savedCollection === 'companies' || _savedCollection === 'contacts'))
+    ? _savedCollection + '_browse' : _savedCollection;
+}
 
 const _CAND_STATUS = ['New', 'Contacted', 'Interviewing', 'Placed', 'Rejected'];
 const _SENIORITY   = ['', 'Junior', 'Mid', 'Senior', 'Lead', 'Executive'];
@@ -54,7 +64,7 @@ async function setJobStatus(el){
   } catch(e){
     el.disabled = false;
     alert('Status update failed: ' + (e.message || e));
-    loadCollection(_savedCollection);   // reload so the select reflects the real DB state
+    loadCollection();   // reload so the select reflects the real DB state
   }
 }
 
@@ -129,6 +139,34 @@ const SAVED_COLLECTIONS = {
     delUrl: id => '/api/saved/contacts/' + encodeURIComponent(id),
     patchUrl: r => '/api/saved/contacts/' + encodeURIComponent(r.id),
   },
+  // "Browse market" siblings — same grid machinery, but read live from the market
+  // catalogue (GET /api/market/companies|contacts?q=) instead of the app's saved_*
+  // tables, and Save a row instead of Edit/Remove-ing it. `search: true` tells
+  // loadCollection() to wait for a query instead of fetching on tab switch.
+  companies_browse: {
+    url: '/api/market/companies', listKey: 'companies', search: true,
+    empty: 'Type a company name to search the market catalogue.',
+    cols: [
+      { key:'name',      label:'Company',   get:r => r.name },
+      { key:'job_count', label:'Open jobs', get:r => r.job_count },
+    ],
+    delId: r => r.company_id,
+    rowActions: (r, key) => `<button class="sv-row-save" data-action="market-save-company"
+      data-key="${esc(key)}">+ Save</button>`,
+  },
+  contacts_browse: {
+    url: '/api/market/contacts', listKey: 'contacts', search: true,
+    empty: 'Type a name (2+ letters) to search the market catalogue.',
+    cols: [
+      { key:'name',    label:'Name',    get:r => r.name },
+      { key:'company', label:'Company', get:r => r.company },
+      { key:'email',   label:'Email',   get:r => r.email },
+      { key:'phone',   label:'Phone',   get:r => r.phone },
+    ],
+    delId: r => r.contact_id,
+    rowActions: (r, key) => `<button class="sv-row-save" data-action="market-save-contact"
+      data-key="${esc(key)}">+ Save</button>`,
+  },
 };
 
 // Tab activation (boot.js) → show the active collection.
@@ -137,26 +175,87 @@ function openSavedTab(){ setSavedCollection(_savedCollection); }
 function setSavedCollection(kind){
   if (!SAVED_COLLECTIONS[kind]) kind = 'candidates';
   _savedCollection = kind;
+  _savedMode = 'saved';   // always land on "My saved" when switching collections
   document.querySelectorAll('#svCollectionToggle .sv-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.collection === kind));
+  const canBrowse  = kind === 'companies' || kind === 'contacts';
+  const modeToggle = document.getElementById('svModeToggle');
+  if (modeToggle) modeToggle.style.display = canBrowse ? '' : 'none';
+  document.querySelectorAll('#svModeToggle .sv-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === 'saved'));
+  const search = document.getElementById('svBrowseSearch');
+  if (search) { search.style.display = 'none'; search.value = ''; }
   _collSort = { key: null, dir: 1 };
   _editKey  = null;
-  loadCollection(kind);
+  loadCollection();
 }
 
-async function loadCollection(kind){
-  const spec   = SAVED_COLLECTIONS[kind]; if (!spec) return;
+// "My saved" vs "Browse market" — only meaningful while a Companies/Contacts
+// collection is active (setSavedCollection resets to 'saved' + hides the toggle
+// for candidates/jobs).
+function setSavedMode(mode){
+  if (_savedCollection !== 'companies' && _savedCollection !== 'contacts') return;
+  _savedMode = (mode === 'browse') ? 'browse' : 'saved';
+  document.querySelectorAll('#svModeToggle .sv-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === _savedMode));
+  const search = document.getElementById('svBrowseSearch');
+  if (search) {
+    search.style.display = _savedMode === 'browse' ? '' : 'none';
+    search.value = '';
+    search.placeholder = _savedCollection === 'companies'
+      ? 'Search companies by name…' : 'Search contacts by name…';
+    if (_savedMode === 'browse') search.focus();
+  }
+  _collSort = { key: null, dir: 1 };
+  _editKey  = null;
+  loadCollection();
+}
+
+async function loadCollection(){
+  const spec   = SAVED_COLLECTIONS[_specKey()]; if (!spec) return;
   const status = document.getElementById('savedLoadStatus');
-  if (status) status.textContent = 'Loading…';
   _editKey = null;
+  if (spec.search){
+    // Browse mode: wait for a query instead of fetching the whole market catalogue.
+    _collRows = [];
+    if (status) status.textContent = '';
+    renderCollection();
+    return;
+  }
+  if (status) status.textContent = 'Loading…';
   try {
     const res  = await fetch(spec.url);
     const data = await res.json();
     _collRows  = (data.ok && data[spec.listKey]) ? data[spec.listKey] : [];
-    if (status) status.textContent = `${_collRows.length} saved ${kind}`;
+    if (status) status.textContent = `${_collRows.length} saved ${_savedCollection}`;
   } catch(e){
     _collRows = [];
     if (status) status.textContent = 'Load failed: ' + (e.message || e);
+  }
+  renderCollection();
+}
+
+// Debounced market search (Browse market mode) — refetches from the live catalogue
+// per keystroke pause, same 250ms cadence as the saved-candidate search box.
+function onBrowseSearchInput(el){
+  clearTimeout(_browseTimer);
+  _browseTimer = setTimeout(() => searchMarket(el.value), 250);
+}
+
+async function searchMarket(q){
+  const spec = SAVED_COLLECTIONS[_specKey()]; if (!spec || !spec.search) return;
+  q = (q || '').trim();
+  const status = document.getElementById('savedLoadStatus');
+  if (!q){ _collRows = []; renderCollection(); if (status) status.textContent = ''; return; }
+  if (status) status.textContent = 'Searching…';
+  try {
+    const res  = await fetch(spec.url + '?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    _collRows  = (data.ok && data[spec.listKey]) ? data[spec.listKey] : [];
+    if (status) status.textContent = `${_collRows.length} match${_collRows.length !== 1 ? 'es' : ''}`;
+  } catch(e){
+    _collRows = [];
+    if (status) status.textContent = 'Search failed: ' + (e.message || e);
   }
   renderCollection();
 }
@@ -169,7 +268,7 @@ function sortCollection(key){
 }
 
 function renderCollection(){
-  const spec    = SAVED_COLLECTIONS[_savedCollection]; if (!spec) return;
+  const spec    = SAVED_COLLECTIONS[_specKey()]; if (!spec) return;
   const head    = document.getElementById('savedCollHead');
   const body    = document.getElementById('savedCollBody');
   const emptyEl = document.getElementById('savedCollEmpty');
@@ -213,11 +312,13 @@ function _renderRow(spec, r){
       + `data-key="${esc(key)}">${esc((c.get(r) ?? '—').toString() || '—')}</a></td>`;
     return `<td>${esc((c.get(r) ?? '').toString())}</td>`;
   }).join('');
-  const actions = editing
+  // Browse-market specs supply their own action cell (a Save button) instead of
+  // the normal saved-row Edit/Remove pair.
+  const actions = spec.rowActions ? spec.rowActions(r, key) : (editing
     ? `<button class="sv-row-save" data-action="save-saved-row"   data-key="${esc(key)}">Save</button>`
       + `<button class="sv-row-edit" data-action="cancel-saved-row">Cancel</button>`
     : `<button class="sv-row-edit" data-action="edit-saved-row"   data-key="${esc(key)}">Edit</button>`
-      + `<button class="sv-row-del"  data-action="delete-saved-row" data-id="${esc(key)}">Remove</button>`;
+      + `<button class="sv-row-del"  data-action="delete-saved-row" data-id="${esc(key)}">Remove</button>`);
   return `<tr data-rowkey="${esc(key)}">${cells}<td class="sv-actions">${actions}</td></tr>`;
 }
 
@@ -256,7 +357,7 @@ async function saveSavedRow(key){
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
     _editKey = null;
-    loadCollection(_savedCollection);
+    loadCollection();
     if (_savedCollection === 'jobs') app.loadSaved?.();   // keep the nav badge / export array fresh
   } catch(e){
     if (saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
@@ -268,7 +369,7 @@ async function deleteSavedRow(id){
   const spec = SAVED_COLLECTIONS[_savedCollection]; if (!spec) return;
   try { await fetch(spec.delUrl(id), { method: 'DELETE' }); }
   catch(e){ /* the reload below reflects the real state regardless */ }
-  loadCollection(_savedCollection);
+  loadCollection();
 }
 
 // Called from outside the tab (e.g. modal.js after deleting a job): keep the nav
@@ -280,7 +381,7 @@ async function loadSaved(){
     if (data.ok){ state.savedJobs = data.jobs; app.updateSavedBadge(); }
   } catch(e){ /* badge stays as-is on failure */ }
   if (document.getElementById('tab-saved')?.classList.contains('active'))
-    loadCollection(_savedCollection);
+    loadCollection();
 }
 
 // ── Detail views (click a title in the grid) ─────────────────────────────────
@@ -361,8 +462,56 @@ function closeContactDetail(){ document.getElementById('ctModal').classList.add(
 // as a no-op so the candidate.js callers don't need to change.
 function _trackLocalCandidate(){ /* intentionally empty */ }
 
+// "Browse market" Save buttons — POST straight to the existing saved-companies/
+// saved-contacts endpoints (same ones the Search-tab company panel uses), with a
+// snapshot built from the browse row's visible fields. Company job_count isn't a
+// stored snapshot field, so it's dropped on save (the grid shows it blank until
+// edited, same as any other company saved without a full profile).
+async function marketSaveCompany(el){
+  const key = el.dataset.key;
+  const row = _collRows.find(r => String(r.company_id) === key);
+  if (!row) return;
+  el.disabled = true; el.textContent = 'Saving…';
+  try {
+    const res  = await fetch('/api/saved/companies', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_company_id: row.company_id, snapshot: { name: row.name } }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
+    el.textContent = data.added === false ? '✓ Already saved' : '✓ Saved';
+    el.classList.add(data.added === false ? 'sv-dup' : 'sv-ok');
+  } catch(e){
+    el.disabled = false; el.textContent = '+ Save';
+    alert('Save failed: ' + (e.message || e));
+  }
+}
+
+async function marketSaveContact(el){
+  const key = el.dataset.key;
+  const row = _collRows.find(r => String(r.contact_id) === key);
+  if (!row) return;
+  el.disabled = true; el.textContent = 'Saving…';
+  try {
+    const res  = await fetch('/api/saved/contacts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact_id: row.contact_id,
+        snapshot: { name: row.name, email: row.email, phone: row.phone, company: row.company } }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
+    el.textContent = data.added === false ? '✓ Already saved' : '✓ Saved';
+    el.classList.add(data.added === false ? 'sv-dup' : 'sv-ok');
+  } catch(e){
+    el.disabled = false; el.textContent = '+ Save';
+    alert('Save failed: ' + (e.message || e));
+  }
+}
+
 Object.assign(_ACTIONS, {
   'set-saved-collection': (el) => setSavedCollection(el.dataset.collection),
+  'set-saved-mode':       (el) => setSavedMode(el.dataset.mode),
+  'sv-browse-search-input': (el) => onBrowseSearchInput(el),
+  'market-save-company':  (el) => marketSaveCompany(el),
+  'market-save-contact':  (el) => marketSaveContact(el),
   'sort-collection':      (el) => sortCollection(el.dataset.key),
   'edit-saved-row':       (el) => editSavedRow(el.dataset.key),
   'save-saved-row':       (el) => saveSavedRow(el.dataset.key),
@@ -383,7 +532,7 @@ Object.assign(_ACTIONS, {
 // After an edit/delete in the candidate detail modal, refresh the grid if it's the
 // active collection (so the row reflects the change without a manual reload).
 function refreshSavedIfCandidates(){
-  if (_savedCollection === 'candidates') loadCollection('candidates');
+  if (_savedCollection === 'candidates') loadCollection();
 }
 
 Object.assign(app, { openSavedTab, _trackLocalCandidate, loadSaved, refreshSavedIfCandidates });

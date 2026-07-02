@@ -2,8 +2,10 @@
 tabs/company.py — Company profile + salary stats.
 
 Routes:
-  GET /api/company        → company hiring profile (jobs, salary, locations, AI summary)
-  GET /api/salary_stats   → salary distribution for an occupational group
+  GET /api/company          → company hiring profile (jobs, salary, locations, AI summary)
+  GET /api/salary_stats     → salary distribution for an occupational group
+  GET /api/market/companies → browse the market catalogue's actively-hiring companies
+  GET /api/market/contacts  → browse the market catalogue's contacts by name
 """
 import statistics
 from collections import Counter
@@ -354,6 +356,88 @@ def api_company():
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+
+
+@bp.route("/market/companies", methods=["GET"])
+def api_market_companies():
+    """Query param: q (optional name substring) → { ok, companies: [{company_id, name,
+    job_count}] }, ranked by active-job count. Browses the market catalogue directly —
+    independent of a job search — for the Saved tab's "Browse market" mode.
+
+    Tries the Austria shape (companies table + jobs.company_id) first; Slovakia has no
+    `companies` table so that query errors and the fallback (jobs.company_crawler_name +
+    jobs.companies_finstat_id) is used instead — same isolation pattern as
+    _resolve_company_id above."""
+    q    = request.args.get("q", "").strip()
+    like = f"%{q}%" if q else "%"
+    companies = []
+    try:
+        with get_engine().connect() as conn:
+            try:
+                rows = conn.execute(text(
+                    "SELECT co.id AS company_id, co.company_crawler_name AS name, "
+                    "  COUNT(*) AS job_count "
+                    "FROM companies co "
+                    "JOIN jobs j ON j.company_id = co.id AND j.status IN ('new','updated') "
+                    "WHERE co.company_crawler_name LIKE :q "
+                    "GROUP BY co.id, co.company_crawler_name "
+                    "ORDER BY job_count DESC LIMIT 20"), {"q": like}).mappings().all()
+            except Exception:
+                rows = conn.execute(text(
+                    "SELECT companies_finstat_id AS company_id, company_crawler_name AS name, "
+                    "  COUNT(*) AS job_count "
+                    "FROM jobs "
+                    "WHERE status IN ('new','updated') AND companies_finstat_id IS NOT NULL "
+                    "  AND company_crawler_name LIKE :q "
+                    "GROUP BY companies_finstat_id, company_crawler_name "
+                    "ORDER BY job_count DESC LIMIT 20"), {"q": like}).mappings().all()
+        companies = [{"company_id": int(r["company_id"]), "name": r["name"],
+                      "job_count": int(r["job_count"])} for r in rows]
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    return jsonify({"ok": True, "companies": companies})
+
+
+@bp.route("/market/contacts", methods=["GET"])
+def api_market_contacts():
+    """Query param: q (required, >= 2 chars) → { ok, contacts: [{contact_id, name, email,
+    phone, company}] }. Name search across the market catalogue's contacts, independent of
+    a job/company lookup. `company` is best-effort (one of the contact's linked jobs)."""
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return jsonify({"ok": True, "contacts": []})
+    like = f"%{q}%"
+    contacts = []
+    try:
+        with get_engine().connect() as conn:
+            try:
+                rows = conn.execute(text(
+                    "SELECT c.id, c.name, c.email, c.phone, "
+                    "  MIN(co.company_crawler_name) AS company "
+                    "FROM contacts c "
+                    "LEFT JOIN contact_jobs_junction cj ON cj.contact_id = c.id "
+                    "LEFT JOIN jobs j ON j.id = cj.job_id "
+                    "LEFT JOIN companies co ON co.id = j.company_id "
+                    "WHERE c.name LIKE :q "
+                    "GROUP BY c.id, c.name, c.email, c.phone "
+                    "ORDER BY c.name LIMIT 20"), {"q": like}).mappings().all()
+            except Exception:
+                # Slovakia has no `companies` table — the crawler name lives on `jobs` directly.
+                rows = conn.execute(text(
+                    "SELECT c.id, c.name, c.email, c.phone, "
+                    "  MIN(j.company_crawler_name) AS company "
+                    "FROM contacts c "
+                    "LEFT JOIN contact_jobs_junction cj ON cj.contact_id = c.id "
+                    "LEFT JOIN jobs j ON j.id = cj.job_id "
+                    "WHERE c.name LIKE :q "
+                    "GROUP BY c.id, c.name, c.email, c.phone "
+                    "ORDER BY c.name LIMIT 20"), {"q": like}).mappings().all()
+        contacts = [{"contact_id": int(r["id"]), "name": r["name"] or "",
+                     "email": r["email"] or "", "phone": r["phone"] or "",
+                     "company": r["company"] or ""} for r in rows]
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    return jsonify({"ok": True, "contacts": contacts})
 
 
 @bp.route("/salary_stats", methods=["GET"])
