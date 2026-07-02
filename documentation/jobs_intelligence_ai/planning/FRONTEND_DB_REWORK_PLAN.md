@@ -571,3 +571,10 @@ Candidate-search filters expand separately (dimensions TBD).
   (window fn + GROUP BYs — COUNT(*) times out), but per-id lookups on the base tables are fast
   (~60 ms/10 ids). Planned fix: per-id description fetch in the SK job-detail path, keep
   `View_Jobs_Full` as the read view.
+- 2026-07-02 — **SK descriptions FIX SHIPPED (verified live, both markets).** New optional
+  `Profile.desc_lookup_sql` hook (SK-only; AT stays None): the job-fetch paths in
+  `infra/database.py` batch-fetch scraped descriptions per id via
+  `_add_scraped_descriptions()` → row key `_scraped_description`, and `serialize_job`
+  prefers it over `COL['description']` (which stays mapped to `summary` as the fallback for
+  the ~55% of SK jobs without one). Verified: SK jobs with junction rows serialize the full
+  scraped text, jobs without fall back to summary, AT unchanged; fetch+enrich ~100 ms/3 ids.

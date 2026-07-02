@@ -102,7 +102,9 @@ def serialize_job(job: dict) -> dict:
         "posted":                 _str(job.get(c["date_posted"])),
         "application_deadline":   _str(job.get(c.get("application_deadline", "application_deadline"))),
         "start_timeline":         _str(job.get(c.get("start_timeline", "start_timeline"))),
-        "description":            _str(job.get(c["description"])),
+        # The scraped full text when the fetch attached one (SK — see
+        # _add_scraped_descriptions), else the read view's description/summary column.
+        "description":            _str(job.get("_scraped_description")) or _str(job.get(c["description"])),
         "summary":                _str(job.get(c.get("summary", "summary"))),
         "skills":                 _str(job.get(c.get("skills", "skills"))),
         "skills_en":              _str(job.get(c.get("skills_en", "skills_english"))),

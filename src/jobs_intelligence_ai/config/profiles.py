@@ -56,17 +56,21 @@ class Profile:
                                       # list or WHERE) must skip it — see col_present().
     read_view:         str = "View_Jobs_Full"
                                       # The view the app reads full job records from.
-                                      # SK overrides this to View_Jobs_Test — the deduped,
-                                      # description-bearing set the vector store was built
-                                      # from (~2.7k rows vs 145k). View_Jobs_Full fans out
-                                      # by location (more rows than jobs) and its per-row
-                                      # correlated subqueries make a leading-wildcard LIKE
-                                      # time out; an id-IN lookup against it stays fast.
+                                      # View_Jobs_Full fans out by location (more rows than
+                                      # jobs — deduped by id in fetch_jobs_by_ids) and its
+                                      # per-row correlated subqueries make a leading-wildcard
+                                      # LIKE time out; an id-IN lookup against it stays fast.
     jobs_table:        str = "jobs"
                                       # Base table (same id-space as read_view) used to
                                       # resolve a job title → id with a fast indexed scan,
                                       # instead of a leading-wildcard LIKE against the
-                                      # heavy view. SK overrides to jobs_test.
+                                      # heavy view.
+    desc_lookup_sql:   str | None = None
+                                      # Optional per-id scraped-description lookup ({db} =
+                                      # schema, {ids} = IN-list placeholders; must return
+                                      # job_id + description columns). Set when the read_view
+                                      # has no description column but the base tables carry
+                                      # one (SK) — see infra.database._add_scraped_descriptions.
 
     def col_present(self, key: str) -> bool:
         """True if COL[key] is a real column in this profile's View_Jobs_Full.
@@ -277,6 +281,17 @@ SLOVAKIA = Profile(
     # references must be skipped (see col_present()).
     absent_cols      = frozenset({"occ_group", "original_salary", "zipcode",
                                   "order_number"}),
+    # ~45% of active SK jobs have a full scraped description in the base tables
+    # (19.6k of 43.6k, 2026-07-02). View_Jobs_Full only carries the short `summary`,
+    # and View_Jobs_Descriptions (which joins them in) is far too slow to scan —
+    # so the app fetches descriptions per id and falls back to `summary` otherwise.
+    desc_lookup_sql  = """
+        SELECT djj.job_id AS job_id, MIN(d.description) AS description
+        FROM {db}.description_jobs_junction djj
+        JOIN {db}.descriptions d ON d.id = djj.description_id
+        WHERE djj.job_id IN ({ids})
+        GROUP BY djj.job_id
+    """,
 )
 
 

@@ -142,7 +142,37 @@ def fetch_jobs_by_ids(job_ids: list) -> list[dict]:
 
     # Try to add lat/lon if separate columns exist
     _add_geo(rows)
+    _add_scraped_descriptions(rows)
     return rows
+
+
+def _add_scraped_descriptions(rows: list[dict]) -> None:
+    """Attach the full scraped description to each row under `_scraped_description`.
+
+    Only runs when the profile defines `desc_lookup_sql` (SK — its read view carries
+    just the short `summary`; the real descriptions live in base tables reachable per
+    id). serialize_job prefers the key and falls back to COL['description'], so rows
+    without a scraped description (or countries without the hook) are unaffected."""
+    tmpl = config.PROFILE.desc_lookup_sql
+    if not tmpl or not rows:
+        return
+    id_col = config.COL["job_id"]
+    ids = [r.get(id_col) for r in rows if r.get(id_col) is not None]
+    if not ids:
+        return
+    placeholders = ", ".join(f":d_{i}" for i in range(len(ids)))
+    params = {f"d_{i}": v for i, v in enumerate(ids)}
+    sql = tmpl.format(db=config.DB_SCHEMA, ids=placeholders)
+    try:
+        with get_engine().connect() as conn:
+            found = {m["job_id"]: m["description"]
+                     for m in conn.execute(text(sql), params).mappings()}
+    except Exception:
+        return   # descriptions are an enhancement — the summary fallback still shows
+    for r in rows:
+        desc = found.get(r.get(id_col))
+        if desc:
+            r["_scraped_description"] = desc
 
 
 def fetch_jobs_by_url(url: str) -> list[dict]:
@@ -179,6 +209,7 @@ def fetch_jobs_by_url(url: str) -> list[dict]:
             rows = []
 
     _add_geo(rows)
+    _add_scraped_descriptions(rows)
     return rows
 
 
@@ -235,6 +266,7 @@ def fetch_jobs_for_matching(filters: dict, limit: int = 500) -> list[dict]:
         rows = [dict(zip(keys, row)) for row in result]
 
     _add_geo(rows)
+    _add_scraped_descriptions(rows)
     return rows
 
 
