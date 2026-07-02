@@ -401,7 +401,10 @@ Candidate-search filters expand separately (dimensions TBD).
 ### 4.4 New tabs (depend on Track A)
 - Target-companies & contacts views (browse, save).
 - Saved-contacts and saved-companies collections (extend the existing Saved tab).
-- User-management / access-control admin tab.
+- ~~User-management / access-control admin tab~~ — **dropped 2026-07-02** (user decision):
+  `app_user` rows are managed by hand directly in the `Jobs_Intelligence_AI` DB, not through
+  an in-app screen. `create_user()` in `services/auth/accounts.py` stays as a DB-facing helper
+  with no route/UI calling it.
 
 ---
 
@@ -670,3 +673,6 @@ Candidate-search filters expand separately (dimensions TBD).
   and `findMoreJobs()`) so filters are read from the DOM in one place. Verified: dropdowns
   populate with real AT data live, selecting a `work_time` value narrows a 21-job candidate
   set down to the 1 matching job end-to-end; full suite green (147 non-smoke tests).
+- 2026-07-02 — **User-management admin tab DROPPED from §4.4** (user decision). `app_user`
+  accounts are provisioned by hand directly against the `Jobs_Intelligence_AI` DB — no in-app
+  add-user screen. Remaining §4.4 scope: target-companies/contacts browse view only.
