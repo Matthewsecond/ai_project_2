@@ -242,6 +242,10 @@
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
               Export CSV
             </button>
+            <button class="export-btn" data-action="export-results-xlsx">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              Export Excel
+            </button>
             <button class="export-btn" data-action="save-all">+ Save all A/B</button>
             <button class="export-btn" id="gbSaveTemplateBtn" data-action="gb-save-template" style="display:none;color:#1a56c4;border-color:#b0ccf0;font-weight:600">★ Save as template candidate</button>
             <button class="export-btn" data-action="clear-results">Clear</button>
@@ -540,10 +544,11 @@
         <button class="modal-save-btn" id="modalSaveBtn" data-action="save-from-modal">+ Save to pipeline</button>
         <button class="modal-extras-btn" id="modalExtrasBtn" data-action="toggle-extras-panel">+ extras</button>
         <select class="modal-status-sel" id="modalStatusSel">
-          <option>New</option>
-          <option>Contacted</option>
-          <option>Placed</option>
-          <option>Rejected</option>
+          <option value="new">New</option>
+          <option value="in_progress">In Progress</option>
+          <option value="proposal_sent">Proposal Sent</option>
+          <option value="won">Won</option>
+          <option value="lost">Lost</option>
         </select>
         <a class="modal-link-btn" id="modalLinkBtn" href="#" target="_blank" style="display:none">
           <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
@@ -576,6 +581,7 @@
         <div class="co-modal-name" id="coPanelName">Company</div>
         <div class="co-modal-sub" id="coPanelSub"></div>
       </div>
+      <button class="co-modal-save hidden" id="coSaveBtn" data-action="save-company">＋ Save company</button>
       <button class="co-modal-close" data-action="close-company-panel">×</button>
     </div>
     <div class="co-body" id="coBody">
@@ -584,6 +590,40 @@
         <span>Loading company data…</span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Candidate detail modal (opened by clicking a name in Saved → Candidates) -->
+<div class="modal-overlay hidden" id="candModal" data-action="cand-modal-backdrop">
+  <div class="co-modal" style="max-width:840px">
+    <div class="co-modal-header">
+      <span class="co-modal-icon">👤</span>
+      <div class="co-modal-info">
+        <div class="co-modal-name" id="candModalName">Candidate</div>
+        <div class="co-modal-sub" id="candModalSub"></div>
+      </div>
+      <button class="co-modal-save hidden" id="candSaveBtn" data-action="cand-edit-save">Save changes</button>
+      <button class="co-modal-save" id="candEditBtn" data-action="cand-edit-toggle">✎ Edit</button>
+      <button class="co-modal-close" data-action="close-cand-modal">×</button>
+    </div>
+    <div class="co-body" id="candModalBody">
+      <div class="co-loading-wrap"><div class="co-spinner"></div><span>Loading candidate…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Saved contact detail modal (opened by clicking a name in Saved → Contacts) -->
+<div class="modal-overlay hidden" id="ctModal" data-action="ct-modal-backdrop">
+  <div class="co-modal" style="max-width:560px">
+    <div class="co-modal-header">
+      <span class="co-modal-icon">👤</span>
+      <div class="co-modal-info">
+        <div class="co-modal-name" id="ctModalName">Contact</div>
+        <div class="co-modal-sub" id="ctModalSub"></div>
+      </div>
+      <button class="co-modal-close" data-action="ct-modal-close">×</button>
+    </div>
+    <div class="co-body" id="ctModalBody"></div>
   </div>
 </div>
 

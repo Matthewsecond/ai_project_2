@@ -818,7 +818,7 @@ async function _persistInterview() {
     if (isSaved) {
       await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { extras: { interview: state.interview } } });
     } else {
-      const status = document.getElementById('modalStatusSel')?.value || 'New';
+      const status = document.getElementById('modalStatusSel')?.value || 'new';
       const data = await api.post('/api/saved', { job: { ...state.modalJob, candidate_name: app.getCandidateName() },
                                                   status, extras: { interview: state.interview },
                                                   candidate_profile: state.currentCandidateProfile || null });

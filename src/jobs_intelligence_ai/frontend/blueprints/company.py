@@ -15,6 +15,64 @@ from sqlalchemy import text, bindparam
 bp = Blueprint("company", __name__, url_prefix="/api")
 
 
+def _resolve_company_id(conn, company_name: str):
+    """Best-effort market company id for a crawler name, or None.
+
+    Tries three sources in order; each targets a table/column a given country's
+    market DB may not have (Slovakia has neither `companies` nor
+    View_Jobs_Full.company_id), so each attempt is isolated — one missing table
+    must not abort the others (a bare exception rolls back the connection's
+    statement, killing later attempts too)."""
+    cid = None
+    # 1) The exact companies-table id (Austria).
+    try:
+        cid = conn.execute(text(
+            "SELECT id FROM companies WHERE company_crawler_name = :n LIMIT 1"),
+            {"n": company_name}).scalar()
+    except Exception:
+        pass
+    # 2) The id the shown jobs carry in the view (covers display-name mismatches).
+    if cid is None:
+        try:
+            cid = conn.execute(text(
+                "SELECT company_id FROM View_Jobs_Full "
+                "WHERE company_crawler_name = :n AND company_id IS NOT NULL LIMIT 1"),
+                {"n": company_name}).scalar()
+        except Exception:
+            pass
+    # 3) Slovakia: company identity lives on the base `jobs` table as
+    #    companies_finstat_id (FK -> companies_finstat.id). Read `jobs` directly
+    #    (fast) rather than the slow View_Jobs_Full.
+    if cid is None:
+        try:
+            cid = conn.execute(text(
+                "SELECT companies_finstat_id FROM jobs "
+                "WHERE company_crawler_name = :n "
+                "AND companies_finstat_id IS NOT NULL LIMIT 1"),
+                {"n": company_name}).scalar()
+        except Exception:
+            pass
+    return int(cid) if cid is not None else None
+
+
+@bp.route("/company/id", methods=["GET"])
+def api_company_id():
+    """Query param: name → { ok, company_id }. A lightweight companion to
+    /api/company that resolves ONLY the market company id (no jobs fan-out, no
+    LLM summary), so the company panel's Save button can light up immediately
+    while the full profile still loads in the background."""
+    company_name = request.args.get("name", "").strip()
+    if not company_name:
+        return jsonify({"ok": False, "error": "name required"}), 400
+    company_id = None
+    try:
+        with get_engine().connect() as conn:
+            company_id = _resolve_company_id(conn, company_name)
+    except Exception:
+        pass  # connection-level failure → no id (button stays disabled)
+    return jsonify({"ok": True, "company_id": company_id})
+
+
 @bp.route("/jobs/contacts", methods=["POST"])
 def api_jobs_contacts():
     """Body: { job_ids: [..] } → { ok, contacts: { <job_id>: [ {contact_id, name,
@@ -49,6 +107,68 @@ def api_jobs_contacts():
     except Exception:
         pass  # market DB without View_Jobs_Contacts → no contacts
     return jsonify({"ok": True, "contacts": out})
+
+
+@bp.route("/contact/jobs", methods=["GET"])
+def api_contact_jobs():
+    """Query param: contact_id → { ok, jobs: [ {job_id, title, company, city, state,
+    salary, portal, posted, url, occ_group} ] }. The active jobs a contact is linked
+    to (via View_Jobs_Contacts, joined to View_Jobs_Full for the job detail). Guarded
+    so a market DB without that view falls back to the base junction tables (Slovakia),
+    and returns an empty list if neither path exists."""
+    raw = request.args.get("contact_id", "").strip()
+    if not raw.isdigit():
+        return jsonify({"ok": False, "error": "contact_id required"}), 400
+    cid = int(raw)
+
+    c        = config.COL
+    col_keys = [k for k in (
+        "job_id", "title", "company", "state", "city",
+        "salary", "portal", "date_posted", "occ_group", "url",
+    ) if config.PROFILE.col_present(k)]
+
+    def _shape(row) -> dict:
+        return {
+            "job_id":    row.get("job_id"),
+            "title":     row.get("title"),
+            "company":   row.get("company"),
+            "city":      row.get("city"),
+            "state":     row.get("state"),
+            "salary":    row.get("salary"),
+            "portal":    row.get("portal"),
+            "posted":    str(row.get("date_posted") or "")[:10] or None,
+            "url":       row.get("url"),
+            "occ_group": row.get("occ_group"),
+        }
+
+    jobs = []
+    try:
+        cols = ", ".join(f"v.`{c[k]}` AS `{k}`" for k in col_keys)
+        sql = f"""
+            SELECT DISTINCT {cols}
+            FROM View_Jobs_Contacts jc
+            JOIN View_Jobs_Full v ON v.`{c['job_id']}` = jc.job_id
+            WHERE jc.contact_id = :cid
+            ORDER BY v.`{c['date_posted']}` DESC
+            LIMIT 100
+        """
+        with get_engine().connect() as conn:
+            rows = conn.execute(text(sql), {"cid": cid}).mappings().all()
+        jobs = [_shape(r) for r in rows]
+    except Exception:
+        # Slovakia (no View_Jobs_Contacts): read via the base junction tables.
+        try:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(
+                    "SELECT DISTINCT j.id AS job_id, j.title AS title, "
+                    "  j.company_crawler_name AS company "
+                    "FROM contact_jobs_junction cj "
+                    "JOIN jobs j ON j.id = cj.job_id "
+                    "WHERE cj.contact_id = :cid LIMIT 100"), {"cid": cid}).mappings().all()
+            jobs = [_shape(r) for r in rows]
+        except Exception:
+            pass  # market DB without either contacts path → no jobs
+    return jsonify({"ok": True, "jobs": jobs})
 
 
 @bp.route("/company", methods=["GET"])
@@ -162,32 +282,44 @@ def api_company():
         contacts   = []
         try:
             with get_engine().connect() as conn:
-                # Prefer the exact companies-table id; fall back to the id the shown
-                # jobs carry in the view (so the Save button works even when the
-                # display name doesn't exactly match a companies row).
-                cid = conn.execute(text(
-                    "SELECT id FROM companies WHERE company_crawler_name = :n LIMIT 1"),
-                    {"n": company_name}).scalar()
-                if cid is None:
-                    cid = conn.execute(text(
-                        "SELECT company_id FROM View_Jobs_Full "
-                        "WHERE company_crawler_name = :n AND company_id IS NOT NULL LIMIT 1"),
-                        {"n": company_name}).scalar()
-                company_id = int(cid) if cid is not None else None
-                crows = conn.execute(text(
-                    "SELECT DISTINCT contact_id, contact_name, contact_email, "
-                    "contact_phone, contact_linkedin FROM View_Jobs_Contacts "
-                    "WHERE company_crawler_name = :n AND contact_id IS NOT NULL "
-                    "ORDER BY contact_name LIMIT 50"), {"n": company_name}).mappings().all()
-                contacts = [{
-                    "contact_id": int(r["contact_id"]),
-                    "name":       r["contact_name"]     or "",
-                    "email":      r["contact_email"]    or "",
-                    "phone":      r["contact_phone"]    or "",
-                    "linkedin":   r["contact_linkedin"] or "",
-                } for r in crows]
+                company_id = _resolve_company_id(conn, company_name)
+
+                try:
+                    crows = conn.execute(text(
+                        "SELECT DISTINCT contact_id, contact_name, contact_email, "
+                        "contact_phone, contact_linkedin FROM View_Jobs_Contacts "
+                        "WHERE company_crawler_name = :n AND contact_id IS NOT NULL "
+                        "ORDER BY contact_name LIMIT 50"), {"n": company_name}).mappings().all()
+                    contacts = [{
+                        "contact_id": int(r["contact_id"]),
+                        "name":       r["contact_name"]     or "",
+                        "email":      r["contact_email"]    or "",
+                        "phone":      r["contact_phone"]    or "",
+                        "linkedin":   r["contact_linkedin"] or "",
+                    } for r in crows]
+                except Exception:
+                    # Slovakia has no View_Jobs_Contacts; read contacts via the base
+                    # junction tables instead (fast, no fan-out).
+                    try:
+                        crows = conn.execute(text(
+                            "SELECT DISTINCT c.id AS contact_id, c.name, c.email, "
+                            "c.phone, c.linkedin "
+                            "FROM contact_jobs_junction cj "
+                            "JOIN contacts c ON c.id = cj.contact_id "
+                            "JOIN jobs j ON j.id = cj.job_id "
+                            "WHERE j.company_crawler_name = :n "
+                            "ORDER BY c.name LIMIT 50"), {"n": company_name}).mappings().all()
+                        contacts = [{
+                            "contact_id": int(r["contact_id"]),
+                            "name":       r["name"]     or "",
+                            "email":      r["email"]    or "",
+                            "phone":      r["phone"]    or "",
+                            "linkedin":   r["linkedin"] or "",
+                        } for r in crows]
+                    except Exception:
+                        pass  # market DB without either contacts path → no contacts
         except Exception:
-            pass  # market DB without companies / View_Jobs_Contacts → no id / contacts
+            pass  # e.g. connection-level failure
 
         from jobs_intelligence_ai.services.reporting import summarize_company
         summary = summarize_company(

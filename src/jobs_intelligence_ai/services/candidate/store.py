@@ -27,7 +27,7 @@ import json as _json
 import logging
 import re
 
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.database import get_engine
@@ -387,11 +387,13 @@ def list_candidates_detailed(account_company_id: int | None = None,
                    c.seniority, c.years_experience, c.industry, c.role_category,
                    c.education_level, c.ai_summary, c.top_skills,
                    c.estimated_salary_min, c.estimated_salary_max,
+                   COALESCE(NULLIF(MAX(u.display_name), ''), MAX(u.username)) AS owner_name,
                    COUNT(s.id)                                    AS matches,
                    SUM(CASE WHEN s.grade = 'A' THEN 1 ELSE 0 END) AS grade_a,
                    MAX(s.saved_at)                                AS last_saved
             FROM {_T_CANDIDATE} c
             LEFT JOIN {_T_SAVED} s ON s.saved_candidate_id = c.id
+            LEFT JOIN {_DB}.app_user u ON u.id = c.owner_id
             WHERE c.account_company_id = :co AND c.country = :ct {vclause}
             GROUP BY c.id
             ORDER BY matches DESC, c.created_at DESC
@@ -431,7 +433,7 @@ def list_candidates_detailed(account_company_id: int | None = None,
             "isTemplate":   bool(r["is_template"]),
             "matches":      int(r["matches"] or 0),
             "gradeA":       int(r["grade_a"] or 0),
-            "createdBy":    "",
+            "createdBy":    r["owner_name"] or "",
             "ownerId":      int(r["owner_id"]) if r["owner_id"] is not None else None,
             "createdAt":    str(r["created_at"]) if r["created_at"] else "",
             "lastSaved":    str(r["last_saved"]) if r["last_saved"] else "",
@@ -442,7 +444,15 @@ def list_candidates_detailed(account_company_id: int | None = None,
 
 _EDITABLE_FIELDS = ("status", "email", "phone", "linkedin", "title",
                     "experience_years", "location", "languages",
-                    "salary_expectation", "availability", "summary")
+                    "salary_expectation", "availability", "summary", "seniority")
+
+# Fields inside a saved job's `job_snapshot` JSON that the Saved-tab grid may edit inline
+# (the display columns). The pipeline `status`, `notes` and `grade` live in real columns.
+_JOB_SNAPSHOT_FIELDS = ("title", "company", "location", "city", "state",
+                        "salary", "url", "portal", "posted")
+# Fields inside a saved company / contact bookmark's `snapshot` JSON that may be edited inline.
+_COMPANY_SNAPSHOT_FIELDS = ("name", "industry", "location", "city", "website", "size")
+_CONTACT_SNAPSHOT_FIELDS = ("name", "title", "position", "company", "email", "phone", "linkedin")
 
 
 def update_candidate(name: str, fields: dict, actor: str | None = None,
@@ -517,7 +527,9 @@ def add_saved_job(job: dict, status: str = "new", extras: dict | None = None,
 def update_saved_job(job_id: str, fields: dict, actor: str | None = None,
                      account_company_id: int | None = None,
                      user_id: int | None = None) -> dict | None:
-    """Patch status / notes / extras on a saved job (company-scoped). Returns the job, or None."""
+    """Patch a saved job (company-scoped): pipeline status / notes / grade / extras (real
+    columns) plus any editable job_snapshot field (title, company, salary, …). Returns the
+    updated job, or None if it wasn't found."""
     job_id = str(job_id or "").strip()
     sets, params = [], {"jid": job_id, "ct": _COUNTRY}
     # The front-end still sends "pipeline_status"; it maps to the `status` column.
@@ -526,12 +538,16 @@ def update_saved_job(job_id: str, fields: dict, actor: str | None = None,
         sets.append("status = :status"); params["status"] = new_status
     if "notes" in fields:
         sets.append("notes = :notes"); params["notes"] = fields["notes"]
+    if "grade" in fields:
+        sets.append("grade = :grade")
+        params["grade"] = (str(fields["grade"]).strip().upper()[:1] or None)
+    snap_updates = {k: fields[k] for k in _JOB_SNAPSHOT_FIELDS if k in fields}
 
     with get_engine().begin() as conn:
         co = _company_id(conn, account_company_id)
         params["co"] = co
         row = conn.execute(text(
-            f"SELECT saved_candidate_id, extras FROM {_T_SAVED} "
+            f"SELECT saved_candidate_id, extras, job_snapshot FROM {_T_SAVED} "
             f"WHERE job_id = :jid AND country = :ct AND account_company_id = :co LIMIT 1"),
             {"jid": job_id, "ct": _COUNTRY, "co": co}).mappings().first()
         if not row:
@@ -539,6 +555,10 @@ def update_saved_job(job_id: str, fields: dict, actor: str | None = None,
         if "extras" in fields:
             merged = {**(_load(row["extras"]) or {}), **(fields["extras"] or {})}
             sets.append("extras = :extras"); params["extras"] = _dump(merged)
+        if snap_updates:
+            snap = _load(row["job_snapshot"]) or {}
+            snap.update(snap_updates)
+            sets.append("job_snapshot = :snap"); params["snap"] = _dump(snap)
         if sets:
             conn.execute(text(
                 f"UPDATE {_T_SAVED} SET {', '.join(sets)} "
@@ -589,6 +609,24 @@ def delete_candidate(name: str, actor: str | None = None,
         _audit(conn, "erase_candidate", "saved_candidate", None,
                f"candidate_id={cid} name={name}", user_id, co)
         return True
+
+
+def reset_demo_candidates(names: list[str], account_company_id: int | None = None) -> int:
+    """Delete the bundled demo candidates (by name, for the active country) so each
+    demo run starts clean. Saved jobs cascade via the saved_jobs FK. Returns the
+    number of candidate rows removed. Only touches the given demo names — anything
+    saved under a different name is untouched."""
+    names = [n.strip() for n in (names or []) if n and n.strip()]
+    if not names:
+        return 0
+    with get_engine().begin() as conn:
+        co = _company_id(conn, account_company_id)
+        res = conn.execute(text(
+            f"DELETE FROM {_T_CANDIDATE} "
+            f"WHERE account_company_id = :co AND country = :ct AND full_name IN :names"
+        ).bindparams(bindparam("names", expanding=True)),
+            {"co": co, "ct": _COUNTRY, "names": names})
+        return res.rowcount or 0
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -650,6 +688,51 @@ def _delete_saved_ref(table: str, saved_id, account_company_id: int | None,
         if res.rowcount:
             _audit(conn, action, table.rstrip("s"), int(saved_id), "", user_id, co)
         return res.rowcount or 0
+
+
+def _update_saved_ref(table: str, saved_id, fields: dict, snapshot_fields: tuple,
+                      account_company_id: int | None, user_id: int | None,
+                      action: str) -> int:
+    """Patch a saved bookmark in place (company-scoped): merge the editable snapshot
+    fields into its `snapshot` JSON and/or update `notes`. Returns rows updated (0 or 1)."""
+    snap_updates = {k: fields[k] for k in snapshot_fields if k in fields}
+    with get_engine().begin() as conn:
+        co = _company_id(conn, account_company_id)
+        row = conn.execute(text(
+            f"SELECT snapshot FROM {_DB}.{table} "
+            f"WHERE id = :id AND account_company_id = :co LIMIT 1"),
+            {"id": int(saved_id), "co": co}).mappings().first()
+        if not row:
+            return 0
+        sets, params = [], {"id": int(saved_id), "co": co}
+        if snap_updates:
+            snap = _load(row["snapshot"]) or {}
+            snap.update(snap_updates)
+            sets.append("snapshot = :snap"); params["snap"] = _dump(snap)
+        if "notes" in fields:
+            sets.append("notes = :notes"); params["notes"] = fields["notes"] or ""
+        if not sets:
+            return 0
+        conn.execute(text(
+            f"UPDATE {_DB}.{table} SET {', '.join(sets)} "
+            f"WHERE id = :id AND account_company_id = :co"), params)
+        detail = ", ".join(list(snap_updates) + (["notes"] if "notes" in fields else []))
+        _audit(conn, action, table.rstrip("s"), int(saved_id), detail, user_id, co)
+        return 1
+
+
+def update_saved_company(saved_id, fields: dict, account_company_id: int | None = None,
+                         user_id: int | None = None) -> int:
+    """Edit a saved company's snapshot fields (name/industry/location/…) and/or notes."""
+    return _update_saved_ref("saved_companies", saved_id, fields, _COMPANY_SNAPSHOT_FIELDS,
+                             account_company_id, user_id, "update_company")
+
+
+def update_saved_contact(saved_id, fields: dict, account_company_id: int | None = None,
+                         user_id: int | None = None) -> int:
+    """Edit a saved contact's snapshot fields (name/title/email/…) and/or notes."""
+    return _update_saved_ref("saved_contacts", saved_id, fields, _CONTACT_SNAPSHOT_FIELDS,
+                             account_company_id, user_id, "update_contact")
 
 
 def add_saved_company(target_company_id, snapshot: dict | None = None, notes: str = "",

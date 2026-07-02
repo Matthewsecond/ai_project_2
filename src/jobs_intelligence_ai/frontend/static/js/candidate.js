@@ -614,6 +614,12 @@ async function openCompanyPanel(companyName) {
   body.innerHTML = `<div class="co-loading-wrap"><div class="co-spinner"></div><span>Loading company data…</span></div>`;
   modal.classList.remove('hidden');
 
+  // The Save button lives in the header so it's usable immediately, without
+  // waiting for the (slower, LLM-backed) /api/company profile. Show it right
+  // away, then a lightweight id lookup enables it — both in parallel with the
+  // full load below.
+  _prepCompanySaveBtn(companyName);
+
   // Use cache if available
   if (_coCache[companyName]) {
     _renderCompanyPanel(_coCache[companyName]);
@@ -626,6 +632,32 @@ async function openCompanyPanel(companyName) {
     _renderCompanyPanel(data);
   } catch(e) {
     body.innerHTML = `<div class="co-no-data" style="padding:30px">Could not load company data: ${esc(e.message)}</div>`;
+  }
+}
+
+// Reset + reveal the header Save button for a company, then resolve its market id
+// in the background (fast: no jobs fan-out, no summary) so the button lights up
+// long before the full profile finishes loading.
+async function _prepCompanySaveBtn(companyName) {
+  const btn = document.getElementById('coSaveBtn');
+  if (!btn) return;
+  btn.className = 'co-modal-save';        // clear any prior "saved"/hidden state
+  btn.textContent = '＋ Save company';
+  btn.disabled = true;                     // enabled once we have the id
+  btn.dataset.cname = companyName;
+  btn.dataset.cid = '';
+  try {
+    const res = await api.get('/api/company/id?name=' + encodeURIComponent(companyName));
+    // Ignore if the user already moved to a different company in the meantime.
+    if (btn.dataset.cname !== companyName) return;
+    if (res.company_id) {
+      btn.dataset.cid = res.company_id;
+      btn.disabled = false;
+    } else {
+      btn.classList.add('hidden');         // no market id → nothing to save
+    }
+  } catch(e) {
+    btn.classList.add('hidden');
   }
 }
 
@@ -651,17 +683,14 @@ function _renderCompanyPanel(d) {
   const rng  = sal.min && sal.max ? `€${sal.min.toLocaleString()} – €${sal.max.toLocaleString()}` : '—';
 
   if (!d.total_jobs) {
+    document.getElementById('coSaveBtn')?.classList.add('hidden');  // nothing to save
     body.innerHTML = `<div class="co-no-data" style="padding:24px 0">No active jobs found for this company.</div>`;
     return;
   }
 
-  // ── Save company ───────────────────────────────────────────
+  // Save button is rendered once in the header (see _prepCompanySaveBtn), so it's
+  // usable before this profile loads and survives the loading→loaded body swap.
   let html = '';
-  if (d.company_id) {
-    html += `<div class="co-save-row">
-      <button class="co-save-btn" data-action="save-company" data-cid="${d.company_id}" data-cname="${esc(d.company)}">＋ Save company</button>
-    </div>`;
-  }
 
   // ── Stats row ──────────────────────────────────────────────
   html += `<div class="co-stats-row">
@@ -917,6 +946,193 @@ function _withAsstNotes(base) {
 }
 
 
+// ── Candidate detail modal (opened from Saved → Candidates) ───
+// Shows the full parsed profile + the candidate's saved matched jobs, and lets
+// you edit the key fields inline (PATCH /api/saved/candidate/<name>). The grid
+// row (status/owner/seniority etc.) is passed in so the header fills instantly;
+// the deep CV sections + matches come from GET /api/saved/load.
+let _cand = { name: '', row: {}, profile: {}, jobs: [], editing: false };
+const _SENIORITY_OPTS = ['', 'Junior', 'Mid', 'Senior', 'Lead', 'Executive'];
+const _STATUS_OPTS    = ['New', 'Contacted', 'Interviewing', 'Placed', 'Rejected'];
+
+async function openCandidateDetail(name, row) {
+  const modal = document.getElementById('candModal');
+  const body  = document.getElementById('candModalBody');
+  _cand = { name, row: row || {}, profile: {}, jobs: [], editing: false };
+  document.getElementById('candModalName').textContent = name || 'Candidate';
+  document.getElementById('candModalSub').textContent  = '';
+  _candEditButtons(false);
+  body.innerHTML = `<div class="co-loading-wrap"><div class="co-spinner"></div><span>Loading candidate…</span></div>`;
+  modal.classList.remove('hidden');
+  try {
+    const data = await api.get('/api/saved/load?name=' + encodeURIComponent(name));
+    _cand.profile = data.profile || {};
+    _cand.jobs    = data.jobs || [];
+    _renderCandidateDetail();
+  } catch(e) {
+    body.innerHTML = `<div class="co-no-data" style="padding:30px">Could not load candidate: ${esc(e.message || e)}</div>`;
+  }
+}
+
+function closeCandidateDetail() { document.getElementById('candModal').classList.add('hidden'); }
+
+function _candEditButtons(editing) {
+  document.getElementById('candSaveBtn').classList.toggle('hidden', !editing);
+  document.getElementById('candEditBtn').textContent = editing ? 'Cancel' : '✎ Edit';
+}
+
+// Merge the grid row + the fetched profile into one view model (profile wins).
+function _candModel() {
+  const r = _cand.row || {}, p = _cand.profile || {};
+  const pick = (a, b) => (a !== undefined && a !== null && a !== '') ? a : (b ?? '');
+  const skills = (Array.isArray(p.top_skills) && p.top_skills.length) ? p.top_skills
+               : (Array.isArray(p.skills) && p.skills.length) ? p.skills
+               : (r.skills ? String(r.skills).split(',').map(s => s.trim()).filter(Boolean) : []);
+  return {
+    name:         _cand.name,
+    title:        pick(p.title, r.title),
+    seniority:    pick(p.seniority, r.seniority),
+    location:     pick(p.location, r.location),
+    experience:   pick(p.years_experience ? p.years_experience + ' years' : p.experience_years, r.experience),
+    status:       pick(r.status, 'New'),
+    owner:        r.createdBy || '',
+    email:        pick(p.email, r.email),
+    phone:        pick(p.phone, r.phone),
+    linkedin:     pick(p.linkedin, r.linkedin),
+    languages:    pick(p.languages, r.languages),
+    salary:       pick(p.salary_expectation, r.salary),
+    availability: pick(p.availability, r.availability),
+    industry:     pick(p.industry, r.industry),
+    roleCategory: pick(p.role_category, r.roleCategory),
+    summary:      pick(p.ai_summary, p.summary) || r.aiSummary || r.summary || '',
+    skills,
+    experiences:  Array.isArray(p.experiences) ? p.experiences.filter(e => e && (e.title || e.company)) : [],
+    education:    Array.isArray(p.education) ? p.education.filter(Boolean) : [],
+    certifications: Array.isArray(p.certifications) ? p.certifications.filter(Boolean) : [],
+  };
+}
+
+function _renderCandidateDetail() {
+  const m    = _candModel();
+  const body = document.getElementById('candModalBody');
+  document.getElementById('candModalName').textContent = m.name || 'Candidate';
+  document.getElementById('candModalSub').textContent =
+    [m.title, m.seniority, m.location, m.experience].filter(Boolean).join(' · ');
+
+  if (_cand.editing) { _candEditButtons(true); _renderCandidateEdit(m); return; }
+  _candEditButtons(false);
+
+  let html = `<div class="cd-meta-row">
+    <span class="cd-badge">${esc(m.status || 'New')}</span>
+    ${m.owner ? `<span class="cd-owner">Saved by <b>${esc(m.owner)}</b></span>` : ''}
+    <span class="cd-owner">${_cand.jobs.length} match${_cand.jobs.length !== 1 ? 'es' : ''}</span>
+  </div>`;
+
+  const contact = [];
+  if (m.email)    contact.push(`<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>`);
+  if (m.phone)    contact.push(esc(m.phone));
+  if (m.linkedin) contact.push(`<a href="${esc(m.linkedin)}" target="_blank">LinkedIn ↗</a>`);
+  if (contact.length) html += `<div class="cd-contact">${contact.join('<span class="cd-dot">·</span>')}</div>`;
+
+  const fact = (l, v) => v ? `<span class="cd-fact"><span class="cd-fact-l">${l}</span> ${esc(v)}</span>` : '';
+  const facts = [fact('Industry', m.industry), fact('Role', m.roleCategory),
+                 fact('Languages', m.languages), fact('Salary', m.salary),
+                 fact('Available', m.availability)].filter(Boolean).join('');
+  if (facts) html += `<div class="cd-facts">${facts}</div>`;
+
+  if (m.summary) html += `<div class="co-section-hdr">Summary</div><div class="co-summary-box">${esc(m.summary)}</div>`;
+
+  if (m.skills.length) html += `<div class="co-section-hdr">Skills</div><div class="cd-chips">` +
+    m.skills.map(s => `<span class="co-pill">${esc(String(s))}</span>`).join('') + `</div>`;
+
+  if (m.experiences.length) {
+    const when = e => [e.starts_at, e.ends_at].filter(Boolean).join('–') || (e.starts_at ? `${e.starts_at}–present` : '');
+    html += `<div class="co-section-hdr">Experience</div><div class="cd-exp-list">` +
+      m.experiences.slice(0, 8).map(e => `<div class="cd-exp">
+        <span><b>${esc(e.title || '—')}</b>${e.company ? ` · ${esc(e.company)}` : ''}</span>
+        ${when(e) ? `<span class="cd-when">${esc(when(e))}</span>` : ''}</div>`).join('') + `</div>`;
+  }
+  if (m.education.length) {
+    html += `<div class="co-section-hdr">Education</div><div class="cd-exp-list">` +
+      m.education.slice(0, 6).map(e => {
+        const t = typeof e === 'string' ? e : [e.degree, e.field, e.school].filter(Boolean).join(', ');
+        return `<div class="cd-exp"><span>${esc(t)}</span></div>`;
+      }).join('') + `</div>`;
+  }
+  if (m.certifications.length) {
+    html += `<div class="co-section-hdr">Certifications</div><div class="cd-chips">` +
+      m.certifications.map(c => `<span class="co-pill">${esc(typeof c === 'string' ? c : (c.name || ''))}</span>`).join('') + `</div>`;
+  }
+
+  html += `<div class="co-section-hdr" style="margin-top:18px">Matched jobs <span class="co-contact-count">${_cand.jobs.length}</span></div>`;
+  if (_cand.jobs.length) {
+    html += `<div class="co-job-list">` + _cand.jobs.map(j => {
+      const loc   = [j.city, j.state].filter(Boolean).join(', ') || j.location || '—';
+      const grade = j.grade ? `<span class="cd-grade cd-grade-${esc(j.grade)}">${esc(j.grade)}</span>` : '';
+      const sal   = j.salary ? `<span class="co-job-meta-sal">€${esc(String(j.salary))}</span>` : '';
+      const attrs = j.url ? `href="${esc(j.url)}" target="_blank"` : '';
+      return `<a class="co-job-row" ${attrs}>
+        <div class="co-job-row-title">${grade}${esc(j.title || '—')}</div>
+        <div class="co-job-row-meta"><span>${esc(j.company || '')}</span><span>📍 ${esc(loc)}</span>${sal}${j.pipeline_status ? `<span>${esc(j.pipeline_status)}</span>` : ''}</div>
+      </a>`;
+    }).join('') + `</div>`;
+  } else {
+    html += `<div class="co-no-data" style="padding:14px 0">No matched jobs saved for this candidate yet.</div>`;
+  }
+
+  body.innerHTML = html;
+}
+
+function _renderCandidateEdit(m) {
+  const body = document.getElementById('candModalBody');
+  const field = (label, id, val, type = 'text') =>
+    `<label class="cd-field"><span>${label}</span><input id="${id}" type="${type}" value="${esc(val || '')}"></label>`;
+  const sel = (label, id, val, opts) =>
+    `<label class="cd-field"><span>${label}</span><select id="${id}">` +
+    opts.map(o => `<option ${o === (val || '') ? 'selected' : ''}>${esc(o)}</option>`).join('') + `</select></label>`;
+  body.innerHTML = `
+    <div class="cd-edit-grid">
+      ${field('Title', 'cdTitle', m.title)}
+      ${sel('Seniority', 'cdSeniority', m.seniority, _SENIORITY_OPTS)}
+      ${sel('Status', 'cdStatus', m.status, _STATUS_OPTS)}
+      ${field('Location', 'cdLocation', m.location)}
+      ${field('Email', 'cdEmail', m.email)}
+      ${field('Phone', 'cdPhone', m.phone)}
+      ${field('LinkedIn', 'cdLinkedin', m.linkedin)}
+      ${field('Languages', 'cdLanguages', m.languages)}
+      ${field('Salary expectation', 'cdSalary', m.salary)}
+      ${field('Availability', 'cdAvailability', m.availability)}
+    </div>
+    <label class="cd-field cd-field-wide"><span>Skills (comma-separated)</span><input id="cdSkills" type="text" value="${esc(m.skills.join(', '))}"></label>
+    <label class="cd-field cd-field-wide"><span>Summary</span><textarea id="cdSummary" rows="3">${esc(m.summary)}</textarea></label>`;
+}
+
+function toggleCandidateEdit() { _cand.editing = !_cand.editing; _renderCandidateDetail(); }
+
+async function saveCandidateEdits() {
+  const g = id => (document.getElementById(id)?.value ?? '').trim();
+  const fields = {
+    title: g('cdTitle'), seniority: g('cdSeniority'), status: g('cdStatus'),
+    location: g('cdLocation'), email: g('cdEmail'), phone: g('cdPhone'),
+    linkedin: g('cdLinkedin'), languages: g('cdLanguages'),
+    salary_expectation: g('cdSalary'), availability: g('cdAvailability'),
+    summary: g('cdSummary'), skills: g('cdSkills'),
+  };
+  const btn = document.getElementById('candSaveBtn');
+  btn.disabled = true; const prev = btn.textContent; btn.textContent = 'Saving…';
+  try {
+    await api.patch('/api/saved/candidate/' + encodeURIComponent(_cand.name), fields);
+    _cand.editing = false;
+    _cand.row = { ..._cand.row, status: fields.status };   // status lives on the row, not the profile
+    const data = await api.get('/api/saved/load?name=' + encodeURIComponent(_cand.name));
+    _cand.profile = data.profile || {}; _cand.jobs = data.jobs || [];
+    _renderCandidateDetail();
+    app.refreshSavedIfCandidates && app.refreshSavedIfCandidates();
+  } catch(e) {
+    alert('Save failed: ' + (e.message || e));
+  } finally { btn.disabled = false; btn.textContent = prev; }
+}
+
 // Action registry for the candidate-bar / example-dropdown / workflow-toggle /
 // CV-zone-browse controls in the search-tab markup — split out of that tab's
 // mixed registry block since these route to this module.
@@ -930,6 +1146,12 @@ Object.assign(_ACTIONS, {
   'set-workflow':            (el)    => setWorkflow(el.dataset.workflow),
   // CV zone — browse link (preserve the original preventDefault + stopPropagation)
   'browse-cv':               (el, e) => { e.preventDefault(); e.stopPropagation(); document.getElementById('cvFileInput').click(); },
+  // Candidate detail modal (open-candidate is registered in saved.js, which owns
+  // the grid row it passes in)
+  'close-cand-modal':        ()      => closeCandidateDetail(),
+  'cand-modal-backdrop':     (el, e) => { if (e.target === el) closeCandidateDetail(); },
+  'cand-edit-toggle':        ()      => toggleCandidateEdit(),
+  'cand-edit-save':          ()      => saveCandidateEdits(),
 });
 
 // Cross-module exports — registered on app so search/assistant/guided/saved/modal
@@ -937,6 +1159,7 @@ Object.assign(_ACTIONS, {
 Object.assign(app, {
   buildCandidateText, setWorkflow, _renderCandidateProfile, ensureLinkedInScraped,
   _initials, openCompanyPanel, closeCompanyPanel, closeCvPreview, clearCandidateProfile,
+  openCandidateDetail, closeCandidateDetail,
   // Used by candidate-examples.js to load a bundled example into the CV zone.
   _activateCVMode, _setCvLoaded,
 });

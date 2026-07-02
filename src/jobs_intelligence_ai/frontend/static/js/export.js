@@ -12,6 +12,24 @@ export function exportResults(results) {
   csvDownload(results, cols, 'jobs_matching_results.csv');
 }
 
+// Same matching results as exportResults(), but as a formatted single-sheet .xlsx
+// (friendly headers + column widths) rather than a raw CSV.
+export function exportResultsXlsx(results) {
+  if (!results.length) { alert('Run matching first.'); return; }
+  const cols = [
+    ['job_id','Job ID'], ['title','Title'], ['company','Company'], ['state','State'],
+    ['city','City'], ['salary','Salary'], ['grade','Grade'], ['score_pct','Score %'],
+    ['portal','Portal'], ['posted','Posted'], ['url','URL'],
+  ];
+  const rows = [cols.map(c => c[1])];
+  results.forEach(j => rows.push(cols.map(([k]) => j[k] ?? '')));
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [8,30,24,14,14,14,7,8,14,12,40].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Matching Results');
+  XLSX.writeFile(wb, 'jobs_matching_results.xlsx');
+}
+
 export function exportSaved(savedJobs) {
   if (!savedJobs.length) { alert('No saved jobs.'); return; }
 

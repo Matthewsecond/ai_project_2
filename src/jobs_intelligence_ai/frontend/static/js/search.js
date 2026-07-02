@@ -8,7 +8,7 @@
 import { state, _ACTIONS, app } from "./state.js";
 import { esc, gradeClass, storeJob, getStoredJob } from "./util.js";
 import api from "./api.js";
-import { exportResults } from "./export.js";
+import { exportResults, exportResultsXlsx } from "./export.js";
 
 //  Filter chip toggles (single-select per group)
 // ════════════════════════════════════════════════════════════
@@ -85,6 +85,7 @@ function setDbStatus(ok, msg) {
 Object.assign(_ACTIONS, {
   // run row
   'export-results':          ()      => exportResults(state.lastResults),
+  'export-results-xlsx':     ()      => exportResultsXlsx(state.lastResults),
   'save-all':                ()      => saveAll(),
   'clear-results':           ()      => clearResults(),
   'save-candidate':          ()      => saveCandidate(document.getElementById('btnSaveCandidate')),

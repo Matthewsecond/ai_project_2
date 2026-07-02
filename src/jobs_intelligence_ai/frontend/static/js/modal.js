@@ -93,20 +93,6 @@ async function saveWithExtras() {
   } catch(e) { alert('Save failed: ' + e.message); }
 }
 
-async function updateStatus(jobId, sel) {
-  sel.className = `status-select s-${sel.value}`;
-  await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { pipeline_status: sel.value } });
-}
-async function updateNotes(jobId, notes) {
-  await api.raw(`/api/saved/${jobId}`, { method: 'PATCH', body: { notes } });
-}
-async function removeJob(jobId) {
-  await api.raw(`/api/saved/${jobId}`, { method: 'DELETE' });
-  document.getElementById(`srow-${jobId}`)?.remove();
-  state.savedJobs = state.savedJobs.filter(j => j.job_id !== jobId);
-  app.updateSavedBadge();
-  app.loadSaved();
-}
 
 
 // ════════════════════════════════════════════════════════════

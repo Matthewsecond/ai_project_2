@@ -83,26 +83,28 @@ def api_enrich_linkedin():
     if not config.APIFY_API_KEY:
         return jsonify({"ok": False, "error": "Apify API key not configured"}), 503
 
-    from jobs_intelligence_ai.infra.integrations.linkedin import enrich_linkedin, map_to_profile, to_candidate_text
+    from jobs_intelligence_ai.infra.integrations.linkedin import (
+        enrich_linkedin, map_to_profile, to_candidate_text, error_message)
     from jobs_intelligence_ai.services.candidate import enrich_linkedin_profile
     try:
         items = enrich_linkedin(urls)
-        # The scraper returns one item per URL; failed ones carry an `errorMessage`
-        # (deleted / private / not-found profile) and no name. Drop those so they
-        # don't become blank candidate cards — `requested` vs `count` shows the gap.
-        good = [it for it in (items or [])
-                if it.get("full_name") and not it.get("errorMessage")]
-        if not good:
-            msg = (items[0].get("errorMessage") if items else None) \
+        # The scraper returns one item per URL; failed ones (deleted / private /
+        # not-found profile) carry an error and map to a nameless profile. Build
+        # only the ones that mapped to a real candidate — `requested` vs `count`
+        # shows the gap — so failures don't become blank cards.
+        profiles = []
+        for it in (items or []):
+            # Mechanical map = accurate structured base; AI then analyzes it and
+            # layers on inferred fields (seniority, salary, summary, …).
+            base = map_to_profile(it)
+            if not base.get("name"):
+                continue
+            prof = enrich_linkedin_profile(it, base=base)
+            profiles.append({"profile": prof, "text": to_candidate_text(base)})
+        if not profiles:
+            msg = next((error_message(it) for it in (items or []) if error_message(it)), None) \
                   or "No data returned for those profiles"
             return jsonify({"ok": False, "error": msg}), 404
-        profiles = []
-        for it in good:
-            # Mechanical map = accurate structured base; AI then analyzes the raw
-            # scrape and layers on inferred fields (seniority, salary, summary, …).
-            base = map_to_profile(it)
-            prof = enrich_linkedin_profile(it, base=base)
-            profiles.append({"profile": prof, "text": to_candidate_text(it, base)})
         return jsonify({"ok": True, "count": len(profiles),
                         "requested": len(urls), "profiles": profiles})
     except Exception as e:
@@ -135,9 +137,11 @@ def api_candidate_assistant():
     Body: { session_id, message, profile?, jobs?, lang? }
       - profile : current candidate-profile dict shown on the card
       - jobs    : list of offers currently matched on screen (lastResults)
-    Returns: { ok, reply, profile_updates, cv_note }
-      - profile_updates : partial profile dict to merge into the card
-      - cv_note         : one CV-style line to append to the CV text for re-matching
+    Returns: { ok, reply, profile_updates, cv_note, search_suggestion }
+      - profile_updates   : partial profile dict to merge into the card
+      - cv_note           : one CV-style line to append to the CV text for re-matching
+      - search_suggestion : a role direction to re-aim the search at (empty unless the recruiter
+                            asked to broaden/steer the search); the UI offers a one-click re-search
     """
     data       = request.get_json(silent=True) or {}
     message    = (data.get("message") or "").strip()
@@ -153,10 +157,11 @@ def api_candidate_assistant():
     from jobs_intelligence_ai.services.candidate import send_candidate_message
     result = send_candidate_message(session_id, message, profile, jobs, lang)
     return jsonify({
-        "ok":              True,
-        "reply":           result.get("text") or "",
-        "profile_updates": result.get("profile_updates") or {},
-        "cv_note":         result.get("cv_note") or "",
+        "ok":                True,
+        "reply":             result.get("text") or "",
+        "profile_updates":   result.get("profile_updates") or {},
+        "cv_note":           result.get("cv_note") or "",
+        "search_suggestion": result.get("search_suggestion") or "",
     })
 
 

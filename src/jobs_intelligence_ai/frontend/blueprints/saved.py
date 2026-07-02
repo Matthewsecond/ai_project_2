@@ -9,11 +9,13 @@ own/all visibility (the collaboration boundary).
 Routes:
   GET    /api/saved              → list saved jobs
   POST   /api/saved              → add a job (for a candidate)
-  PATCH  /api/saved/<job_id>     → update status / notes / extras
+  PATCH  /api/saved/<job_id>     → edit status / notes / grade / snapshot fields
   DELETE /api/saved/<job_id>     → remove a job
   GET/POST /api/saved/companies  → list / save a target company
+  PATCH  /api/saved/companies/<id> → edit a saved company's fields
   DELETE /api/saved/companies/<id>
   GET/POST /api/saved/contacts   → list / save a contact
+  PATCH  /api/saved/contacts/<id>  → edit a saved contact's fields
   DELETE /api/saved/contacts/<id>
   POST   /api/saved/candidate    → save a candidate (profile only)
   POST   /api/saved/observation  → HR profile-override chat (alias: /api/saved/interview)
@@ -49,6 +51,11 @@ def api_saved_get():
     return jsonify({"ok": True, "count": len(jobs), "jobs": jobs})
 
 
+# Saved-job sales pipeline — canonical codes stored in `saved_jobs.status`;
+# the UI maps them to EN/DE labels. Distinct from the candidate hiring pipeline.
+_JOB_PIPELINE = ("new", "in_progress", "proposal_sent", "won", "lost")
+
+
 @bp.route("", methods=["POST"])
 def api_saved_add():
     """Body: { job: {...}, status?: str, extras?: dict, candidate_profile?: {...} }"""
@@ -56,11 +63,14 @@ def api_saved_add():
     job  = body.get("job")
     if not job:
         return jsonify({"ok": False, "error": "job required"}), 400
+    status = body.get("status", "new")
+    if status not in _JOB_PIPELINE:
+        return jsonify({"ok": False, "error": f"invalid status {status!r}"}), 400
 
     profile = body.get("candidate_profile")
     try:
         added = store.add_saved_job(
-            job, status=body.get("status", "new"),
+            job, status=status,
             extras=body.get("extras") or {}, profile=profile,
             account_company_id=_aid(), owner_id=_uid())
     except ValueError as e:
@@ -74,10 +84,14 @@ def api_saved_add():
 
 @bp.route("/<job_id>", methods=["PATCH"])
 def api_saved_update(job_id):
-    """Body: { pipeline_status?, notes?, extras? }"""
+    """Body: { pipeline_status?, notes?, grade?, extras?, and any editable job_snapshot
+    field (title, company, location, salary, url, portal, …) }. The store enforces the
+    field allow-list, so forwarding the whole body is safe."""
     body = request.get_json(silent=True) or {}
-    fields = {k: body[k] for k in ("pipeline_status", "notes", "extras") if k in body}
-    job = store.update_saved_job(job_id, fields, account_company_id=_aid(), user_id=_uid())
+    new_status = body.get("pipeline_status", body.get("status"))
+    if new_status is not None and new_status not in _JOB_PIPELINE:
+        return jsonify({"ok": False, "error": f"invalid status {new_status!r}"}), 400
+    job = store.update_saved_job(job_id, body, account_company_id=_aid(), user_id=_uid())
     if job is None:
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "job": job})
@@ -158,6 +172,15 @@ def api_save_company():
         account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
 
 
+@bp.route("/companies/<int:saved_id>", methods=["PATCH"])
+def api_update_saved_company(saved_id):
+    """Body: any editable snapshot field (name, industry, location, …) and/or notes."""
+    body = request.get_json(silent=True) or {}
+    if not store.update_saved_company(saved_id, body, account_company_id=_aid(), user_id=_uid()):
+        return jsonify({"ok": False, "error": "Not found or no editable fields"}), 404
+    return jsonify({"ok": True})
+
+
 @bp.route("/companies/<int:saved_id>", methods=["DELETE"])
 def api_delete_saved_company(saved_id):
     removed = store.delete_saved_company(saved_id, account_company_id=_aid(), user_id=_uid())
@@ -186,6 +209,15 @@ def api_save_contact():
         return jsonify({"ok": False, "error": str(e)}), 400
     return jsonify({"ok": True, "added": added, "contacts": store.list_saved_contacts(
         account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+
+
+@bp.route("/contacts/<int:saved_id>", methods=["PATCH"])
+def api_update_saved_contact(saved_id):
+    """Body: any editable snapshot field (name, title, email, …) and/or notes."""
+    body = request.get_json(silent=True) or {}
+    if not store.update_saved_contact(saved_id, body, account_company_id=_aid(), user_id=_uid()):
+        return jsonify({"ok": False, "error": "Not found or no editable fields"}), 404
+    return jsonify({"ok": True})
 
 
 @bp.route("/contacts/<int:saved_id>", methods=["DELETE"])
@@ -400,7 +432,8 @@ def api_saved_delete(job_id):
 # Candidate fields the table view may edit inline.
 _CANDIDATE_EDIT_FIELDS = (
     "status", "email", "phone", "linkedin", "title", "experience_years",
-    "location", "languages", "salary_expectation", "availability", "summary", "skills")
+    "location", "languages", "salary_expectation", "availability", "summary",
+    "skills", "seniority")
 
 
 @bp.route("/candidate/<path:name>", methods=["PATCH"])

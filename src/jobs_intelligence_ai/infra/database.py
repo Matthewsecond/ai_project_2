@@ -127,6 +127,19 @@ def fetch_jobs_by_ids(job_ids: list) -> list[dict]:
         except Exception:
             rows = []
 
+    # View_Jobs_Full fans out one job into several rows by location, so an id-IN
+    # lookup can return the same job_id more than once. Keep the first row per id.
+    id_col = c["job_id"]
+    seen: set = set()
+    deduped = []
+    for r in rows:
+        jid = r.get(id_col)
+        if jid in seen:
+            continue
+        seen.add(jid)
+        deduped.append(r)
+    rows = deduped
+
     # Try to add lat/lon if separate columns exist
     _add_geo(rows)
     return rows
