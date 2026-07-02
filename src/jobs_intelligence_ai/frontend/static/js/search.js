@@ -28,7 +28,7 @@ function getChipVal(group) {
 // ════════════════════════════════════════════════════════════
 //  Load filter dropdowns from API
 // ════════════════════════════════════════════════════════════
-// _filterOpts moved to state.filterOpts (state.js) — shared with guided + radar.
+// _filterOpts moved to state.filterOpts (state.js).
 
 async function loadFilters() {
   try {
@@ -80,7 +80,7 @@ function setDbStatus(ok, msg) {
 }
 
 // Action registry for the run-row/candidate-assistant/results-filter controls
-// in the search-tab markup (candidate.js + guided.js claimed their own slices
+// in the search-tab markup (candidate.js claimed its own slice
 // of this block already; the rest stay here until assistant.js/search.js do).
 Object.assign(_ACTIONS, {
   // run row
@@ -154,7 +154,7 @@ function togglePinJob(jobId) {
 
 function _runLabelFor() {
   if (state.resultsFrozen && state.lastResults.length) return 'Re-score results';
-  return state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
+  return 'Run matching';
 }
 
 function toggleFreeze() {
@@ -312,7 +312,7 @@ async function runMatching() {
   const text = app.buildCandidateText();
   if (!text) {
     btn.disabled = false;
-    document.getElementById('runLabel').textContent = state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
+    document.getElementById('runLabel').textContent = 'Run matching';
     alert('Please enter a candidate profile.');
     return;
   }
@@ -391,7 +391,7 @@ async function runMatching() {
     document.getElementById('resultsStatus').innerHTML = '<span>Error — check Flask console.</span>';
   } finally {
     btn.disabled = false;
-    document.getElementById('runLabel').textContent = state.activeMode === 'guided' ? 'Find roles' : 'Run matching';
+    document.getElementById('runLabel').textContent = 'Run matching';
   }
 }
 
@@ -934,8 +934,8 @@ async function loadTestData() {
 }
 
 
-// Cross-module exports — registered on app so candidate/clustering/saved/modal/
-// guided/assistant/interview can call into this module without a direct import.
+// Cross-module exports — registered on app so candidate/saved/modal/
+// assistant/interview can call into this module without a direct import.
 Object.assign(app, {
   renderResults, runMatching, saveAll, toggleFreeze, updateSavedBadge,
   doSaveWithExtras, loadFilters,

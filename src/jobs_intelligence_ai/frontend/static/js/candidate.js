@@ -1,10 +1,9 @@
 // ════════════════════════════════════════════════════════════
 //  Candidate — input modes, CV upload/parse, profile card, LinkedIn, examples
 // ════════════════════════════════════════════════════════════
-// Owns the single-candidate input surface: mode tabs (CV/LinkedIn/guided/template),
-// the single<->multiple workflow toggle, CV drop zone + parsing, the profile card,
-// LinkedIn scraping, example candidates, company info panel, and buildCandidateText()
-// (the text every other module matches/chats against).
+// Owns the single-candidate input surface: mode tabs (CV/LinkedIn), CV drop zone +
+// parsing, the profile card, LinkedIn scraping, example candidates, company info
+// panel, and buildCandidateText() (the text every other module matches/chats against).
 import { state, _ACTIONS, app } from "./state.js";
 import { esc } from "./util.js";
 import api from "./api.js";
@@ -23,12 +22,6 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
     // — but keep each zone's typed text so nothing the user entered is lost.
     if (prevMode !== state.activeMode) _resetCandidateOnModeSwitch();
     document.getElementById('zone-' + state.activeMode).classList.add('active');
-    const guided = state.activeMode === 'guided';
-    if (guided) app.gbInit();
-    const stBtn = document.getElementById('gbSaveTemplateBtn');
-    if (stBtn) stBtn.style.display = guided ? 'inline-flex' : 'none';
-    document.getElementById('runLabel').textContent = guided ? 'Find roles' : 'Run matching';
-    _applyChrome();   // run row / candidate bar visibility (workflow + mode aware)
     // Re-evaluate the "already in DB" warning against the new mode's source.
     if (state.activeMode === 'linkedin')   checkLinkedInDuplicate();
     else if (state.activeMode === 'cv')    checkCandidateDuplicate(document.getElementById('candidateName')?.value || '');
@@ -37,57 +30,6 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
 });
 
 // ════════════════════════════════════════════════════════════
-//  Single ↔ Multiple candidate workflow
-// ════════════════════════════════════════════════════════════
-let _currentWorkflow = 'single';
-
-// Single source of truth for the single-candidate chrome (run row + candidate bar),
-// driven by both the workflow toggle and the input-mode tabs so they never conflict.
-function _applyChrome() {
-  const multiple = _currentWorkflow === 'multiple';
-  const runRow = document.querySelector('.run-row');
-  if (runRow) runRow.style.display = multiple ? 'none' : '';
-  const cbar = document.querySelector('.candidate-bar');
-  if (cbar) cbar.style.display = (multiple || state.activeMode === 'guided') ? 'none' : '';
-}
-
-// Switch between the single-candidate workflow (CV / LinkedIn / template tabs) and
-// the multiple-candidates workflow (cluster a pool into segments).
-function setWorkflow(wf) {
-  _currentWorkflow = wf;
-  if (wf === 'multiple') { state.mcDrilledFrom = false; app._setBackToSegments(false); }
-  document.querySelectorAll('.wf-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.workflow === wf));
-  const tabs = document.querySelector('.mode-tabs');
-  const methodLabel = document.getElementById('methodLabel');
-
-  if (wf === 'multiple') {
-    if (tabs) tabs.style.display = 'none';
-    if (methodLabel) methodLabel.style.display = 'none';
-    document.querySelectorAll('.input-zone').forEach(z => z.classList.remove('active'));
-    document.getElementById('zone-multiple').classList.add('active');
-    state.activeMode = 'multiple';
-  } else {
-    if (tabs) tabs.style.display = '';
-    if (methodLabel) methodLabel.style.display = '';
-    document.getElementById('zone-multiple').classList.remove('active');
-    // Re-activate the current single input mode (default: CV).
-    const mode = (state.activeMode === 'multiple') ? 'cv' : state.activeMode;
-    const tab  = document.querySelector('.mode-tab[data-mode="' + mode + '"]')
-              || document.querySelector('.mode-tab[data-mode="cv"]');
-    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.input-zone').forEach(z => z.classList.remove('active'));
-    tab.classList.add('active');
-    state.activeMode = tab.dataset.mode;
-    document.getElementById('zone-' + state.activeMode).classList.add('active');
-    if (state.activeMode === 'guided') app.gbInit();
-  }
-  _applyChrome();
-}
-
-// ════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
-
 //  CV drop zone
 // ════════════════════════════════════════════════════════════
 const dropZone = document.getElementById('dropZone');
@@ -834,7 +776,7 @@ async function saveContactFromPanel(el) {
 
 // Lighter reset used when switching input mode: drops the derived candidate identity
 // (name, profile card, dup warning) but PRESERVES each zone's typed text (cvPasteText,
-// liUrls, guided fields), unlike clearCandidateProfile() which wipes the inputs.
+// liUrls), unlike clearCandidateProfile() which wipes the inputs.
 function _resetCandidateOnModeSwitch() {
   document.getElementById('candProfileCard')?.classList.remove('visible');
   setCandidateName('');
@@ -846,7 +788,6 @@ function _resetCandidateOnModeSwitch() {
 
 function clearCandidateProfile() {
   document.getElementById('candProfileCard').classList.remove('visible');
-  state.mcDrilledFrom = false; app._setBackToSegments(false);   // breaking the candidate breaks the segment link
   setCandidateName('');
   checkCandidateDuplicate('');   // clears the duplicate warning
   state.lastParsedText = '';
@@ -879,26 +820,10 @@ document.getElementById('liUrls').addEventListener('input', () => {
 // ════════════════════════════════════════════════════════════
 function buildCandidateText() {
   let base;
-  if (state.activeMode === 'cv') {
-    base = document.getElementById('cvPasteText').value.trim();
-  } else if (state.activeMode === 'linkedin') {
+  if (state.activeMode === 'linkedin') {
     base = (_linkedinText || '').trim();
   } else {
-    // Guided: assemble from the shared draft object.
-    const d = state.gbDraft;
-    const parts = [];
-    const list = (arr) => (arr || []).filter(Boolean).join(', ');
-    if (list(d.roles))      parts.push(`Target role: ${list(d.roles)}`);
-    if (list(d.levels))     parts.push(`Experience: ${list(d.levels)}`);
-    if (list(d.skills))     parts.push(`Key skills: ${list(d.skills)}`);
-    if (list(d.languages))  parts.push(`Languages: ${list(d.languages)}`);
-    if (list(d.certs))      parts.push(`Certifications/licenses: ${list(d.certs)}`);
-    if (list(d.states))     parts.push(`Location preference: ${list(d.states)}`);
-    if (list(d.sector))     parts.push(`Sector: ${list(d.sector)}`);
-    if (d.salary)           parts.push(`Salary expectation: ${d.salary}`);
-    if (d.availability)     parts.push(`Availability: ${d.availability}`);
-    if (d.notes)            parts.push(d.notes);
-    base = parts.join('\n');
+    base = document.getElementById('cvPasteText').value.trim();
   }
   // A candidate loaded from the database has a structured profile but no raw CV
   // text — derive matching text from the profile so Run matching still works.
@@ -1133,9 +1058,9 @@ async function saveCandidateEdits() {
   } finally { btn.disabled = false; btn.textContent = prev; }
 }
 
-// Action registry for the candidate-bar / example-dropdown / workflow-toggle /
-// CV-zone-browse controls in the search-tab markup — split out of that tab's
-// mixed registry block since these route to this module.
+// Action registry for the candidate-bar / example-dropdown / CV-zone-browse
+// controls in the search-tab markup — split out of that tab's mixed registry
+// block since these route to this module.
 Object.assign(_ACTIONS, {
   'start-edit-candidate-name': ()    => startEditCandidateName(),
   'candidate-name-enter':    (el, e) => { if (e.key === 'Enter') confirmCandidateName(); },
@@ -1143,7 +1068,6 @@ Object.assign(_ACTIONS, {
   'clear-candidate-profile': ()      => clearCandidateProfile(),
   'save-company':            (el)    => saveCompanyFromPanel(el),
   'save-contact':            (el)    => saveContactFromPanel(el),
-  'set-workflow':            (el)    => setWorkflow(el.dataset.workflow),
   // CV zone — browse link (preserve the original preventDefault + stopPropagation)
   'browse-cv':               (el, e) => { e.preventDefault(); e.stopPropagation(); document.getElementById('cvFileInput').click(); },
   // Candidate detail modal (open-candidate is registered in saved.js, which owns
@@ -1154,10 +1078,10 @@ Object.assign(_ACTIONS, {
   'cand-edit-save':          ()      => saveCandidateEdits(),
 });
 
-// Cross-module exports — registered on app so search/assistant/guided/saved/modal
+// Cross-module exports — registered on app so search/assistant/saved/modal
 // can call into this module without a direct import (avoids circular references).
 Object.assign(app, {
-  buildCandidateText, setWorkflow, _renderCandidateProfile, ensureLinkedInScraped,
+  buildCandidateText, _renderCandidateProfile, ensureLinkedInScraped,
   _initials, openCompanyPanel, closeCompanyPanel, closeCvPreview, clearCandidateProfile,
   openCandidateDetail, closeCandidateDetail,
   // Used by candidate-examples.js to load a bundled example into the CV zone.

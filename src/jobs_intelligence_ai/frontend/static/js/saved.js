@@ -358,7 +358,7 @@ async function openContactDetail(r){
 function closeContactDetail(){ document.getElementById('ctModal').classList.add('hidden'); }
 
 // Saving now writes straight to the database, so session staging is gone. Kept
-// as a no-op so the candidate/guided callers don't need to change.
+// as a no-op so the candidate.js callers don't need to change.
 function _trackLocalCandidate(){ /* intentionally empty */ }
 
 Object.assign(_ACTIONS, {

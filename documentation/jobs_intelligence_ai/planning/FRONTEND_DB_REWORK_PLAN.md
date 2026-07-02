@@ -595,3 +595,15 @@ Candidate-search filters expand separately (dimensions TBD).
   guided/clustering code); `master` then drops guided.js/clustering.js/guided.py/cluster.py,
   their zone markup and candidate.js/boot.js hooks. Piece #3 (conversational search) is built
   on `develop` and promoted when trustworthy.
+- 2026-07-02 — **Guided/clustering removal from `master` EXECUTED** (verified: full suite green
+  incl. the real-browser e2e tabs smoke; live preview clean, no console errors). `develop` was
+  fast-forwarded to `master` first (it had no unique commits), so it retains everything.
+  Removed from `master`: `guided.js`, `clustering.js`, `blueprints/guided.py`,
+  `blueprints/cluster.py`, `services/clustering/`, `shared/taxonomy.py` (orphaned), the
+  `#zone-guided`/`#zone-multiple`/`#segModal`/`#backToSegments`/`#gbSaveTemplateBtn` markup, the
+  single↔multiple workflow plumbing in `candidate.js` (`setWorkflow`/`_applyChrome`), the guided
+  branch of `buildCandidateText`, `store.save_target`/`list_targets` (+ `_T_TARGET`), the
+  clustering + taxonomy test suites, and the unused `has_guided`/`has_map`/`has_analytics`
+  template context vars. KEPT on `master`: the profile feature flags (config-level; geo/reporting
+  read `HAS_MAP`) and `services/candidate/guided_builder.py` (self-contained, covered by unit +
+  smoke tests — removable later if wanted). Dead gb-*/mc-*/seg CSS left in `app.css` for now.

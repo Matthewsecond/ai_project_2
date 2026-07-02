@@ -37,8 +37,8 @@ src/jobs_intelligence_ai/
 ├── frontend/
 │   ├── app.py              # create_app() factory: auth, login/logout, index, /debug/schema
 │   ├── __init__.py         # register_blueprints()
-│   ├── blueprints/         # route modules: search, saved, company, candidate, job_detail,
-│   │                       #   guided, cluster, interview, feedback
+│   ├── blueprints/         # route modules: search, saved, company, candidate,
+│   │                       #   job_detail, interview, feedback
 │   ├── templates/          # index.html (SPA shell), login.html
 │   └── static/
 │       ├── js/             # ES modules — boot.js is the entry point (see FRONTEND.md)
@@ -47,7 +47,7 @@ src/jobs_intelligence_ai/
 │   └── database.py         # SQLAlchemy engine(s) + query helpers (get_engine, describe_view)
 ├── services/               # business logic, one package per concern:
 │   │                       #   auth, candidate (incl. store.py), search, reporting,
-│   │                       #   clustering, interview, enrichment, geo, stats, job_detail
+│   │                       #   interview, enrichment, geo, stats, job_detail
 │   └── …
 └── shared/                 # cross-service helpers (e.g. shared.llm.get_client)
 

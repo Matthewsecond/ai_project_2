@@ -8,17 +8,11 @@
 // modules' _ACTIONS registrations are read by, and the feedback widget.
 import { _ACTIONS, app } from "./state.js";
 import api from "./api.js";
-// Side-effect-only import: clustering.js has no page-script consumer of a bare
-// binding (the search-tab Multiple-CV markup drives it entirely through
-// _ACTIONS/app), so it must still be imported to run its top-level registration.
-import "./clustering.js";
 // Side-effect-only import: candidate.js registers its own _ACTIONS + app entries.
 import "./candidate.js";
 // Side-effect-only import: candidate-examples.js (bundled demo candidates +
 // the Examples dropdown) registers its own _ACTIONS + builds the dropdown.
 import "./candidate-examples.js";
-// Side-effect-only import: guided.js registers its own _ACTIONS + app entries.
-import "./guided.js";
 // Side-effect-only import: assistant.js registers its own _ACTIONS + app entries.
 import "./assistant.js";
 // Side-effect-only import: search.js registers its own _ACTIONS + app entries.

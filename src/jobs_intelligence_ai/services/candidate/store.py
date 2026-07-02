@@ -9,7 +9,6 @@ Backs the Saved-Jobs / Build-a-Candidate features with the reworked app tables i
                         owner_id (the employee who created it) and country ('at'/'sk').
     saved_jobs        — one row per job shortlisted FOR a candidate (point-in-time JSON
                         snapshot + sales-pipeline status). Also owner/company/country.
-    target_candidate  — guided-builder specs (NOT personal data).
     audit_log         — who viewed / edited / exported / deleted what.
 
 Country is a column (config.COUNTRY), replacing the old sk_ table prefix. Ownership +
@@ -39,7 +38,6 @@ _COUNTRY = config.COUNTRY            # 'at' | 'sk' — column value, not a table
 
 _T_CANDIDATE = f"{_DB}.saved_candidates"
 _T_SAVED     = f"{_DB}.saved_jobs"
-_T_TARGET    = f"{_DB}.target_candidate"
 _T_AUDIT     = f"{_DB}.audit_log"
 
 # Profile columns on saved_candidates filled by the CV parser / LinkedIn import.
@@ -771,29 +769,6 @@ def delete_saved_contact(saved_id, account_company_id: int | None = None,
                          user_id: int | None = None) -> int:
     return _delete_saved_ref("saved_contacts", saved_id, account_company_id,
                              user_id, "delete_contact")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  Target candidates (guided builder) — NOT personal data
-# ══════════════════════════════════════════════════════════════════════════════
-def save_target(draft: dict, label: str | None = None, created_by: str | None = None) -> int:
-    """Persist a guided-builder draft spec. Returns its id."""
-    label = label or (draft or {}).get("name")
-    with get_engine().begin() as conn:
-        res = conn.execute(text(
-            f"INSERT INTO {_T_TARGET} (label, draft, created_by) VALUES (:label, :draft, :by)"),
-            {"label": label, "draft": _dump(draft or {}), "by": created_by})
-        return int(res.lastrowid)
-
-
-def list_targets() -> list[dict]:
-    """List saved guided-builder specs."""
-    with get_engine().connect() as conn:
-        rows = conn.execute(text(
-            f"SELECT id, label, draft, created_by, created_at "
-            f"FROM {_T_TARGET} ORDER BY created_at DESC")).mappings().all()
-    return [{"id": m["id"], "label": m["label"], "draft": _load(m["draft"]) or {},
-             "created_by": m["created_by"], "created_at": str(m["created_at"])} for m in rows]
 
 
 # ══════════════════════════════════════════════════════════════════════════════

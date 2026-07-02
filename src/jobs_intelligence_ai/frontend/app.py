@@ -56,9 +56,6 @@ def create_app() -> Flask:
             "country_code":    config.COUNTRY,        # "at" / "sk" — drives JS example set
             "country_label":   config.COUNTRY_LABEL,
             "country_demonym": config.COUNTRY_DEMONYM,
-            "has_guided":      config.HAS_GUIDED,
-            "has_map":         config.HAS_MAP,
-            "has_analytics":   config.HAS_ANALYTICS,
             "has_occ_filter":  config.HAS_OCC_FILTER,
         }
 

@@ -159,11 +159,8 @@ questions / outreach, and score candidate strength against the job.
 
 | Blueprint | Prefix | Routes |
 |-----------|--------|--------|
-| `guided` | `/api/guided` | `/chat`, `/save`, `/targets` — the guided "target candidate" builder (Austria only) |
-| `cluster` | `/api` | `/cluster`, `/cluster/overview`, `/cluster/rank`, `/cluster/grade_job`, `/cluster/chat`, `/cluster/candidates`, `/cluster/save_persona` — multi-CV persona clustering |
 | `interview` | `/api/interview` | `/questions`, `/extract`, `/parse`, `/analyze`, `/context`, `/followup`, `/summarize`, `/model_answer`, `/opportunities`, `/assess` |
 | `feedback` | `/api/feedback` | `POST` (submit) / `GET` (list) in-app feedback |
 
-> `guided` and `cluster` are wired but **folded away from the UI** on `master` (their entry points
-> were removed in the two-tab collapse); the routes still exist. See
-> [planning/FRONTEND_DB_REWORK_PLAN.md](../planning/FRONTEND_DB_REWORK_PLAN.md).
+> The `guided` and `cluster` blueprints were removed from `master` on 2026-07-02 (the code
+> lives on `develop`). See [planning/FRONTEND_DB_REWORK_PLAN.md](../planning/FRONTEND_DB_REWORK_PLAN.md).

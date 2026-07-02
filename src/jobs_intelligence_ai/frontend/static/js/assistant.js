@@ -440,6 +440,6 @@ Object.assign(_ACTIONS, {
   'cand-asst-send':          ()      => candAsstSend(),
 });
 
-// Cross-module export — registered on app so clustering.js's segment-results
-// view can re-apply an active highlight after rendering.
+// Cross-module export — registered on app so search.js can re-apply an active
+// highlight after re-rendering the results table.
 Object.assign(app, { reapplyHighlight });

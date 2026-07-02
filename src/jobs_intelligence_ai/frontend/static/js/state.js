@@ -7,10 +7,10 @@
 // an imported object is fine. Feature-local state stays private to its own module.
 
 // Filter dropdown options (states / occ_groups / portals), loaded once from the
-// API and read by the search filters, the guided builder, and the radar AI filter.
+// API and read by the search filters.
 export const state = {
   // Filter dropdown options (states / occ_groups / portals), loaded once from the
-  // API and read by the search filters, the guided builder, and the radar AI filter.
+  // API and read by the search filters.
   filterOpts: { states: [], occ_groups: [], portals: [] },
   // The current search result set — produced by search, read by map/export/sort/
   // candidate-assistant. (search owns it; others read via state.)
@@ -18,9 +18,9 @@ export const state = {
   // The saved pipeline (jobs saved against candidates) — saved panel + export + modal.
   savedJobs: [],
   // The active candidate's parsed profile — set by candidate input, read by search /
-  // modal / guided / saved when saving or scoring.
+  // modal / saved when saving or scoring.
   currentCandidateProfile: null,
-  // Current input mode ('cv' | 'linkedin' | 'guided' | 'multiple') — mode/tab switching.
+  // Current input mode ('cv' | 'linkedin') — mode/tab switching.
   activeMode: 'cv',
   // The job currently open in the detail modal — modal + quality/analysis/interview + saved.
   modalJob: null,
@@ -40,16 +40,10 @@ export const state = {
   highlightedJobIds: new Set(),
   highlightCriterion: '',
 
-  // Page-wide AI chat language (job chat / guided / interview / modal).
+  // Page-wide AI chat language (job chat / interview / modal).
   jobChatLang: 'en',
   // Per-page session id for the candidate-assistant chat (assistant + modal).
   SESSION_ID: Math.random().toString(36).slice(2) + Date.now().toString(36),
-  // Drilled from a multi-CV segment into the single-candidate workflow — clustering
-  // sets it on drill-down, candidate's clearCandidateProfile/setWorkflow clear it.
-  mcDrilledFrom: false,
-  // Guided-builder draft fields — owned/written by guided.js, read by candidate's
-  // buildCandidateText() when the active input mode is 'guided'.
-  gbDraft: { name:'', sector:[], roles:[], skills:[], levels:[], states:[], languages:[], certs:[], salary:'', availability:'', notes:'' },
   // CV-style lines the candidate assistant added → folded into the matching text by
   // candidate's buildCandidateText()/_withAsstNotes(); owned/written by assistant.js.
   candAsstNotes: [],

@@ -28,7 +28,6 @@ tab routing, the global delegated-action dispatcher, the feedback widget, and in
 | `interview.js` | Interview tools |
 | `export.js` | Result export — CSV + Excel (matching results), XLSX pipeline, PDF report |
 | `util.js` | Helpers (`esc`, formatting, …) |
-| `guided.js`, `clustering.js` | Guided builder / multi-CV clustering — **folded away from the UI**, imported for side-effect registration only |
 
 ---
 
@@ -65,14 +64,15 @@ is handled by a dedicated delegated click in `boot.js` that calls `app.openCompa
 
 Two top tabs (`.tab-btn[data-tab]` → `.tab-panel#tab-<id>`). `_activateTab('saved')` also calls
 `app.openSavedTab()`. The old Chat / Map / Analytics / Radar tabs were removed in the two-tab
-collapse; `guided` and `clustering` code remains but has no UI entry point.
+collapse; the guided-builder and multi-CV-clustering code was removed from `master`
+entirely on 2026-07-02 (it lives on `develop`).
 
 ---
 
 ## Search tab
 
 **Candidate input** — the recruiter describes the candidate via one of the input zones (CV upload
-/ paste, free-text description, or LinkedIn import; the guided funnel is folded away). A checkbox by
+/ paste, free-text description, or LinkedIn import). A checkbox by
 "Run matching" auto-saves the candidate on each run.
 
 **Filter bar** — `State · City · Keywords · (Category, Austria only) · Portal`, populated on load

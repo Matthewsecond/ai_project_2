@@ -7,8 +7,8 @@
 // the per-job chat, and the save (+ extras) footer. Calls into candidate.js
 // (buildCandidateText/getCandidateName/clearCandidateProfile/company-panel/CV-
 // preview), search.js (updateSavedBadge/doSaveWithExtras), saved.js (loadSaved/
-// _miRefreshCurrent), clustering.js (closeSegmentModal) and interview.js (the
-// scorecard controls + the two desc-toggle-* actions) via app.*.
+// _miRefreshCurrent) and interview.js (the scorecard controls + the two
+// desc-toggle-* actions) via app.*.
 import { state, _ACTIONS, app } from "./state.js";
 import { esc, getStoredJob } from "./util.js";
 import api from "./api.js";
@@ -635,9 +635,7 @@ function closeModalOnBackdrop(e) {
 // Backdrop closers re-check e.target === el themselves, since delegation routes
 // clicks on any descendant up to the overlay's data-action.
 Object.assign(_ACTIONS, {
-  // segment + job modal shell
-  'seg-modal-backdrop':    (el, e) => { if (e.target === el) app.closeSegmentModal(); },
-  'close-segment-modal':   ()      => app.closeSegmentModal(),
+  // job modal shell
   'job-modal-backdrop':    (el, e) => closeModalOnBackdrop(e),
   'set-modal-lang':        (el)    => setModalLang(el.dataset.lang),
   'toggle-job-modal-lock': ()      => toggleJobModalLock(),
