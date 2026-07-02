@@ -79,9 +79,8 @@ function setDbStatus(ok, msg) {
   document.getElementById('dbStatus').textContent = ok ? 'Connected' : `DB error: ${msg}`;
 }
 
-// Action registry for the run-row/candidate-assistant/results-filter controls
-// in the search-tab markup (candidate.js claimed its own slice
-// of this block already; the rest stay here until assistant.js/search.js do).
+// Action registry for the run-row/results-filter controls in the search-tab
+// markup (candidate.js claimed its own slice of this block already).
 Object.assign(_ACTIONS, {
   // run row
   'export-results':          ()      => exportResults(state.lastResults),
@@ -89,11 +88,6 @@ Object.assign(_ACTIONS, {
   'save-all':                ()      => saveAll(),
   'clear-results':           ()      => clearResults(),
   'save-candidate':          ()      => saveCandidate(document.getElementById('btnSaveCandidate')),
-  // Auto-save toggle: when off, reveal the manual "Save candidate" button.
-  'toggle-autosave-candidate': (el)  => {
-    const b = document.getElementById('btnSaveCandidate');
-    if (b) b.style.display = el.checked ? 'none' : '';
-  },
   // results filter + sortable headers
   'rescore-frozen-results':  ()      => rescoreFrozenResults(),
   'toggle-freeze':           ()      => toggleFreeze(),
@@ -400,7 +394,12 @@ async function runMatching() {
 async function saveCandidate(btn) {
   const profile = state.currentCandidateProfile;
   const name    = (profile && profile.name) || app.getCandidateName();
-  if (!profile || !name || name === 'Unassigned') return;
+  if (!profile || !name || name === 'Unassigned') {
+    // Only surface this for an explicit click — the silent auto-save path (no btn)
+    // just skips quietly until a profile is parsed.
+    if (btn) _setCandSaveStatus('Add a candidate profile first', 'dup');
+    return;
+  }
   try {
     const data    = await api.post('/api/saved/candidate', { profile: { ...profile, name } });
     const already = data.added === false || data.already_saved;

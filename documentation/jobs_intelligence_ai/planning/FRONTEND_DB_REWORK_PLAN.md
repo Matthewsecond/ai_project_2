@@ -631,3 +631,18 @@ Candidate-search filters expand separately (dimensions TBD).
   `pinnedJobIds`/freeze-a-row, `/api/match/rescore`, `services/enrichment/observation.py`
   (a different Saved-tab chat feature). Verified: full suite green (169 tests, including
   live smoke), live preview clean.
+- 2026-07-02 — **Search-tab candidate-DB usability fixes (verified in-browser).** (1)
+  `#btnSaveCandidate` ("＋ Save candidate") is now **always visible** — it used to be
+  `display:none` and only revealed when the "Auto-save candidate" checkbox was unchecked,
+  which read as a missing button. The checkbox still controls auto-save-on-run; the button
+  is now a persistent explicit-save affordance regardless of that setting (dead
+  `toggle-autosave-candidate` action removed). Clicking it with no profile loaded now shows
+  "Add a candidate profile first" instead of silently no-op'ing. (2) **New "Search saved
+  candidates" box** next to "Example candidates" (`candidate.js`): type-ahead over
+  `GET /api/saved/candidates`, filtered client-side by name substring, refetched fresh each
+  search session; picking a result loads the full profile + saved jobs via the existing
+  `GET /api/saved/load?name=` path. Refactored `loadCandidateFromDb`'s fetch+render logic
+  into a shared `_loadSavedCandidate(name)` so the duplicate-warning banner's "Load saved
+  records" button and the new search box share one code path. Reuses the `.ex-dropdown-*`
+  CSS classes from the Example-candidates dropdown (only the input-vs-button trigger needed
+  new styling: `.db-search-*`). No new backend routes — both fixes are frontend-only.

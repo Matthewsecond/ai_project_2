@@ -71,6 +71,17 @@
             </div>
             <span class="cand-hint" id="candHint">Name auto-detected from CV or text</span>
           </div>
+          <div class="ex-dropdown db-search-dropdown" id="dbCandDropdown">
+            <div class="db-search-trigger">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="dbCandSearchInput" class="db-search-input" autocomplete="off"
+                placeholder="Search saved candidates…"
+                data-input-action="db-cand-search-input" data-keydown-action="db-cand-search-keydown">
+            </div>
+            <div class="ex-dropdown-panel" id="dbCandSearchPanel">
+              <div class="ex-dropdown-header">Type a name to search your saved candidates</div>
+            </div>
+          </div>
           <div class="ex-dropdown" id="exDropdown">
             <button type="button" class="ex-dropdown-trigger" data-action="ex-toggle">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -157,9 +168,9 @@
             <span id="runLabel">Run matching</span>
           </button>
           <label class="autosave-toggle" title="Automatically save the candidate to the database each time you run matching">
-            <input type="checkbox" id="autosaveCandidate" checked data-change-action="toggle-autosave-candidate"> Auto-save candidate
+            <input type="checkbox" id="autosaveCandidate" checked> Auto-save candidate
           </label>
-          <button class="export-btn" id="btnSaveCandidate" style="display:none" data-action="save-candidate">＋ Save candidate</button>
+          <button class="export-btn" id="btnSaveCandidate" data-action="save-candidate">＋ Save candidate</button>
           <span id="candSaveStatus" class="cand-save-status" style="display:none"></span>
           <button id="btnFindMore" style="display:none"
             title="Search for additional jobs and add any not already in the frozen set">

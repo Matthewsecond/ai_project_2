@@ -175,6 +175,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--ic-bg);min-height:
 .ex-item-name{font-size:12px;font-weight:600;color:var(--ic-text);line-height:1.3}
 .ex-item-desc{font-size:10.5px;color:#6b7280;line-height:1.4;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-item-badge{font-size:9px;padding:1px 6px;border-radius:4px;background:var(--ic-bg);color:#888;margin-left:4px;font-weight:500}
+.db-search-dropdown{margin-right:8px}
+.db-search-trigger{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;border:1px solid #c4d4f0;background:#eef2fa;color:var(--ic-blue)}
+.db-search-trigger svg{flex-shrink:0}
+.db-search-input{border:none;background:transparent;outline:none;font-family:inherit;font-size:11px;font-weight:600;color:var(--ic-text);width:150px}
+.db-search-input::placeholder{color:#7c93c4;font-weight:500}
 .ex-pdf-icon{width:30px;height:30px;background:#fee2e2;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ex-pdf-info{min-width:0}
 .ex-pdf-name{font-size:11px;font-weight:600;color:var(--ic-blue-dark);white-space:nowrap}

@@ -171,6 +171,27 @@ async function checkLinkedInDuplicate(){
   }
 }
 
+// Fetch + render a saved candidate's profile and saved jobs into the search tab.
+// Shared by the duplicate-warning "Load saved records" button and the saved-
+// candidate search box.
+async function _loadSavedCandidate(name){
+  const data = await api.get('/api/saved/load?name=' + encodeURIComponent(name));
+  if (data.profile){
+    _renderCandidateProfile(data.profile);   // re-renders the banner too
+    // Seed a matching text from the structured profile so Run matching and the
+    // CV-dependent extras (strength, questions) work after a DB load.
+    _seedMatchTextFromProfile(data.profile);
+  } else {
+    setCandidateName(name);
+  }
+  if (data.jobs && data.jobs.length){
+    state.lastResults = data.jobs;
+    app.renderResults(state.lastResults);
+    document.getElementById('resultsStatus').innerHTML =
+      `<span>Loaded ${data.jobs.length} saved job${data.jobs.length!==1?'s':''} for ${esc(name)} from the database.</span>`;
+  }
+}
+
 // Reload a previously-saved candidate (profile + saved jobs) from the DB into the
 // search tab — no re-parsing, no re-scraping. Backs the banner's Load button.
 async function loadCandidateFromDb(){
@@ -180,27 +201,75 @@ async function loadCandidateFromDb(){
   const orig = btn ? btn.innerHTML : '';
   if (btn){ btn.disabled = true; btn.innerHTML = 'Loading…'; }
   try {
-    const data = await api.get('/api/saved/load?name=' + encodeURIComponent(name));
-
-    if (data.profile){
-      _renderCandidateProfile(data.profile);   // re-renders the banner too
-      // Seed a matching text from the structured profile so Run matching and the
-      // CV-dependent extras (strength, questions) work after a DB load.
-      _seedMatchTextFromProfile(data.profile);
-    } else {
-      setCandidateName(name);
-    }
-    if (data.jobs && data.jobs.length){
-      state.lastResults = data.jobs;
-      app.renderResults(state.lastResults);
-      document.getElementById('resultsStatus').innerHTML =
-        `<span>Loaded ${data.jobs.length} saved job${data.jobs.length!==1?'s':''} for ${esc(name)} from the database.</span>`;
-    }
+    await _loadSavedCandidate(name);
   } catch(e){
     if (btn){ btn.disabled = false; btn.innerHTML = orig; }
     alert('Could not load from database: ' + (e.message || e));
   }
 }
+
+// ── Search saved candidates (next to "Example candidates") ─────────────────────
+// A small type-ahead over the company's saved_candidates, so a recruiter can pick
+// a candidate they already saved and keep working with them (re-run matching,
+// review saved jobs, etc.) instead of re-parsing a CV. Re-fetches the candidate
+// list fresh each time a search starts (cheap — company-scoped list), then
+// filters client-side per keystroke.
+let _dbCandResults = [];
+
+function _dbCandOpen()  { document.getElementById('dbCandDropdown')?.classList.add('open'); }
+function _dbCandClose() { document.getElementById('dbCandDropdown')?.classList.remove('open'); }
+
+async function dbCandSearchInput(el){
+  const q = el.value.trim().toLowerCase();
+  if (!q) { _dbCandClose(); _dbCandResults = []; return; }
+  if (!_dbCandResults.length) {
+    try {
+      const data = await api.get('/api/saved/candidates');
+      _dbCandResults = data.candidates || [];
+    } catch(e) { _dbCandResults = []; }
+  }
+  const matches = _dbCandResults.filter(c => (c.name || '').toLowerCase().includes(q)).slice(0, 8);
+  _renderDbCandResults(matches, q);
+  _dbCandOpen();
+}
+
+function _renderDbCandResults(matches, q){
+  const panel = document.getElementById('dbCandSearchPanel');
+  if (!panel) return;
+  if (!matches.length){
+    panel.innerHTML = `<div class="ex-dropdown-header">No saved candidates match "${esc(q)}"</div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="ex-dropdown-header">Load a saved candidate</div>` +
+    matches.map(c => {
+      const desc = [c.title, c.location].filter(Boolean).join(' · ') +
+        (c.matches   ? ` · ${c.matches} match${c.matches !== 1 ? 'es' : ''}` : '') +
+        (c.createdBy ? ` · saved by ${c.createdBy}` : '');
+      return `<div class="ex-dropdown-item" data-action="db-cand-pick" data-name="${esc(c.name)}">
+        <div class="ex-item-body">
+          <div class="ex-item-name">${esc(c.name)}</div>
+          <div class="ex-item-desc">${esc(desc)}</div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+async function dbCandPick(name){
+  _dbCandClose();
+  const input = document.getElementById('dbCandSearchInput');
+  if (input) input.value = '';
+  _dbCandResults = [];
+  setCandidateName(name);
+  try {
+    await _loadSavedCandidate(name);
+  } catch(e){
+    alert('Could not load candidate: ' + (e.message || e));
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('dbCandDropdown')?.contains(e.target)) _dbCandClose();
+});
 
 // Put a profile-derived candidate text into the CV box (CV mode) so matching and
 // CV-gated extras work for a DB-loaded candidate that has no raw CV text.
@@ -520,10 +589,14 @@ function _setCvLoaded(name) {
 }
 
 // Action registry for the candidate input card — duplicate-warning load/refresh,
-// save-companies, LinkedIn import "Saved → Local" link, CV-loaded preview chip.
+// saved-candidate search box, save-companies, LinkedIn import "Saved → Local"
+// link, CV-loaded preview chip.
 Object.assign(_ACTIONS, {
   'load-candidate-from-db':    ()      => loadCandidateFromDb(),
   'refresh-candidate-from-db': ()      => refreshCandidateFromDb(),
+  'db-cand-search-input':      (el)    => dbCandSearchInput(el),
+  'db-cand-pick':              (el)    => dbCandPick(el.dataset.name),
+  'db-cand-search-keydown':    (el, e) => { if (e.key === 'Escape') { el.value = ''; el.blur(); _dbCandClose(); } },
   'save-companies':            (el)    => saveCompanies(el),
   'goto-saved-local':          (el, e) => { e.preventDefault(); _gotoSavedLocal(); },
   'open-cv-preview':           ()      => openCvPreview(),
@@ -1067,8 +1140,8 @@ Object.assign(_ACTIONS, {
   'cand-edit-save':          ()      => saveCandidateEdits(),
 });
 
-// Cross-module exports — registered on app so search/assistant/saved/modal
-// can call into this module without a direct import (avoids circular references).
+// Cross-module exports — registered on app so search/saved/modal can call into
+// this module without a direct import (avoids circular references).
 Object.assign(app, {
   buildCandidateText, _renderCandidateProfile, ensureLinkedInScraped,
   _initials, openCompanyPanel, closeCompanyPanel, closeCvPreview, clearCandidateProfile,
