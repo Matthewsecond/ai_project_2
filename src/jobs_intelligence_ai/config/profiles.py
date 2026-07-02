@@ -188,8 +188,8 @@ _SK_COL = {
     "job_id":        "id",
     "title":         "position",
     "company":       "company_crawler_name",
-    "description":   "description",    # View_Jobs_Test carries a real description
-    "summary":       "description",    # …and has no separate summary column
+    "description":   "summary",        # View_Jobs_Full has `summary`, no `description`
+    "summary":       "summary",        # both description-driven keys surface `summary`
     # Location
     "state":         "region",         # the kraje
     "city":          "city",
@@ -218,8 +218,9 @@ _SK_COL = {
     # Skills & contacts
     "skills":        "skills",
     "skills_en":     "skills_english",
-    "contacts":      "contacts",            # absent in View_Jobs_Test → composed in
-                                            # _serialize_job from contact_name/mail/phone
+    "contacts":      "contacts",            # View_Jobs_Full has a real `contacts` column;
+                                            # _serialize_job also falls back to the split
+                                            # contact_name/mail/phone if it's ever absent
     "languages":     "languages",           # SK-specific
     # Not in view (keep for fallback)
     "esco_skills":   "esco_skills",
@@ -264,18 +265,18 @@ SLOVAKIA = Profile(
     col              = _SK_COL,
     filter_queries   = _SK_FILTER_QUERIES,
     match_text_cols  = ("title", "summary", "skills", "skills_en"),
-    # The Slovak app reads from View_Jobs_Test — the deduped, description-bearing
-    # set the vector store was actually built from — and resolves titles → ids on
-    # its base table jobs_test. Both avoid View_Jobs_Full's location fan-out and the
-    # 30s leading-wildcard-LIKE timeout.
-    read_view        = "View_Jobs_Test",
-    jobs_table       = "jobs_test",
-    # Columns View_Jobs_Test does not have. They keep their conventional names in
-    # _SK_COL so `SELECT *` reads still resolve to None, but explicit SELECT/WHERE
-    # references must be skipped (see col_present()). `contacts` is split into
-    # contact_name/mail/phone there and recomposed in _serialize_job.
+    # The Slovak app reads from View_Jobs_Full and resolves titles → ids on its base
+    # table jobs. The vector store (~22k indexed jobs) long ago outgrew the old
+    # jobs_test/View_Jobs_Test subset (~2.7k), which silently dropped ~85% of matches
+    # at id-lookup time; the full view resolves them all. Id-`IN` lookups against the
+    # view stay fast; the hot matching path only ever hits it by id.
+    read_view        = "View_Jobs_Full",
+    jobs_table       = "jobs",
+    # Columns View_Jobs_Full does not have. They keep their conventional names in
+    # _SK_COL so `SELECT *` reads resolve to None, but explicit SELECT/WHERE
+    # references must be skipped (see col_present()).
     absent_cols      = frozenset({"occ_group", "original_salary", "zipcode",
-                                  "order_number", "contacts"}),
+                                  "order_number"}),
 )
 
 
