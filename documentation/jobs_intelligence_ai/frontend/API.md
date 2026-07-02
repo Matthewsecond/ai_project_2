@@ -48,11 +48,8 @@ resolved against the market DB (`Profile.read_view`) → hard filters → sorted
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/api/filters` | GET | Distinct dropdown values `{ states, occ_groups, portals }` for the filter bar |
-| `/api/match/url` | POST | Match a candidate against ONE job by posting URL (`{ candidate_text, url }`); `{ in_db }` flag |
 | `/api/match/stream` | POST | Streaming (SSE) variant of `/api/match` — emits `cycle` progress then a `done` event |
 | `/api/match/rescore` | POST | Re-score a frozen result set against edited candidate text |
-| `/api/match/highlight` | POST | Per-job highlight of why it matches |
-| `/api/match/analyze` | POST | Analysis over the current result set |
 | `/api/quality` | POST | Match-quality scoring |
 
 ---
@@ -141,8 +138,6 @@ Everything here is scoped to the caller's `account_company` with `own`/`all` vis
 | `/api/candidate/parse-pdf` | POST | Extract text from an uploaded CV PDF |
 | `/api/candidate/parse-profile` | POST | Structured candidate profile from raw CV text |
 | `/api/candidate/enrich-linkedin` | POST | AI-normalize a raw LinkedIn scrape |
-| `/api/candidate/assistant` | POST | Candidate-assistant chat — discuss, edit the CV, or suggest a re-aimed search (returns `reply`, `profile_updates`, `cv_note`, `search_suggestion`) |
-| `/api/candidate/assistant/reset` | POST | Reset the assistant session |
 
 ---
 

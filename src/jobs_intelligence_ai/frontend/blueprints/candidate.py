@@ -129,52 +129,6 @@ def api_parse_pdf():
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
 
-@bp.route("/assistant", methods=["POST"])
-def api_candidate_assistant():
-    """
-    Main-page candidate assistant.
-
-    Body: { session_id, message, profile?, jobs?, lang? }
-      - profile : current candidate-profile dict shown on the card
-      - jobs    : list of offers currently matched on screen (lastResults)
-    Returns: { ok, reply, profile_updates, cv_note, search_suggestion }
-      - profile_updates   : partial profile dict to merge into the card
-      - cv_note           : one CV-style line to append to the CV text for re-matching
-      - search_suggestion : a role direction to re-aim the search at (empty unless the recruiter
-                            asked to broaden/steer the search); the UI offers a one-click re-search
-    """
-    data       = request.get_json(silent=True) or {}
-    message    = (data.get("message") or "").strip()
-    session_id = (data.get("session_id") or "default").strip() or "default"
-    profile    = data.get("profile") if isinstance(data.get("profile"), dict) else {}
-    jobs       = data.get("jobs") if isinstance(data.get("jobs"), list) else []
-    lang       = (data.get("lang") or "en").lower()
-    if not message:
-        return jsonify({"ok": False, "error": "message required"}), 400
-    if not config.OPENAI_API_KEY:
-        return jsonify({"ok": False, "error": "OpenAI API key not configured"}), 503
-
-    from jobs_intelligence_ai.services.candidate import send_candidate_message
-    result = send_candidate_message(session_id, message, profile, jobs, lang)
-    return jsonify({
-        "ok":                True,
-        "reply":             result.get("text") or "",
-        "profile_updates":   result.get("profile_updates") or {},
-        "cv_note":           result.get("cv_note") or "",
-        "search_suggestion": result.get("search_suggestion") or "",
-    })
-
-
-@bp.route("/assistant/reset", methods=["POST"])
-def api_candidate_assistant_reset():
-    """Body: { session_id } → clear the assistant's conversation memory."""
-    data       = request.get_json(silent=True) or {}
-    session_id = (data.get("session_id") or "default").strip() or "default"
-    from jobs_intelligence_ai.services.candidate import clear_candidate_session
-    clear_candidate_session(session_id)
-    return jsonify({"ok": True})
-
-
 @bp.route("/parse-profile", methods=["POST"])
 def api_parse_profile():
     """

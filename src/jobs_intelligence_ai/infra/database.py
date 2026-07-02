@@ -175,44 +175,6 @@ def _add_scraped_descriptions(rows: list[dict]) -> None:
             r["_scraped_description"] = desc
 
 
-def fetch_jobs_by_url(url: str) -> list[dict]:
-    """
-    Fetch full job record(s) matching a posting URL, exact and trailing-slash
-    tolerant. Returns [] when the url isn't in the active read view (→ a candidate
-    for live scraping, which is not implemented yet).
-
-    We match a small set of trivial variants with an equality IN-list rather than a
-    leading-wildcard LIKE, which would force a full scan of the heavy read view.
-    """
-    url = (url or "").strip()
-    if not url:
-        return []
-
-    c = config.COL
-    variants = list({url, url.rstrip("/"), url.rstrip("/") + "/"})
-    placeholders = ", ".join(f":u_{i}" for i in range(len(variants)))
-    params = {f"u_{i}": v for i, v in enumerate(variants)}
-
-    sql = f"""
-        SELECT *
-        FROM {config.PROFILE.read_view}
-        WHERE `{c['url']}` IN ({placeholders})
-        LIMIT 5
-    """
-
-    with get_engine().connect() as conn:
-        try:
-            result = conn.execute(text(sql), params)
-            keys = list(result.keys())
-            rows = [dict(zip(keys, row)) for row in result]
-        except Exception:
-            rows = []
-
-    _add_geo(rows)
-    _add_scraped_descriptions(rows)
-    return rows
-
-
 # ─── Fetch for matching (hard filters applied) ────────────────────────────────
 
 def fetch_jobs_for_matching(filters: dict, limit: int = 500) -> list[dict]:

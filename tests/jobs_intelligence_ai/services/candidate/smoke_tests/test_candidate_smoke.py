@@ -2,8 +2,7 @@
 Live smoke tests for the candidate service Structured-Outputs calls (2.3 #7).
 
 Hits the real API and ASSERTS: the LinkedIn enricher returns a normalized profile with a
-valid seniority + inferred fields merged over the base; the candidate assistant both
-discusses (no edits) and applies a CV edit (only the changed field) on request.
+valid seniority + inferred fields merged over the base.
 
     pytest tests/jobs_intelligence_ai/services/candidate/smoke_tests -m smoke -s
 """
@@ -16,7 +15,7 @@ import pytest
 from jobs_intelligence_ai import config
 from jobs_intelligence_ai.infra.integrations.linkedin import map_to_profile
 from jobs_intelligence_ai.services.candidate import (
-    enrich_linkedin_profile, parse_candidate_profile, send_candidate_message,
+    enrich_linkedin_profile, parse_candidate_profile,
     extract_guided_fields, phrase_guided_reply,
 )
 
@@ -68,28 +67,6 @@ def test_parse_candidate_profile_live():
     assert isinstance(out.get("skills"), list) and out["skills"]
     assert (out.get("summary") or "").strip()
     assert out.get("title")
-
-
-_PROFILE = {"name": "Anna Bauer", "title": "Warehouse Supervisor",
-            "skills": ["SAP WM", "Forklift"], "location": "Vienna"}
-
-
-def test_assistant_discussion_no_edits_live():
-    """Live: a pure question returns a reply with no profile_updates."""
-    out = send_candidate_message("smoke-disc", "Is this candidate senior enough for a lead role?",
-                                 _PROFILE, jobs=[], lang="en")
-    assert out["text"].strip()
-    assert out["profile_updates"] == {}
-
-
-def test_assistant_cv_edit_live():
-    """Live: asking to add a licence yields a profile_updates edit + a cv_note."""
-    out = send_candidate_message("smoke-edit",
-                                 "Add that she now holds a valid German B2 language certificate.",
-                                 _PROFILE, jobs=[], lang="en")
-    assert out["text"].strip()
-    assert out["profile_updates"]              # some field changed
-    assert out["cv_note"].strip()
 
 
 _GUIDED_KW = dict(draft="{}", locked="[]",

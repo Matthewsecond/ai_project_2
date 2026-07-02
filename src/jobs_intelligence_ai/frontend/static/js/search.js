@@ -368,7 +368,6 @@ async function runMatching() {
     state.lastResults = [...pinned, ...fresh];
     state.scoredAgainstText = text;   // these scores correspond to this candidate text
     renderResults(state.lastResults);
-    app.reapplyHighlight();   // sticky: re-evaluate the active highlight on the new set
   };
 
   try {
@@ -473,7 +472,6 @@ async function findMoreJobs() {
     if (newAB.length) {
       state.lastResults = [...state.lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
       renderResults(state.lastResults);
-      app.reapplyHighlight();
       document.getElementById('resultsStatus').innerHTML =
         `<span style="color:#1648a8;font-weight:600">➕ Added ${newAB.length} new A/B job${newAB.length !== 1 ? 's' : ''} to the frozen set.</span>`;
     } else {
@@ -605,18 +603,16 @@ function renderResults(jobs) {
     const loc    = [job.city, job.state].filter(Boolean).join(', ') || '—';
     const isSaved = savedIds.has(job.job_id);
     const isPinned = state.pinnedJobIds.has(String(job.job_id));
-    const isHighlighted = state.highlightedJobIds.has(String(job.job_id));
     const sid    = storeJob({ ...job, _batch: 'search' });
     const tr     = document.createElement('tr');
     tr.id = `row-${job.job_id}`;
     if (isPinned) tr.classList.add('row-pinned');
-    if (isHighlighted) tr.classList.add('row-highlight');
     tr.innerHTML = `
       <td>
         <span class="grade ${gradeClass(g)}">${g}</span><span class="pct">${job.score_pct || ''}</span>
       </td>
       <td style="cursor:pointer" data-action="open-job-modal" data-sid="${sid}" title="Click to see details">
-        <div class="job-title-main" style="color:#1a56c4">${esc(job.title)}${isHighlighted ? `<span class="hl-badge" title="${esc(state.highlightCriterion)}">✦ ${esc(state.highlightCriterion.length > 22 ? state.highlightCriterion.slice(0, 22) + '…' : state.highlightCriterion)}</span>` : ''}</div>
+        <div class="job-title-main" style="color:#1a56c4">${esc(job.title)}</div>
         ${job.match_reason ? `<div class="match-reason">${esc(job.match_reason)}</div>` : ''}
       </td>
       <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}<span class="job-contacts" id="jc-${job.job_id}"></span></td>
@@ -650,12 +646,10 @@ function renderResults(jobs) {
   const nB = visible.filter(j => j.grade === 'B').length;
   const nC = visible.filter(j => j.grade === 'C').length;
   const nPin = visible.filter(j => state.pinnedJobIds.has(String(j.job_id))).length;
-  const nHl  = visible.filter(j => state.highlightedJobIds.has(String(j.job_id))).length;
   document.getElementById('resultsStatus').innerHTML =
     `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; ${visible.length} matches found — ${nA} strong (A) · ${nB} good (B)` +
     (_showWeakC ? ` · ${nC} weak (C)` : (hiddenC ? ` · <span style="color:#9aa3b2">${hiddenC} weak (C) hidden</span>` : '')) +
-    (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '') +
-    (state.highlightCriterion ? ` · <span class="hl-legend"><span class="hl-dot"></span>${nHl} highlighted: “${esc(state.highlightCriterion)}”<span class="hl-clear" data-action="cand-asst-clear-highlight">clear</span></span>` : '');
+    (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '');
 
   _loadJobContacts(sorted);
 }
@@ -908,10 +902,6 @@ function clearResults() {
   state.lastResults = [];
   state.dismissedJobIds = new Set();
   state.pinnedJobIds    = new Set();
-  state.highlightCriterion = '';
-  state.highlightedJobIds  = new Set();
-  const _hlBtn = document.getElementById('candAsstClearHlBtn');
-  if (_hlBtn) _hlBtn.style.display = 'none';
   document.getElementById('resultsTbody').innerHTML = `<tr><td colspan="8" class="no-results">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
     No results yet — run matching to find jobs

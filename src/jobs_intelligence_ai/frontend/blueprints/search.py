@@ -4,16 +4,13 @@ tabs/search.py — Search tab (CV matching).
 Routes:
   GET  /api/filters       → filter dropdown options
   POST /api/match         → run AI/vector matching against a candidate profile
-  POST /api/match/url     → grade ONE job (looked up by posting URL) for a candidate
-  POST /api/match/analyze → overall analysis of the candidate vs the matched jobs
   POST /api/quality       → score a batch of jobs for quality
 """
 import json
 from flask import Blueprint, request, jsonify, Response, stream_with_context
 from jobs_intelligence_ai.infra.database import get_filter_options
 from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
-from jobs_intelligence_ai.services.search.match_analysis import analyze_candidate_match
-from jobs_intelligence_ai.services.enrichment import Rescorer, Highlighter
+from jobs_intelligence_ai.services.enrichment import Rescorer
 
 bp = Blueprint("search", __name__, url_prefix="/api")
 
@@ -21,7 +18,6 @@ bp = Blueprint("search", __name__, url_prefix="/api")
 # OpenAI client across requests.
 _orchestrator = Orchestrator()
 _rescorer     = Rescorer()
-_highlighter  = Highlighter()
 
 
 @bp.route("/filters")
@@ -73,41 +69,6 @@ def api_match():
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
-
-
-@bp.route("/match/url", methods=["POST"])
-def api_match_url():
-    """
-    Match a candidate against ONE job identified by its posting URL.
-
-    Body: { candidate_text, url }
-    Returns:
-      { ok: true, in_db: true,  job: {...graded...} }   ← url found in DB + graded
-      { ok: true, in_db: false, message }               ← url not in DB (scrape later)
-
-    Only URLs already in the database are supported for now; live scraping of an
-    unknown URL is a planned follow-up.
-    """
-    body           = request.get_json(silent=True) or {}
-    candidate_text = (body.get("candidate_text") or "").strip()
-    url            = (body.get("url") or "").strip()
-
-    if not candidate_text:
-        return jsonify({"ok": False, "error": "candidate_text is required"}), 400
-    if not url:
-        return jsonify({"ok": False, "error": "url is required"}), 400
-
-    try:
-        job = _orchestrator.match_url(candidate_text, url)
-    except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
-
-    if job is None:
-        return jsonify({"ok": True, "in_db": False,
-                        "message": "This URL isn't in the database yet. "
-                                   "Live scraping of new postings is coming soon."})
-    return jsonify({"ok": True, "in_db": True, "job": job})
 
 
 @bp.route("/match/stream", methods=["POST"])
@@ -171,59 +132,6 @@ def api_match_rescore():
     try:
         scored = _rescorer.rescore(candidate_text, jobs)
         return jsonify({"ok": True, "count": len(scored), "jobs": scored})
-    except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
-
-
-@bp.route("/match/highlight", methods=["POST"])
-def api_match_highlight():
-    """
-    Decide which of the given jobs match a natural-language CRITERION, so the UI
-    can highlight them (e.g. "roles with travel benefits").
-
-    Body: { criterion, jobs: [{job_id, title, company, salary, skills|skills_en,
-                               summary|description, city, state}] }
-    Returns: { ok, job_ids: [...], count }
-    """
-    body      = request.get_json(silent=True) or {}
-    criterion = (body.get("criterion") or "").strip()
-    jobs      = body.get("jobs") or []
-
-    if not criterion:
-        return jsonify({"ok": False, "error": "criterion is required"}), 400
-    if not jobs:
-        return jsonify({"ok": False, "error": "jobs array required"}), 400
-
-    try:
-        ids = _highlighter.highlight(criterion, jobs)
-        return jsonify({"ok": True, "job_ids": ids, "count": len(ids)})
-    except Exception as e:
-        import traceback
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
-
-
-@bp.route("/match/analyze", methods=["POST"])
-def api_match_analyze():
-    """
-    Overall analysis of how the candidate stacks up against the CURRENT matched jobs —
-    strengths, recurring skill/experience gaps, and what they could work on.
-
-    Body: { candidate_text, jobs: [{title, company, grade, score_pct, skills|skills_en,
-                                    summary|description, city, state}] }
-    Returns: { ok, text }
-    """
-    body           = request.get_json(silent=True) or {}
-    candidate_text = (body.get("candidate_text") or "").strip()
-    jobs           = body.get("jobs") or []
-
-    if not candidate_text:
-        return jsonify({"ok": False, "error": "candidate_text is required"}), 400
-    if not jobs:
-        return jsonify({"ok": False, "error": "jobs array required"}), 400
-
-    try:
-        return jsonify({"ok": True, "text": analyze_candidate_match(candidate_text, jobs)})
     except Exception as e:
         import traceback
         return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500

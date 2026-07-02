@@ -13,8 +13,6 @@ import "./candidate.js";
 // Side-effect-only import: candidate-examples.js (bundled demo candidates +
 // the Examples dropdown) registers its own _ACTIONS + builds the dropdown.
 import "./candidate-examples.js";
-// Side-effect-only import: assistant.js registers its own _ACTIONS + app entries.
-import "./assistant.js";
 // Side-effect-only import: search.js registers its own _ACTIONS + app entries.
 import "./search.js";
 // Side-effect-only import: saved.js registers its own _ACTIONS + app entries.

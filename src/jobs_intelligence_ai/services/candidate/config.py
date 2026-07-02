@@ -1,9 +1,9 @@
 """
 config.py — settings for the `candidate` service (flat constants, per rework §5).
 
-Home for this module's two LLM calls' prompts + Structured-Outputs schemas (both converted
-in rework 2.3 #7): the LinkedIn profile enricher and the candidate assistant chat. The DB
-store and the example-CV PDF builders have no model call, so nothing about them lives here.
+Home for this module's LLM call prompts + Structured-Outputs schemas: the LinkedIn profile
+enricher, the CV text parser, and the guided target-candidate builder chat. The DB store and
+the example-CV PDF builders have no model call, so nothing about them lives here.
 """
 from typing import Literal, Optional
 
@@ -103,78 +103,6 @@ class LinkedInProfile(BaseModel):
     strengths: list[str]
     estimated_salary_min: Optional[int]
     estimated_salary_max: Optional[int]
-
-
-# ── assistant.send_candidate_message ───────────────────────────────────────────
-ASSISTANT_PROMPT = """You are an AI recruitment assistant helping a recruiter work with ONE specific candidate \
-for the {label} job market.
-
-You can do three things:
-1. DISCUSS — answer the recruiter's questions about this candidate, their profile, and the job offers that have been \
-matched for them (fit, comparisons, which to prioritise, skill gaps, salary, location, next steps, etc.).
-2. EDIT THE CV — when the recruiter asks to add, change or remove a detail about the candidate (a skill, language, \
-certification/licence, availability, salary expectation, location, job title, seniority, or a summary point).
-3. SUGGEST A SEARCH — when the recruiter wants to steer the job search toward a different or broader set of roles \
-(e.g. "the candidate would prefer logistics roles", "find more warehouse jobs", "widen the search"), propose the role \
-direction to search for. This re-aims the matching; it does NOT change the candidate's CV facts.
-
-{lang_instruction}
-
-Current candidate profile (JSON):
-{profile}
-
-Job offers currently matched for this candidate (top results on screen):
-{jobs}
-
-OUTPUT RULES:
-- "reply": a short, natural reply to the recruiter (1–4 sentences). No markdown headings or bullet lists.
-- "profile_updates": fill this ONLY when the recruiter asks to change the candidate's CV/profile; otherwise leave it null.
-  Set ONLY the fields that change, leaving the rest null.
-    Scalar fields (give the FULL new value — it replaces the old one):
-      title, seniority, location, languages, salary_expectation, availability, industry, role_category, summary
-    Array fields (list ONLY the new items to ADD — the app appends them and de-duplicates):
-      skills, top_skills, strengths, certifications
-- "cv_note": when profile_updates is set, a concise statement of what was added/changed, phrased so it can be appended \
-to the candidate's CV text for re-matching (e.g. "Holds a valid forklift licence." or "Available from July 2026."). \
-Otherwise an empty string.
-- "search_suggestion": fill this ONLY when the recruiter wants to broaden or re-aim the job search toward different roles \
-(capability 3). Give a concise phrase, written so it can be appended to the candidate's search text, that names the target \
-roles/direction — e.g. "Also open to logistics-oriented roles such as Logistics Data Analyst, Supply Chain Analyst, \
-Warehouse Automation Developer and Transport Data Engineer." Otherwise an empty string. Do NOT put a role direction into \
-profile_updates — a search re-aim is not a CV fact."""
-
-LANG_INSTRUCTIONS = {
-    "en":   "Always respond in English, regardless of the job description language or what language the user writes in.",
-    "de":   "Antworte immer auf Deutsch, unabhängig von der Sprache der Stellenbeschreibung oder der Nutzernachricht.",
-    "sk":   "Vždy odpovedaj po slovensky, bez ohľadu na jazyk inzerátu alebo správy používateľa.",
-    "auto": "Respond in the same language the user writes in.",
-}
-
-
-class ProfileUpdates(BaseModel):
-    """The candidate-profile fields the recruiter asked to change (others stay null).
-    Scalars replace the old value; arrays list only the new items to append+dedupe."""
-    title: Optional[str] = None
-    seniority: Optional[str] = None
-    location: Optional[str] = None
-    languages: Optional[str] = None
-    salary_expectation: Optional[str] = None
-    availability: Optional[str] = None
-    industry: Optional[str] = None
-    role_category: Optional[str] = None
-    summary: Optional[str] = None
-    skills: Optional[list[str]] = None
-    top_skills: Optional[list[str]] = None
-    strengths: Optional[list[str]] = None
-    certifications: Optional[list[str]] = None
-
-
-class CandidateReply(BaseModel):
-    """The assistant's reply, plus optional CV edits and/or a search re-aim when the recruiter asked."""
-    reply: str
-    profile_updates: Optional[ProfileUpdates] = None
-    cv_note: str = ""
-    search_suggestion: str = ""
 
 
 # ── guided_builder (2.4) ─────────────────────────────────────────────────────────

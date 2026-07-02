@@ -7,7 +7,7 @@ them into candidate job dicts — UNGRADED. The Grader assigns scores/grades nex
 """
 import logging
 
-from jobs_intelligence_ai.infra.database import fetch_jobs_by_ids, fetch_jobs_by_url
+from jobs_intelligence_ai.infra.database import fetch_jobs_by_ids
 from jobs_intelligence_ai import config
 
 from . import utils
@@ -25,15 +25,6 @@ class JobSearch:
         return [utils.serialize_job(row)
                 for row in rows.values()
                 if utils.passes_filters(row, filters)]
-
-    def fetch_by_url(self, url: str) -> dict | None:
-        """The single serialized (ungraded) job for a posting URL, or None if the
-        url isn't in the DB — i.e. a candidate for future live scraping."""
-        try:
-            rows = fetch_jobs_by_url(url)
-        except Exception as e:
-            raise JobSearchError(f"resolving url to a DB row failed: {e}") from e
-        return utils.serialize_job(rows[0]) if rows else None
 
     def search_by_id(self, ids: list) -> dict[str, dict]:
         """job_id (str) → DB row, fetched in one query."""

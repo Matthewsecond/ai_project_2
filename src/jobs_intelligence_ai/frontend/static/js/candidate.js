@@ -795,11 +795,8 @@ function clearCandidateProfile() {
   state.currentCandidateProfile = null;
   _linkedinText       = '';
   _linkedinScrapedKey = '';
-  state.candAsstNotes      = [];   // drop CV details the assistant added for this candidate
   state.dismissedJobIds    = new Set();   // reset per-row dismiss/freeze for the new candidate
   state.pinnedJobIds       = new Set();
-  state.highlightCriterion = '';
-  state.highlightedJobIds  = new Set();
   ['cvPasteText', 'liUrls'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('dropText').innerHTML =
     'Drop a PDF CV here, or <a href="#" data-action="browse-cv">browse to upload</a> — or paste CV text directly below';
@@ -828,7 +825,7 @@ function buildCandidateText() {
   // A candidate loaded from the database has a structured profile but no raw CV
   // text — derive matching text from the profile so Run matching still works.
   if (!base && state.currentCandidateProfile) base = _profileToText(state.currentCandidateProfile);
-  return _withAsstNotes(base || '');
+  return base || '';
 }
 
 // Reconstruct a plain-text candidate description from a structured profile dict,
@@ -860,14 +857,6 @@ function _profileToText(p) {
     if (hist) parts.push('Experience history: ' + hist);
   }
   return parts.join('\n');
-}
-
-// Fold any CV details the candidate assistant added into the matching text,
-// regardless of input mode, so a re-run reflects them.
-function _withAsstNotes(base) {
-  if (!state.candAsstNotes.length) return base;
-  const extra = 'Additional details: ' + state.candAsstNotes.join(' ');
-  return base ? (base + '\n' + extra) : extra;
 }
 
 

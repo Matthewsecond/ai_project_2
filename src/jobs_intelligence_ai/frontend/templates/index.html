@@ -189,42 +189,6 @@
         </div>
       </div>
 
-      <!-- Candidate assistant — docked chat for editing the CV & discussing the offers -->
-      <div class="cand-asst collapsed" id="candAsst">
-        <div class="cand-asst-head" data-action="cand-asst-toggle">
-          <span class="cand-asst-title">
-            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Candidate assistant
-          </span>
-          <span class="cand-asst-actions">
-            <button type="button" class="cand-asst-reset" data-action="cand-asst-reset" title="Clear conversation">Reset</button>
-            <span class="cand-asst-chevron" id="candAsstChevron">▾</span>
-          </span>
-        </div>
-        <div class="cand-asst-body" id="candAsstBody">
-          <div class="cand-asst-thread" id="candAsstThread"></div>
-          <div class="cand-asst-input">
-            <div class="cand-asst-tools">
-              <button type="button" class="cand-asst-tools-btn" id="candAsstToolsBtn"
-                data-action="cand-asst-toggle-menu" title="Actions" aria-label="Actions">
-                <svg viewBox="0 0 24 24"><path d="M12 3l1.7 4.8L18.5 9.5l-4.8 1.7L12 16l-1.7-4.8L5.5 9.5l4.8-1.7L12 3z"/><path d="M19 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>
-              </button>
-              <div class="cand-asst-menu" id="candAsstMenu">
-                <button type="button" data-action="cand-asst-analyze-fit">📊 Analyze fit</button>
-                <button type="button" data-action="cand-asst-start-highlight">🎨 Highlight offers…</button>
-                <button type="button" id="candAsstClearHlBtn" style="display:none"
-                  data-action="cand-asst-clear-highlight">✕ Clear highlight</button>
-                <button type="button" data-action="cand-asst-start-url-match">🔗 Match a job URL…</button>
-              </div>
-            </div>
-            <input type="text" id="candAsstMsg" autocomplete="off"
-              placeholder="Add a CV detail, or ask about the matched offers…"
-              data-keydown-action="cand-asst-send-enter">
-            <button type="button" id="candAsstSend" data-action="cand-asst-send">Send</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Results -->
       <div class="results-wrap">
         <div class="results-status" id="resultsStatus">

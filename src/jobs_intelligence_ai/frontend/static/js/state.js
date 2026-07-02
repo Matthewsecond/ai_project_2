@@ -12,8 +12,8 @@ export const state = {
   // Filter dropdown options (states / occ_groups / portals), loaded once from the
   // API and read by the search filters.
   filterOpts: { states: [], occ_groups: [], portals: [] },
-  // The current search result set — produced by search, read by map/export/sort/
-  // candidate-assistant. (search owns it; others read via state.)
+  // The current search result set — produced by search, read by map/export/sort.
+  // (search owns it; others read via state.)
   lastResults: [],
   // The saved pipeline (jobs saved against candidates) — saved panel + export + modal.
   savedJobs: [],
@@ -25,7 +25,7 @@ export const state = {
   // The job currently open in the detail modal — modal + quality/analysis/interview + saved.
   modalJob: null,
 
-  // ── Search result-set bookkeeping (search; read by candidate/assistant) ──
+  // ── Search result-set bookkeeping (search; read by candidate) ──
   pinnedJobIds: new Set(),        // jobs frozen individually (kept across re-runs)
   dismissedJobIds: new Set(),     // jobs removed from view (won't resurface on re-run)
   resultsFrozen: false,           // whole set frozen — re-score in place, don't re-search
@@ -36,17 +36,8 @@ export const state = {
   scoredAgainstText: '',
   lastParsedText: '',             // last parsed CV text (candidate; read by search/modal/interview)
 
-  // ── Candidate-assistant highlight overlay (assistant; read by search/candidate) ──
-  highlightedJobIds: new Set(),
-  highlightCriterion: '',
-
   // Page-wide AI chat language (job chat / interview / modal).
   jobChatLang: 'en',
-  // Per-page session id for the candidate-assistant chat (assistant + modal).
-  SESSION_ID: Math.random().toString(36).slice(2) + Date.now().toString(36),
-  // CV-style lines the candidate assistant added → folded into the matching text by
-  // candidate's buildCandidateText()/_withAsstNotes(); owned/written by assistant.js.
-  candAsstNotes: [],
   // Saved-tab view ('table' | 'dash') — owned by saved.js, set from candidate.js's
   // _gotoSavedLocal() when jumping to the Saved → Local list after a LinkedIn import.
   savedView: 'table',

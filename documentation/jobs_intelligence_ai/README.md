@@ -26,7 +26,7 @@ docs live at the top level.
 | `services/interview/` | [README.md](services/interview/README.md) — live interview scoring (Structured Outputs) · [INTERVIEW_REWORK_CHANGELOG.md](services/interview/INTERVIEW_REWORK_CHANGELOG.md) — feature history |
 | `services/reporting/` | [README.md](services/reporting/README.md) — briefings + PDF reports (Structured Outputs; pure-PDF pipeline) |
 | `services/clustering/` | [README.md](services/clustering/README.md) — CV → talent segments + persona (Structured Outputs) + segment chat |
-| `services/candidate/` | [README.md](services/candidate/README.md) — store + sample CVs + LinkedIn enricher + candidate assistant (Structured Outputs) |
+| `services/candidate/` | [README.md](services/candidate/README.md) — store + sample CVs + LinkedIn enricher + guided builder chat (Structured Outputs) |
 | `services/geo/` | [README.md](services/geo/README.md) — Austria Bundesland polygon geometry (pure data) |
 | `services/auth/` | [README.md](services/auth/README.md) — MySQL-backed login (shared across markets; DB only) |
 | `frontend/` | [API.md](frontend/API.md) — Flask endpoints, request/response shapes · [FRONTEND.md](frontend/FRONTEND.md) — tab layout, job store, modals, chat UI |

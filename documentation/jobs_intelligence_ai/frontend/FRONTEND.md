@@ -22,7 +22,6 @@ tab routing, the global delegated-action dispatcher, the feedback widget, and in
 | `search.js` | Search tab: run matching, results table, streaming meter, filters |
 | `candidate.js` | Candidate input zones, profile card, **company panel** (`openCompanyPanel`), save company/contact |
 | `candidate-examples.js` | Bundled demo candidates + the "Example candidates" dropdown |
-| `assistant.js` | Candidate-assistant chat — discuss, edit the CV, or widen/re-aim the search (one-click re-search) |
 | `saved.js` | Saved tab — the four collections |
 | `modal.js` | Job-detail modal |
 | `interview.js` | Interview tools |

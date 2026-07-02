@@ -7,7 +7,6 @@ Bundles the post-retrieval helpers (none of these are search — they never add 
 - quality_classifier   : AI quality assessment (uses stats.build_quality_context as input)
 - match_insights       : build the per-candidate "Match Insights" dashboard payload
 - rescorer             : re-grade a frozen job set against an edited candidate profile
-- highlighter          : flag which jobs satisfy a natural-language criterion
 - observation          : HR profile-override conversation (extract overrides + phrase reply)
 
 Public API — import from the package:
@@ -18,7 +17,6 @@ from .seniority_classifier import classify_seniority
 from .quality_classifier import classify_quality
 from .match_insights import build_insights
 from .rescorer import Rescorer, RescorerConfig
-from .highlighter import Highlighter, HighlighterConfig
 from .observation import extract_profile_overrides, phrase_observation_reply
 
 __all__ = [
@@ -26,6 +24,5 @@ __all__ = [
     "classify_quality",
     "build_insights",
     "Rescorer", "RescorerConfig",
-    "Highlighter", "HighlighterConfig",
     "extract_profile_overrides", "phrase_observation_reply",
 ]

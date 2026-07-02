@@ -607,3 +607,27 @@ Candidate-search filters expand separately (dimensions TBD).
   template context vars. KEPT on `master`: the profile feature flags (config-level; geo/reporting
   read `HAS_MAP`) and `services/candidate/guided_builder.py` (self-contained, covered by unit +
   smoke tests — removable later if wanted). Dead gb-*/mc-*/seg CSS left in `app.css` for now.
+- 2026-07-02 — **Candidate-assistant chat also removed from `master`, kept on `develop`**
+  (user decision, same pattern as guided/clustering). Unlike guided/clustering this was a
+  *live* feature (not dead/folded-away code), so the removal was scoped carefully to avoid
+  touching the unrelated per-row freeze/pin feature and the `/api/match/rescore` re-score
+  flow, which share `search.js`/`state.js` with the assistant's highlight overlay but are
+  core search features, not assistant-only. No branch merge/fast-forward was needed —
+  `develop` already had the code untouched (it only lacks the *previous* guided/clustering
+  removal commit, by design).
+  Removed from `master`: `assistant.js` (whole file) + its docked-chat markup block in
+  `index.html` + its `.cand-asst-*`/`.chat-*`/`.hl-*` CSS in `app.css`; the boot.js import;
+  `services/candidate/assistant.py` (+ `ASSISTANT_PROMPT`/`LANG_INSTRUCTIONS`/`CandidateReply`/
+  `ProfileUpdates` from `services/candidate/config.py`); `services/enrichment/highlighter.py`
+  (+ `HIGHLIGHT_PROMPT`/`HighlightResult` from its config); `services/search/match_analysis.py`
+  (+ `ANALYZE_MODEL`/`ANALYZE_PROMPT`/`MatchAnalysis` from its config);
+  `Orchestrator.match_url` + `JobSearch.fetch_by_url` + `infra.database.fetch_jobs_by_url`
+  (the URL-match flow, assistant-only, no other caller); the `/api/candidate/assistant`,
+  `/api/candidate/assistant/reset`, `/api/match/url`, `/api/match/highlight`,
+  `/api/match/analyze` routes; the `highlightedJobIds`/`highlightCriterion`/`candAsstNotes`/
+  `SESSION_ID` state fields and their reset/render hooks in `search.js`/`candidate.js`
+  (`_withAsstNotes` deleted); 5 dedicated test files plus surgical trims to 2 mixed test files
+  (`test_candidate_smoke.py`, `test_2_converted_routes.py`). KEPT (confirmed unrelated):
+  `pinnedJobIds`/freeze-a-row, `/api/match/rescore`, `services/enrichment/observation.py`
+  (a different Saved-tab chat feature). Verified: full suite green (169 tests, including
+  live smoke), live preview clean.

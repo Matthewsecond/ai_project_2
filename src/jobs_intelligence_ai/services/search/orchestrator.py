@@ -142,19 +142,6 @@ class Orchestrator:
         classify_seniority(jobs)
         return jobs
 
-    def match_url(self, candidate_text: str, url: str) -> dict | None:
-        """Grade ONE specific job — looked up by its posting URL — against the
-        candidate, skipping retrieval entirely. Returns the graded job dict, or
-        None if the url isn't in the DB (the caller can then offer scraping, which
-        is not implemented yet)."""
-        self._ensure_ready()
-        job = self._job_search.fetch_by_url(url)
-        if job is None:
-            return None
-        graded = self._grader.grade(candidate_text, [job])   # same authoritative scorer
-        classify_seniority(graded)
-        return graded[0] if graded else None
-
     def run(self, candidate_text: str, filters: dict | None = None,
             max_results: int | None = None) -> list[dict]:
         """Non-streaming variant: run to completion, return only the final jobs."""
