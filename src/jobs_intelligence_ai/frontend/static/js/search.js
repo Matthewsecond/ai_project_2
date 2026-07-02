@@ -33,9 +33,12 @@ function getChipVal(group) {
 async function loadFilters() {
   try {
     const data = await api.get('/api/filters');
-    const states    = data.data.states     || [];
-    const occGroups = data.data.occ_groups || [];
-    const portals   = data.data.portals    || [];
+    const states     = data.data.states     || [];
+    const occGroups  = data.data.occ_groups || [];
+    const portals    = data.data.portals    || [];
+    const workTimes  = data.data.work_time             || [];
+    const empRels    = data.data.employment_relationship || [];
+    const educations = data.data.education             || [];
 
     // Cache for AI filter assist
     state.filterOpts = {states, occ_groups: occGroups, portals};
@@ -44,6 +47,9 @@ async function loadFilters() {
     populateSelect('filterState',    states,    'All states');
     populateSelect('filterOccGroup', occGroups, 'Occupational group');
     populateSelect('filterPortal',   portals,   'All portals', 'ams');
+    populateSelect('filterWorkTime',               workTimes,  'Work time (any)');
+    populateSelect('filterEmploymentRelationship', empRels,    'Employment type (any)');
+    populateSelect('filterEducation',              educations, 'Education (any)');
 
     // Radar scope filters — separate block so errors above can't kill these
     populateSelect('rfSector',  occGroups, 'All sectors');
@@ -72,6 +78,29 @@ function populateSelect(id, vals, placeholder, pinnedFirst) {
       sel.appendChild(sep);
     }
   });
+}
+
+// Read the filter-bar controls into a { key: value } object (only non-empty ones),
+// shared by runMatching() and findMoreJobs() so a new filter is one place to add.
+function _readFilterInputs() {
+  const filters = {};
+  const state_    = document.getElementById('filterState').value;
+  const occGroup  = document.getElementById('filterOccGroup').value;
+  const portal    = document.getElementById('filterPortal').value;
+  const city      = document.getElementById('filterCity').value.trim();
+  const keyword   = document.getElementById('filterKeyword').value.trim();
+  const workTime  = document.getElementById('filterWorkTime').value;
+  const empRel    = document.getElementById('filterEmploymentRelationship').value;
+  const education = document.getElementById('filterEducation').value;
+  if (state_)    filters.state                    = state_;
+  if (occGroup)  filters.occ_group                = occGroup;
+  if (portal)    filters.portal                   = portal;
+  if (city)      filters.city                     = city;
+  if (keyword)   filters.keyword                  = keyword;
+  if (workTime)  filters.work_time                = workTime;
+  if (empRel)    filters.employment_relationship  = empRel;
+  if (education) filters.education                = education;
+  return filters;
 }
 
 function setDbStatus(ok, msg) {
@@ -312,17 +341,7 @@ async function runMatching() {
   }
   state.lastMatchText = text;   // remember who we searched with, for per-job fit chat
 
-  const filters  = {};
-  const stateF   = document.getElementById('filterState').value;
-  const occGroup = document.getElementById('filterOccGroup').value;
-  const portal   = document.getElementById('filterPortal').value;
-  const city     = document.getElementById('filterCity').value.trim();
-  const keyword  = document.getElementById('filterKeyword').value.trim();
-  if (stateF)   filters.state     = stateF;
-  if (occGroup) filters.occ_group = occGroup;
-  if (portal)   filters.portal    = portal;
-  if (city)     filters.city      = city;
-  if (keyword)  filters.keyword   = keyword;
+  const filters = _readFilterInputs();
 
   const topN = parseInt(document.getElementById('topNSelect').value);
 
@@ -437,17 +456,7 @@ async function findMoreJobs() {
   const runBtn  = document.getElementById('btnRun');
   const prevIds = new Set(state.lastResults.map(j => String(j.job_id)));
 
-  const filters  = {};
-  const stateF   = document.getElementById('filterState').value;
-  const occGroup = document.getElementById('filterOccGroup').value;
-  const portal   = document.getElementById('filterPortal').value;
-  const city     = document.getElementById('filterCity').value.trim();
-  const keyword  = document.getElementById('filterKeyword').value.trim();
-  if (stateF)   filters.state     = stateF;
-  if (occGroup) filters.occ_group = occGroup;
-  if (portal)   filters.portal    = portal;
-  if (city)     filters.city      = city;
-  if (keyword)  filters.keyword   = keyword;
+  const filters = _readFilterInputs();
 
   if (moreBtn) moreBtn.disabled = true;
   if (runBtn)  runBtn.disabled  = true;

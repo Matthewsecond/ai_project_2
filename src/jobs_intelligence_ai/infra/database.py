@@ -85,7 +85,7 @@ def get_filter_options(force: bool = False) -> dict:
                 options[f"{key}_error"] = str(e)
 
     # Keep the dropdown contract stable even when a country lacks a facet.
-    for key in ("states", "occ_groups", "portals"):
+    for key in ("states", "occ_groups", "portals", "work_time", "employment_relationship", "education"):
         options.setdefault(key, [])
 
     # Pin the primary portal to the top of the list (Austria: "ams").

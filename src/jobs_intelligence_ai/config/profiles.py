@@ -152,6 +152,38 @@ _AT_FILTER_QUERIES = {
           AND j.portal IS NOT NULL
         ORDER BY j.portal
     """,
+    # work_time/employment_relationship/education are messy AMS free-text fields —
+    # many jobs store a comma-joined combination (e.g. "Lehre/Lehre mit
+    # Meisterprüfung, Matura"), which pushes raw distinct counts into the
+    # hundreds/thousands. The frequency cut (same shape as occ_groups above) keeps
+    # the dropdown to the handful of values that actually cover most postings.
+    "work_time": """
+        SELECT j.work_time
+        FROM {db}.jobs j
+        WHERE j.status IN ('new','updated')
+          AND j.work_time IS NOT NULL AND j.work_time != ''
+        GROUP BY j.work_time
+        HAVING COUNT(*) >= 20
+        ORDER BY COUNT(*) DESC
+    """,
+    "employment_relationship": """
+        SELECT j.employment_relationship
+        FROM {db}.jobs j
+        WHERE j.status IN ('new','updated')
+          AND j.employment_relationship IS NOT NULL AND j.employment_relationship != ''
+        GROUP BY j.employment_relationship
+        HAVING COUNT(*) >= 20
+        ORDER BY COUNT(*) DESC
+    """,
+    "education": """
+        SELECT j.education
+        FROM {db}.jobs j
+        WHERE j.status IN ('new','updated')
+          AND j.education IS NOT NULL AND j.education != ''
+        GROUP BY j.education
+        HAVING COUNT(*) >= 20
+        ORDER BY COUNT(*) DESC
+    """,
 }
 
 AUSTRIA = Profile(
@@ -247,6 +279,37 @@ _SK_FILTER_QUERIES = {
         WHERE status IN ('new','updated')
           AND portal IS NOT NULL
         ORDER BY portal
+    """,
+    # SK's work_time/contract_type/education are a clean small taxonomy (a handful
+    # of distinct values), unlike AT's messier combined strings — the frequency cut
+    # is a no-op here but keeps the query shape identical across both profiles.
+    # NOTE: employment_relationship maps to the `contract_type` column (see _SK_COL).
+    "work_time": """
+        SELECT work_time
+        FROM {db}.jobs
+        WHERE status IN ('new','updated')
+          AND work_time IS NOT NULL AND work_time != ''
+        GROUP BY work_time
+        HAVING COUNT(*) >= 20
+        ORDER BY COUNT(*) DESC
+    """,
+    "employment_relationship": """
+        SELECT contract_type
+        FROM {db}.jobs
+        WHERE status IN ('new','updated')
+          AND contract_type IS NOT NULL AND contract_type != ''
+        GROUP BY contract_type
+        HAVING COUNT(*) >= 20
+        ORDER BY COUNT(*) DESC
+    """,
+    "education": """
+        SELECT education
+        FROM {db}.jobs
+        WHERE status IN ('new','updated')
+          AND education IS NOT NULL AND education != ''
+        GROUP BY education
+        HAVING COUNT(*) >= 20
+        ORDER BY COUNT(*) DESC
     """,
 }
 

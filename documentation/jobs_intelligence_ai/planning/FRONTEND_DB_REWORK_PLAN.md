@@ -377,14 +377,16 @@ pipeline, distinct from the saved-candidate *hiring* pipeline (Screening/Intervi
 Tab visibility is gated by the access model ([§3.3](#33-access--collaboration-model)) — e.g.
 the user-management tab is admin-only.
 
-### 4.3 Expanded filters (jobs tab)
-The job record carries ~28 fields (`serialize_job` in `services/search/utils.py`), but the
-jobs tab today filters on only **state, occupation group, portal** (+ the keyword/candidate
-input). Add filters drawn from columns that already exist:
+### 4.3 Expanded filters (jobs tab) — first batch DONE (2026-07-02)
+The job record carries ~28 fields (`serialize_job` in `services/search/utils.py`); the jobs
+tab now filters on **state, city, occupation group, portal, work_time, employment_relationship,
+education** (+ keyword/candidate input).
 
-- **First batch — do these first** (clean categorical dropdowns, low risk):
-  `work_time` (full/part-time), `employment_relationship` (permanent/contract/temp),
-  `education` (required level), `city` (finer than `state`).
+- **First batch — DONE:** `work_time` (full/part-time), `employment_relationship`
+  (permanent/contract/temp), `education` (required level). `city` turned out to already be a
+  working free-text substring filter (`#filterCity` + `passes_filters`) predating this batch —
+  no change needed there; a dropdown would in fact be wrong for it (1,721 distinct AT city
+  values — see decisions log).
 - **Later** (need range UI / parsing / autocomplete): `salary` min–max (sparse/free-text →
   parse first), `posted` recency (last 7/30 days), `skills` keyword match (`skills`/`skills_en`),
   `company` (target_company) autocomplete, `municipality`.
@@ -646,3 +648,25 @@ Candidate-search filters expand separately (dimensions TBD).
   records" button and the new search box share one code path. Reuses the `.ex-dropdown-*`
   CSS classes from the Example-candidates dropdown (only the input-vs-button trigger needed
   new styling: `.db-search-*`). No new backend routes — both fixes are frontend-only.
+- 2026-07-02 — **§4.3 first-batch job filters SHIPPED (verified live, both markets).**
+  `work_time`, `employment_relationship`, `education` are now filter-bar dropdowns, backed by
+  new per-country SQL in `config/profiles.py::_AT_FILTER_QUERIES`/`_SK_FILTER_QUERIES`
+  (`GET /api/filters` → `infra.database.get_filter_options()`, already generic over whatever
+  keys `Profile.filter_queries` defines — no endpoint code changed) and a matching exact-match
+  check added to `services/search/utils.py::passes_filters()`. **Live-data finding:** AT's
+  `work_time`/`employment_relationship`/`education` are messy AMS free-text columns that often
+  store a comma-joined combination (e.g. "Lehre/Lehre mit Meisterprüfung, Matura") — raw
+  distinct counts are 51/468/1088, so all three AT queries use the same frequency-cut shape as
+  the existing `occ_groups` query (`HAVING COUNT(*) >= 20`), landing on ~10–35 dropdown options
+  each. SK's equivalents (`work_time`/`contract_type`/`education`) are a clean 3–22-value
+  taxonomy — the same query shape is a no-op there but keeps both profiles structurally
+  identical. `employment_relationship` maps to the `contract_type` column on SK (see `_SK_COL`).
+  **`city` needed no work** — investigation found it's already a working free-text substring
+  filter (predates this batch); confirmed via live query that AT alone has 1,721 distinct city
+  values, so a dropdown would have been the wrong UI for it anyway. Frontend: 3 new `<select>`s
+  added to the filter bar (wraps to a second grid row under the existing 5-column
+  `.filter-row` grid — no CSS changes needed); `search.js::loadFilters()` populates them;
+  extracted a shared `_readFilterInputs()` helper (was duplicated verbatim in `runMatching()`
+  and `findMoreJobs()`) so filters are read from the DOM in one place. Verified: dropdowns
+  populate with real AT data live, selecting a `work_time` value narrows a 21-job candidate
+  set down to the 1 matching job end-to-end; full suite green (147 non-smoke tests).

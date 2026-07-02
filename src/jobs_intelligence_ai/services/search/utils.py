@@ -71,6 +71,13 @@ def passes_filters(row: dict, filters: dict) -> bool:
         return False
     if filters.get("occ_group") and row.get(c["occ_group"]) != filters["occ_group"]:
         return False
+    if filters.get("work_time") and row.get(c["work_time"]) != filters["work_time"]:
+        return False
+    if (filters.get("employment_relationship")
+            and row.get(c["employment_relationship"]) != filters["employment_relationship"]):
+        return False
+    if filters.get("education") and row.get(c["education"]) != filters["education"]:
+        return False
     if filters.get("city"):
         city_val = str(row.get(c["city"], "") or "")
         if filters["city"].lower() not in city_val.lower():

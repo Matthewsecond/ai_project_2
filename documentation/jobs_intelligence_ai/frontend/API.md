@@ -47,7 +47,7 @@ resolved against the market DB (`Profile.read_view`) → hard filters → sorted
 ### Other search routes
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/filters` | GET | Distinct dropdown values `{ states, occ_groups, portals }` for the filter bar |
+| `/api/filters` | GET | Distinct dropdown values `{ states, occ_groups, portals, work_time, employment_relationship, education }` for the filter bar |
 | `/api/match/stream` | POST | Streaming (SSE) variant of `/api/match` — emits `cycle` progress then a `done` event |
 | `/api/match/rescore` | POST | Re-score a frozen result set against edited candidate text |
 | `/api/quality` | POST | Match-quality scoring |
