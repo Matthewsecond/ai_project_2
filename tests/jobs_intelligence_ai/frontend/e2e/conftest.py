@@ -26,12 +26,12 @@ def live_server():
     _orig_init, _orig_verify = auth.init_db, auth.verify_login
     auth.init_db = lambda *a, **k: None
     auth.verify_login = lambda u, p: (
-        {"id": 1, "username": u, "display_name": "Tester", "role": "admin"}
+        {"id": 1, "account_company_id": 1, "username": u, "display_name": "Tester",
+         "role": "admin", "visibility": "all"}
         if (u, p) == ("admin", "admin") else None
     )
 
-    # Force every country feature flag ON so all tabs render — the smoke needs full
-    # coverage (radar / map are the big modules in the 2.6c split). The context
+    # Force every country feature flag ON so all flag-gated UI renders. The context
     # processor reads these at request time, so patching the module attrs is enough.
     _orig_flags = {f: getattr(config, f) for f in ("HAS_MAP", "HAS_ANALYTICS", "HAS_GUIDED", "HAS_OCC_FILTER")}
     for f in _orig_flags:

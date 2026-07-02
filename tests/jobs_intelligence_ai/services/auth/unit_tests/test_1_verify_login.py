@@ -35,15 +35,17 @@ def _patch(monkeypatch, row):
 
 
 def _row(password):
-    return {"id": 1, "username": "admin", "password_hash": generate_password_hash(password),
-            "display_name": "Administrator", "role": "admin"}
+    return {"id": 1, "account_company_id": 1, "username": "admin",
+            "password_hash": generate_password_hash(password),
+            "display_name": "Administrator", "role": "admin", "visibility": "all"}
 
 
 def test_correct_password_returns_user_without_hash(monkeypatch):
     """A matching password returns the public user dict — never the hash."""
     _patch(monkeypatch, _row("admin"))
     out = acc.verify_login("admin", "admin")
-    assert out == {"id": 1, "username": "admin", "display_name": "Administrator", "role": "admin"}
+    assert out == {"id": 1, "account_company_id": 1, "username": "admin",
+                   "display_name": "Administrator", "role": "admin", "visibility": "all"}
     assert "password_hash" not in out
 
 
