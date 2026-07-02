@@ -22,34 +22,36 @@ from .config import CHAT_MODEL, ENRICH_PROMPT, AI_KEYS, LinkedInProfile
 logger = logging.getLogger(__name__)
 
 
-def _compact(item: dict) -> dict:
-    """Trim the raw scrape to the fields worth analyzing (keeps the prompt small)."""
+def _compact(prof: dict) -> dict:
+    """Trim the normalized profile (map_to_profile output) to the fields worth analyzing,
+    keeping the prompt small. Reads the app profile shape — not the raw actor scrape — so
+    the enricher stays decoupled from whichever LinkedIn actor produced the data."""
     def _exp(e):
         return {"title": e.get("title"), "company": e.get("company"),
                 "starts_at": e.get("starts_at"), "ends_at": e.get("ends_at"),
                 "description": (e.get("description") or "")[:300]}
 
     def _edu(e):
-        return {"school": e.get("school"), "degree": e.get("degree_name") or e.get("degree"),
+        return {"school": e.get("school"), "degree": e.get("degree"),
                 "starts_at": e.get("starts_at"), "ends_at": e.get("ends_at")}
 
+    cc = prof.get("current_company") or {}
     return {
-        "full_name":   item.get("full_name"),
-        "headline":    item.get("headline"),
-        "summary":     item.get("summary"),
-        "city":        item.get("city"),
-        "country":     item.get("country"),
-        "open_to_work": item.get("open_to_work"),
-        "skills":         [s for s in (item.get("skills") or []) if s],
-        "languages":      item.get("languages") or [],
-        "certifications": item.get("certifications") or [],
+        "full_name":   prof.get("name"),
+        "headline":    prof.get("headline"),
+        "summary":     prof.get("summary"),
+        "location":    prof.get("location"),
+        "open_to_work": bool(prof.get("availability")),
+        "skills":         [s for s in (prof.get("skills") or []) if s],
+        "languages":      prof.get("languages") or "",
+        "certifications": prof.get("certifications") or [],
         "current_company": {
-            "name":     item.get("company_name"),
-            "industry": item.get("company_industry"),
-            "size":     item.get("company_size"),
+            "name":     cc.get("name"),
+            "industry": cc.get("industry"),
+            "size":     cc.get("size"),
         },
-        "experiences": [_exp(e) for e in (item.get("experiences") or []) if isinstance(e, dict)],
-        "education":   [_edu(e) for e in (item.get("education") or []) if isinstance(e, dict)],
+        "experiences": [_exp(e) for e in (prof.get("experiences") or []) if isinstance(e, dict)],
+        "education":   [_edu(e) for e in (prof.get("education") or []) if isinstance(e, dict)],
     }
 
 
@@ -66,7 +68,7 @@ def enrich_linkedin_profile(item: dict, base: dict | None = None) -> dict:
         resp = get_client().responses.parse(
             model=CHAT_MODEL,
             instructions=ENRICH_PROMPT,
-            input=json.dumps(_compact(item), ensure_ascii=False),
+            input=json.dumps(_compact(base), ensure_ascii=False),
             text_format=LinkedInProfile,
         )
         ai = resp.output_parsed.model_dump() if resp.output_parsed else {}

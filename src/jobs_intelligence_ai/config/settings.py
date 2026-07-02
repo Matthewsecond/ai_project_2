@@ -69,9 +69,13 @@ VECTOR_STORE_ID = os.getenv(PROFILE.vector_store_env, "")
 #  APIFY  (LinkedIn profile enrichment actor)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# harvestapi/linkedin-profile-scraper — input { queries: [url, …], profileScraperMode }.
+# (Replaced anchor/linkedin-profile-enrichment "AgfKk0sQQxkpQJ1Dt", which stopped working.)
 APIFY_API_KEY  = os.getenv("APIFY_API_KEY", "")
-# anchor/linkedin-profile-enrichment — input { startUrls: [{url, id}] }
-APIFY_LINKEDIN_ACTOR = os.getenv("APIFY_LINKEDIN_ACTOR", "AgfKk0sQQxkpQJ1Dt")
+APIFY_LINKEDIN_ACTOR = os.getenv("APIFY_LINKEDIN_ACTOR", "LpVuK3Zozwuipa5bp")
+# Scraper mode — the actor's exact enum string. "…no email" is cheaper ($4/1k);
+# switch to "Profile details + email search ($10 per 1k)" to also resolve emails.
+APIFY_LINKEDIN_MODE = os.getenv("APIFY_LINKEDIN_MODE", "Profile details no email ($4 per 1k)")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  DATABASE

@@ -14,6 +14,7 @@ os.environ.setdefault("COUNTRY", "sk")
 import pytest
 
 from jobs_intelligence_ai import config
+from jobs_intelligence_ai.infra.integrations.linkedin import map_to_profile
 from jobs_intelligence_ai.services.candidate import (
     enrich_linkedin_profile, parse_candidate_profile, send_candidate_message,
     extract_guided_fields, phrase_guided_reply,
@@ -24,22 +25,30 @@ pytestmark = [
     pytest.mark.skipif(not config.OPENAI_API_KEY, reason="live candidate smoke — needs OPENAI_API_KEY"),
 ]
 
+# Raw item in the harvestapi/linkedin-profile-scraper schema (camelCase, nested).
 _SCRAPE = {
-    "full_name": "Max Weber", "headline": "Senior Backend Engineer",
-    "city": "Vienna", "country": "Austria",
-    "skills": ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"],
-    "experiences": [
-        {"title": "Senior Backend Engineer", "company": "TechSolutions",
-         "starts_at": "2019", "ends_at": None, "description": "Led API platform, 6 engineers."},
-        {"title": "Backend Developer", "company": "WebFactory",
-         "starts_at": "2015", "ends_at": "2019", "description": "Python services."},
+    "firstName": "Max", "lastName": "Weber", "headline": "Senior Backend Engineer",
+    "location": {"parsed": {"city": "Vienna", "country": "Austria"}},
+    "skills": [{"name": "Python"}, {"name": "FastAPI"}, {"name": "PostgreSQL"},
+               {"name": "Docker"}, {"name": "AWS"}],
+    "experience": [
+        {"position": "Senior Backend Engineer", "companyName": "TechSolutions",
+         "startDate": {"text": "2019", "year": 2019}, "endDate": {"text": "Present"},
+         "description": "Led API platform, 6 engineers."},
+        {"position": "Backend Developer", "companyName": "WebFactory",
+         "startDate": {"text": "2015", "year": 2015}, "endDate": {"text": "2019", "year": 2019},
+         "description": "Python services."},
     ],
 }
 
 
 def test_enrich_linkedin_profile_live():
-    """Live: enrichment returns a valid seniority and merges inferred fields over the base."""
-    out = enrich_linkedin_profile(_SCRAPE, base={"phone": "123"})
+    """Live: map the raw scrape, then enrichment returns a valid seniority and merges
+    inferred fields over the mechanical base — the real LinkedIn import pipeline."""
+    base = map_to_profile(_SCRAPE)
+    base["phone"] = "123"
+    out = enrich_linkedin_profile(_SCRAPE, base=base)
+    assert out["name"] == "Max Weber"          # firstName + lastName combined
     assert out["seniority"] in ("Junior", "Mid", "Senior", "Lead", "Executive")
     assert out["phone"] == "123"               # base preserved
     assert out["source"] == "imported"
