@@ -25,6 +25,7 @@ import re
 from flask import Blueprint, request, jsonify, make_response, session
 
 from jobs_intelligence_ai.services.candidate import store
+from jobs_intelligence_ai.services.search.utils import _within_days, _parse_salary_num
 
 bp = Blueprint("saved", __name__, url_prefix="/api/saved")
 
@@ -45,9 +46,116 @@ def _vis() -> str:
     return session.get("visibility") or "all"
 
 
+@bp.route("/users", methods=["GET"])
+def api_saved_users():
+    """Colleagues in the caller's firm — for the Pipeline tab's Sales Filter User dropdown."""
+    return jsonify({"ok": True, "users": store.list_account_users(account_company_id=_aid())})
+
+
+# ── Pipeline tab: Deal-Filter — narrows an already-saved list by request.args ──
+# Not a DB-level filter (saved-item snapshots are sparse/inconsistent across
+# sources), so it's applied in Python after the store fetch, the same way
+# services.search.utils.passes_filters hard-filters Search results.
+def _deal_filter_args() -> dict:
+    args = {k: v for k, v in {
+        "state":           request.args.get("state", "").strip(),
+        "postcode":        request.args.get("postcode", "").strip(),
+        "keyword":         request.args.get("keyword", "").strip(),
+        "company":         request.args.get("company", "").strip(),
+        "available_from":  request.args.get("available_from", "").strip(),
+        "occ_group":       request.args.get("occ_group", "").strip(),
+        "job_description": request.args.get("job_description", "").strip(),
+        "skills":          request.args.get("skills", "").strip(),
+        "portal":          request.args.get("portal", "").strip(),
+    }.items() if v}
+    min_jobs = request.args.get("min_jobs", type=int)
+    if min_jobs:
+        args["min_jobs"] = min_jobs
+    online_since = request.args.get("online_since", type=int)
+    if online_since:
+        args["online_since"] = online_since
+    salary_min = request.args.get("salary_min", type=float)
+    if salary_min is not None:
+        args["salary_min"] = salary_min
+    salary_max = request.args.get("salary_max", type=float)
+    if salary_max is not None:
+        args["salary_max"] = salary_max
+    return args
+
+
+def _passes_deal_filters(row: dict, filters: dict) -> bool:
+    # Saved-item shapes differ per collection (jobs have state/city, candidates/
+    # companies/contacts only have a freeform location), so region matching checks
+    # whichever location-ish field is actually present on this row.
+    if filters.get("state"):
+        region = " ".join(str(row.get(k) or "") for k in ("state", "location", "city")).lower()
+        if filters["state"].lower() not in region:
+            return False
+    # Postcode only exists on saved JOB rows (job_snapshot.zipcode) — guarded
+    # the same way as the other Jobs-only filters below (missing key = skip,
+    # not exclude, so it can't blank Contacts/Companies/Candidates).
+    if filters.get("postcode") and "zipcode" in row:
+        if not str(row.get("zipcode") or "").startswith(filters["postcode"]):
+            return False
+    if filters.get("company"):
+        if filters["company"].lower() not in str(row.get("company") or row.get("name") or "").lower():
+            return False
+    if filters.get("keyword"):
+        kw = filters["keyword"].lower()
+        haystack = " ".join(str(row.get(k) or "") for k in ("title", "name", "company")).lower()
+        if kw not in haystack:
+            return False
+    # min_jobs only applies to rows annotated with a market job_count (saved
+    # contacts today) — rows without the key are left alone, so a stray min_jobs
+    # param can't silently blank a collection that has no job-count concept.
+    if filters.get("min_jobs") and "job_count" in row:
+        if (row.get("job_count") or 0) < filters["min_jobs"]:
+            return False
+    # Job Status / Job Criteria — these read job_snapshot fields (posted, occ_group,
+    # description, skills, salary, portal, start_timeline) that only exist on saved
+    # JOB rows. Guarded the same way as min_jobs: a row missing the key is left
+    # alone rather than silently excluded, so these params can't blank Contacts/
+    # Companies/Candidates (the frontend also locks these fields there — see
+    # saved.js _JOBS_ONLY_FIELD_IDS — this is defense in depth, not the only guard).
+    if filters.get("online_since") and "posted" in row:
+        if not _within_days(row.get("posted"), filters["online_since"]):
+            return False
+    if filters.get("available_from") and "start_timeline" in row:
+        if filters["available_from"].lower() not in str(row.get("start_timeline") or "").lower():
+            return False
+    if filters.get("occ_group") and "occ_group" in row:
+        if row.get("occ_group") != filters["occ_group"]:
+            return False
+    if filters.get("job_description") and "description" in row:
+        if filters["job_description"].lower() not in str(row.get("description") or "").lower():
+            return False
+    if filters.get("skills") and ("skills" in row or "skills_en" in row):
+        skills_val = " ".join([str(row.get("skills") or ""), str(row.get("skills_en") or "")]).lower()
+        terms = [t.strip().lower() for t in filters["skills"].split(",") if t.strip()]
+        if terms and not any(t in skills_val for t in terms):
+            return False
+    if (filters.get("salary_min") is not None or filters.get("salary_max") is not None) and "salary" in row:
+        num = _parse_salary_num(row.get("salary"))
+        if num is None:
+            return False
+        if filters.get("salary_min") is not None and num < filters["salary_min"]:
+            return False
+        if filters.get("salary_max") is not None and num > filters["salary_max"]:
+            return False
+    if filters.get("portal") and "portal" in row:
+        if row.get("portal") != filters["portal"]:
+            return False
+    return True
+
+
 @bp.route("", methods=["GET"])
 def api_saved_get():
-    jobs = store.list_saved_jobs(account_company_id=_aid(), owner_id=_uid(), visibility=_vis())
+    jobs = store.list_saved_jobs(account_company_id=_aid(), owner_id=_uid(), visibility=_vis(),
+                                 filter_user_id=request.args.get("user_id", type=int),
+                                 sales_status=request.args.get("sales_status") or None)
+    filters = _deal_filter_args()
+    if filters:
+        jobs = [j for j in jobs if _passes_deal_filters(j, filters)]
     return jsonify({"ok": True, "count": len(jobs), "jobs": jobs})
 
 
@@ -117,8 +225,15 @@ def _candidates_index() -> dict[str, list[dict]]:
 @bp.route("/candidates", methods=["GET"])
 def api_saved_candidates():
     """List saved candidates visible to the caller — drives the switcher + table view."""
-    return jsonify({"ok": True, "candidates": store.list_candidates_detailed(
-        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+    candidates = store.list_candidates_detailed(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis(),
+        filter_user_id=request.args.get("user_id", type=int),
+        sales_status=request.args.get("sales_status") or None)
+    filters = _deal_filter_args()
+    if filters:
+        candidates = [c for c in candidates
+                     if _passes_deal_filters({**c, "title": c.get("title") or c.get("name")}, filters)]
+    return jsonify({"ok": True, "candidates": candidates})
 
 
 @bp.route("/lookup", methods=["GET"])
@@ -151,8 +266,20 @@ def api_saved_load():
 @bp.route("/companies", methods=["GET"])
 def api_list_saved_companies():
     """List the company's saved target companies (the database view)."""
-    return jsonify({"ok": True, "companies": store.list_saved_companies(
-        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+    from jobs_intelligence_ai.frontend.blueprints.company import company_job_counts
+    companies = store.list_saved_companies(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis(),
+        filter_user_id=request.args.get("user_id", type=int))
+    # Annotate each company with its active-job count from the market catalogue —
+    # shown as the grid's "Open jobs" column (mirrors saved contacts' job_count).
+    counts = company_job_counts([c.get("target_company_id") for c in companies])
+    for c in companies:
+        tcid = c.get("target_company_id")
+        c["job_count"] = counts.get(int(tcid), 0) if str(tcid or "").isdigit() else 0
+    filters = _deal_filter_args()
+    if filters:
+        companies = [c for c in companies if _passes_deal_filters(c, filters)]
+    return jsonify({"ok": True, "companies": companies})
 
 
 @bp.route("/companies", methods=["POST"])
@@ -190,8 +317,21 @@ def api_delete_saved_company(saved_id):
 # ── Saved contacts (bookmarked people at target companies) ──────────────────────
 @bp.route("/contacts", methods=["GET"])
 def api_list_saved_contacts():
-    return jsonify({"ok": True, "contacts": store.list_saved_contacts(
-        account_company_id=_aid(), owner_id=_uid(), visibility=_vis())})
+    from jobs_intelligence_ai.frontend.blueprints.company import contact_job_counts
+    contacts = store.list_saved_contacts(
+        account_company_id=_aid(), owner_id=_uid(), visibility=_vis(),
+        filter_user_id=request.args.get("user_id", type=int))
+    # Annotate each contact with its active-job count from the market catalogue —
+    # shown as the grid's "Open jobs" column and matched by the Deal-Filter's
+    # min_jobs field. Contacts saved without a market id count as 0.
+    counts = contact_job_counts([c.get("contact_id") for c in contacts])
+    for c in contacts:
+        cid = c.get("contact_id")
+        c["job_count"] = counts.get(int(cid), 0) if str(cid or "").isdigit() else 0
+    filters = _deal_filter_args()
+    if filters:
+        contacts = [c for c in contacts if _passes_deal_filters(c, filters)]
+    return jsonify({"ok": True, "contacts": contacts})
 
 
 @bp.route("/contacts", methods=["POST"])

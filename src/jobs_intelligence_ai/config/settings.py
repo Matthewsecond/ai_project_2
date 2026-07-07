@@ -28,6 +28,8 @@ HAS_GUIDED       = PROFILE.has_guided
 HAS_MAP          = PROFILE.has_map
 HAS_ANALYTICS    = PROFILE.has_analytics
 HAS_OCC_FILTER   = PROFILE.has_occ_filter
+HAS_STAFFING_FILTER = PROFILE.has_staffing_filter
+HAS_POSTCODE_FILTER = PROFILE.col_present("zipcode")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  AI MODELS  — change these to swap model

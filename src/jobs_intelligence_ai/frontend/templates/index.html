@@ -12,7 +12,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/saved-dashboard.css') }}"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}"/>
 {# Hide country-unsupported features (Slovakia has no occupation-group filter) #}
-{% if not has_occ_filter %}<style>#filterOccGroup{display:none!important}</style>{% endif %}
+{% if not has_occ_filter %}<style>#filterOccGroup, #pfOccGroupWrap{display:none!important}</style>{% endif %}
+{% if not has_postcode_filter %}<style>.field-postcode{display:none!important}</style>{% endif %}
+{% if not has_staffing_filter %}<style>.field-staffing{display:none!important}</style>{% endif %}
 </head>
 <body>
 
@@ -29,7 +31,7 @@
     <div class="nav-area">
       <div class="tabs">
         <button class="tab-btn active" data-tab="search" data-mode-group="search">Search</button>
-        <button class="tab-btn" data-tab="saved" data-mode-group="search">Saved <span id="savedBadgeNav" style="display:none;background:#1a56c4;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">0</span></button>
+        <button class="tab-btn" data-tab="saved" data-mode-group="search">Pipeline <span id="savedBadgeNav" style="display:none;background:#1a56c4;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">0</span></button>
       </div>
     </div>
     <div class="topbar-right">
@@ -70,17 +72,6 @@
               <button class="cand-confirm-btn" data-action="confirm-candidate-name">Save</button>
             </div>
             <span class="cand-hint" id="candHint">Name auto-detected from CV or text</span>
-          </div>
-          <div class="ex-dropdown db-search-dropdown" id="dbCandDropdown">
-            <div class="db-search-trigger">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" id="dbCandSearchInput" class="db-search-input" autocomplete="off"
-                placeholder="Search saved candidates…"
-                data-input-action="db-cand-search-input" data-keydown-action="db-cand-search-keydown">
-            </div>
-            <div class="ex-dropdown-panel" id="dbCandSearchPanel">
-              <div class="ex-dropdown-header">Type a name to search your saved candidates</div>
-            </div>
           </div>
           <div class="ex-dropdown" id="exDropdown">
             <button type="button" class="ex-dropdown-trigger" data-action="ex-toggle">
@@ -125,16 +116,28 @@
           </div>
         </div>
 
-        <div class="method-label" id="methodLabel">How do you want to add them</div>
+      <div class="stepper">
+        <div class="step-row">
+          <div class="step-rail"><span class="step-num">1</span><span class="stepper-line"></span></div>
+          <div class="step-card collapsed" id="step1Card">
+            <div class="step-title-row" data-action="toggle-step" data-step="step1Card">
+              <span class="step-title">AI Job Search with Candidate Matching</span>
+              <button class="step-chevron" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
+            </div>
+            <div class="step-body">
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="cv">
             <span class="def-badge">Default</span>
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-            Search by CV
+            Upload CV
+          </button>
+          <button class="mode-tab" data-mode="saved">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="8" r="4"/><path d="M3 21c0-4 3.5-7 8-7s8 3 8 7"/><path d="M19 8h4M21 6v4"/></svg>
+            Saved candidates
           </button>
           <button class="mode-tab" data-mode="linkedin">
             <svg viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6zM6 9H2v12h4zM4 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
-            From LinkedIn
+            LinkedIn profile links
           </button>
         </div>
 
@@ -161,6 +164,192 @@
           </div>
         </div>
 
+        <!-- Saved-candidate lookup -->
+        <div id="zone-saved" class="input-zone">
+          <div class="zone-saved-searchbar">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="zoneSavedSearchInput" autocomplete="off" placeholder="Search saved candidates by name…"
+              data-input-action="zone-saved-search-input" data-keydown-action="zone-saved-search-keydown">
+            <button type="button" class="zone-saved-showall-btn" data-action="zone-saved-show-all">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7z"/><circle cx="12" cy="12" r="2.5"/></svg>
+              Show all candidates
+            </button>
+          </div>
+          <div class="zone-saved-status" id="zoneSavedStatus" style="display:none"></div>
+          <div class="zone-saved-list" id="zoneSavedList">
+            <div class="ex-dropdown-header">Type a name, or click "Show all candidates".</div>
+          </div>
+        </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <div class="step-rail"><span class="step-num">2</span><span class="stepper-line"></span></div>
+          <div class="step-card collapsed" id="step2Card">
+            <div class="step-title-row" data-action="toggle-step" data-step="step2Card">
+              <span class="step-title">AI Job Search with Text Input</span>
+              <button class="step-chevron" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
+            </div>
+            <div class="step-body">
+              <textarea class="free-text" id="jobTextSearch" placeholder="Describe the job you're looking for, e.g. job title, region, skills or company — or paste the text of a CV. The AI Matching Tool finds the most relevant job ads."></textarea>
+              <button class="run-btn" data-action="run-from-text-step" style="margin-top:10px">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span>Start job matching</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <div class="step-rail"><span class="step-num">3</span></div>
+          <div class="step-card collapsed" id="step3Card">
+            <div class="step-title-row" data-action="toggle-step" data-step="step3Card">
+              <span class="step-title">Job Search with Filters</span>
+              <button class="step-chevron" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
+            </div>
+            <div class="step-body">
+        <div class="filter-bar">
+
+          <div class="group-lbl">Job Status</div>
+          <div class="field-grid" style="margin-bottom:14px">
+            <div class="field">
+              <label class="field-lbl" for="filterOnlineSince">Online since</label>
+              <select id="filterOnlineSince" class="field-ctl">
+                <option value="">Any time</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterStatus">Status</label>
+              <select id="filterStatus" class="field-ctl">
+                <option value="">Any</option>
+                <option value="new">New</option>
+                <option value="updated">Updated</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterAvailableFrom">Available from</label>
+              <input type="text" id="filterAvailableFrom" class="field-ctl" placeholder="e.g. immediately">
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterScrapingDate">Scraping date</label>
+              <select id="filterScrapingDate" class="field-ctl">
+                <option value="">Any</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="group-lbl">Region</div>
+          <div class="field-grid" style="margin-bottom:14px">
+            <div class="field">
+              <label class="field-lbl" for="filterState">Federal State</label>
+              <select id="filterState" class="field-ctl"><option value="">All states</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterCity">Town</label>
+              <input type="text" id="filterCity" class="field-ctl" placeholder="Any town">
+            </div>
+            <div class="field field-postcode">
+              <label class="field-lbl" for="filterPostcode">Postcode</label>
+              <input type="text" id="filterPostcode" class="field-ctl" placeholder="e.g. 9020">
+            </div>
+          </div>
+
+          <div class="group-lbl">Job Criteria</div>
+          <div class="field-grid" style="margin-bottom:14px">
+            <div class="field">
+              <label class="field-lbl" for="filterKeyword">Job title</label>
+              <input type="text" id="filterKeyword" class="field-ctl" placeholder="e.g. Data Engineer">
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterOccGroup">Occupational group</label>
+              <select id="filterOccGroup" class="field-ctl"><option value="">All categories</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterJobDescription">Job description</label>
+              <input type="text" id="filterJobDescription" class="field-ctl" placeholder="keyword in description…">
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterSkills">Skills</label>
+              <input type="text" id="filterSkills" class="field-ctl" placeholder="e.g. Python, SQL">
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterSalary">Monthly salary</label>
+              <select id="filterSalary" class="field-ctl">
+                <option value="">Any</option>
+                <option value="0-2000">Up to €2,000</option>
+                <option value="2000-3000">€2,000–€3,000</option>
+                <option value="3000-4000">€3,000–€4,000</option>
+                <option value="4000-5000">€4,000–€5,000</option>
+                <option value="5000-">€5,000+</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterPortal">Source</label>
+              <select id="filterPortal" class="field-ctl"><option value="">All portals</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterWorkTime">Work time</label>
+              <select id="filterWorkTime" class="field-ctl"><option value="">Any</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterEmploymentRelationship">Employment type</label>
+              <select id="filterEmploymentRelationship" class="field-ctl"><option value="">Any</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterEducation">Education</label>
+              <select id="filterEducation" class="field-ctl"><option value="">Any</option></select>
+            </div>
+          </div>
+
+          <div class="group-lbl">Company Criteria</div>
+          <div class="field-grid" style="margin-bottom:14px">
+            <div class="field">
+              <label class="field-lbl" for="filterCompany">Company</label>
+              <input type="text" id="filterCompany" class="field-ctl" placeholder="e.g. Anexia">
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="filterNace1">NACE 1</label>
+              <select id="filterNace1" class="field-ctl" data-change-action="nace1-change"><option value="">Any</option></select>
+            </div>
+            <div class="field locked" id="filterNace2Wrap">
+              <label class="field-lbl" for="filterNace2">NACE 2</label>
+              <select id="filterNace2" class="field-ctl" data-change-action="nace2-change" disabled><option value="">Select NACE 1 first</option></select>
+            </div>
+            <div class="field locked" id="filterNace3Wrap">
+              <label class="field-lbl" for="filterNace3">NACE 3</label>
+              <select id="filterNace3" class="field-ctl" disabled><option value="">Select NACE 2 first</option></select>
+            </div>
+            <div class="field">
+              <label class="field-lbl" for="topNSelect">Number of results</label>
+              <select id="topNSelect" class="field-ctl">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-row-2">
+            <label class="freeze-toggle" id="freezeToggle" title="Keep this exact set of jobs and only re-score them when you change the candidate">
+              <input type="checkbox" id="freezeChk" data-change-action="toggle-freeze">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <span>Freeze all results</span>
+            </label>
+          </div>
+        </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
         <!-- Run row -->
         <div class="run-row">
           <button class="run-btn" id="btnRun">
@@ -170,6 +359,9 @@
           <label class="autosave-toggle" title="Automatically save the candidate to the database each time you run matching">
             <input type="checkbox" id="autosaveCandidate" checked> Auto-save candidate
           </label>
+          <label class="autosave-toggle field-staffing" title="Filter out jobs posted by personnel/staffing agencies">
+            <input type="checkbox" id="filterExcludeStaffing"> Exclude staffing agencies
+          </label>
           <button class="export-btn" id="btnSaveCandidate" data-action="save-candidate">＋ Save candidate</button>
           <span id="candSaveStatus" class="cand-save-status" style="display:none"></span>
           <button id="btnFindMore" style="display:none"
@@ -177,14 +369,6 @@
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             <span>Find more jobs</span>
           </button>
-          <span class="lbl">Top</span>
-          <select class="n-select" id="topNSelect">
-            <option value="10">10</option>
-            <option value="20" selected>20</option>
-            <option value="30">30</option>
-            <option value="50">50</option>
-          </select>
-          <span class="lbl">results</span>
           <div class="run-bar-right">
             <button class="export-btn" data-action="export-results">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -205,35 +389,16 @@
         <div class="results-status" id="resultsStatus">
           <span id="statusText">Enter a candidate profile and click Run matching to see results.</span>
         </div>
+        <div class="results-toggle-row">
+          <label class="freeze-toggle" title="Show only the top 20 matches by score">
+            <input type="checkbox" id="top20Chk" data-change-action="toggle-top20">
+            <span>Top 20 matches only</span>
+          </label>
+        </div>
         <!-- Stale-score warning: frozen results no longer match the current candidate. -->
         <div id="staleScoreNotice" style="display:none;margin:0 0 10px;padding:8px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;color:#9a3412;font-size:13px;align-items:center;gap:10px">
           <span>⚠ Candidate changed — these frozen scores are stale.</span>
           <button type="button" data-action="rescore-frozen-results" style="margin-left:auto;background:#9a3412;color:#fff;border:none;border-radius:6px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer">Re-score</button>
-        </div>
-        <!-- Filter bar — narrows the results below -->
-        <div class="filter-bar">
-          <div class="filter-row">
-            <select id="filterState"><option value="">All states</option></select>
-            <input type="text" id="filterCity" placeholder="City">
-            <input type="text" id="filterKeyword" placeholder="Keywords / title">
-            <select id="filterOccGroup"><option value="">All categories</option></select>
-            <select id="filterPortal"><option value="">All portals</option></select>
-            <select id="filterWorkTime"><option value="">Work time (any)</option></select>
-            <select id="filterEmploymentRelationship"><option value="">Employment type (any)</option></select>
-            <select id="filterEducation"><option value="">Education (any)</option></select>
-          </div>
-          <div class="filter-row-2">
-            <label class="freeze-toggle" id="freezeToggle" title="Keep this exact set of jobs and only re-score them when you change the candidate">
-              <input type="checkbox" id="freezeChk" data-change-action="toggle-freeze">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-              <span>Freeze all results</span>
-            </label>
-            <label class="freeze-toggle" id="showCToggle" title="Weak (C) matches are hidden by default — turn this on to show them">
-              <input type="checkbox" id="showCChk" data-change-action="toggle-show-weak">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <span>Show weak (C) matches</span>
-            </label>
-          </div>
         </div>
         <div class="results-table-wrap">
           <table id="resultsTable">
@@ -244,13 +409,14 @@
                 <th data-action="sort-by" data-sort="company">Company ↕</th>
                 <th data-action="sort-by" data-sort="location">Location ↕</th>
                 <th data-action="sort-by" data-sort="salary">Salary ↕</th>
-                <th>Portal</th>
-                <th>Posted</th>
-                <th style="width:185px"></th>
+                <th data-action="sort-by" data-sort="portal">Portal ↕</th>
+                <th data-action="sort-by" data-sort="updated_at">Dates ↕</th>
+                <th>Contact</th>
+                <th style="width:150px"></th>
               </tr>
             </thead>
             <tbody id="resultsTbody">
-              <tr><td colspan="8" class="no-results">
+              <tr><td colspan="9" class="no-results">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
                 No results yet — run matching to find jobs
               </td></tr>
@@ -266,11 +432,11 @@
   <div id="tab-saved" class="tab-panel">
     <div id="savedDash">
       <div class="saved-topbar">
-        <div class="sv-toggle sv-collection" id="svCollectionToggle" title="Switch between the saved collections">
-          <button class="sv-tab active" data-action="set-saved-collection" data-collection="candidates">Candidates</button>
+        <div class="sv-toggle sv-collection" id="svCollectionToggle" title="Jobs / Contacts / Companies / Candidates — each keeps its own filters">
           <button class="sv-tab" data-action="set-saved-collection" data-collection="jobs">Jobs</button>
-          <button class="sv-tab" data-action="set-saved-collection" data-collection="companies">Companies</button>
           <button class="sv-tab" data-action="set-saved-collection" data-collection="contacts">Contacts</button>
+          <button class="sv-tab" data-action="set-saved-collection" data-collection="companies">Companies</button>
+          <button class="sv-tab active" data-action="set-saved-collection" data-collection="candidates">Candidates</button>
         </div>
         <div class="sv-toggle sv-mode" id="svModeToggle" style="display:none" title="Your saved records, or search the whole market catalogue">
           <button class="sv-tab active" data-action="set-saved-mode" data-mode="saved">My saved</button>
@@ -281,6 +447,93 @@
         <span class="sv-spacer"></span>
         <span id="savedLoadStatus" class="sv-status"></span>
       </div>
+
+      <!-- Deal-Filter — narrows THIS sub-tab's already-saved items; each sub-tab
+           remembers its own filter values independently (see saved.js _pipelineFilters) -->
+      <div class="step-card" style="border-left-color:var(--ic-blue)">
+        <div class="step-title-row">
+          <span class="step-title">Deal-Filter — <span id="dealFilterEntity">Candidates</span></span>
+        </div>
+        <div style="font-size:11.5px;color:var(--ic-text-mid);margin-bottom:14px">Filters the pipeline's saved items — not the wider market</div>
+
+        <!-- Jobs-only: these read job_snapshot fields that only exist on saved JOB
+             rows (Contacts/Companies/Candidates snapshots have no salary/skills/
+             occ_group/etc. concept) — locked elsewhere, same pattern as pfMinJobs
+             below. See _syncPipelineFilterUI. -->
+        <div class="group-lbl">Job Status</div>
+        <div class="field-grid" style="margin-bottom:14px">
+          <div class="field" id="pfOnlineSinceWrap"><label class="field-lbl" for="pfOnlineSince">Online since</label>
+            <select id="pfOnlineSince" class="field-ctl">
+              <option value="">Any time</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+          <div class="field" id="pfAvailableFromWrap"><label class="field-lbl" for="pfAvailableFrom">Available from</label>
+            <input type="text" id="pfAvailableFrom" class="field-ctl" placeholder="e.g. immediately"></div>
+        </div>
+
+        <div class="group-lbl">Region</div>
+        <div class="field-grid" style="margin-bottom:14px">
+          <div class="field"><label class="field-lbl" for="pfState">Region / location</label>
+            <input type="text" id="pfState" class="field-ctl" placeholder="e.g. Wien"></div>
+          <!-- Postcode only exists on saved JOB rows (job_snapshot.zipcode) — locked
+               elsewhere, same pattern as pfMinJobs/pfOnlineSince etc. -->
+          <div class="field" id="pfPostcodeWrap"><label class="field-lbl" for="pfPostcode">Postcode</label>
+            <input type="text" id="pfPostcode" class="field-ctl" placeholder="e.g. 1010"></div>
+          <div class="field"><label class="field-lbl" id="pfKeywordLbl" for="pfKeyword">Title / name</label>
+            <input type="text" id="pfKeyword" class="field-ctl" placeholder="keyword…"></div>
+          <div class="field"><label class="field-lbl" for="pfCompany">Company</label>
+            <input type="text" id="pfCompany" class="field-ctl" placeholder="e.g. Anexia"></div>
+          <!-- Contacts-only: min. active jobs the contact is linked to in the market
+               catalogue (locked on the other sub-tabs — see _syncPipelineFilterUI) -->
+          <div class="field" id="pfMinJobsWrap"><label class="field-lbl" for="pfMinJobs">Open jobs (min.)</label>
+            <input type="number" id="pfMinJobs" class="field-ctl" min="1" placeholder="e.g. 3"></div>
+        </div>
+
+        <div class="group-lbl">Job Criteria</div>
+        <div class="field-grid" style="margin-bottom:14px">
+          <div class="field" id="pfOccGroupWrap"><label class="field-lbl" for="pfOccGroup">Occupational group</label>
+            <select id="pfOccGroup" class="field-ctl"><option value="">Any</option></select></div>
+          <div class="field" id="pfJobDescriptionWrap"><label class="field-lbl" for="pfJobDescription">Job description</label>
+            <input type="text" id="pfJobDescription" class="field-ctl" placeholder="keyword in description…"></div>
+          <div class="field" id="pfSkillsWrap"><label class="field-lbl" for="pfSkills">Skills</label>
+            <input type="text" id="pfSkills" class="field-ctl" placeholder="e.g. Python, SQL"></div>
+          <div class="field" id="pfSalaryWrap"><label class="field-lbl" for="pfSalary">Monthly salary</label>
+            <select id="pfSalary" class="field-ctl">
+              <option value="">Any</option>
+              <option value="0-2000">Up to €2,000</option>
+              <option value="2000-3000">€2,000–€3,000</option>
+              <option value="3000-4000">€3,000–€4,000</option>
+              <option value="4000-5000">€4,000–€5,000</option>
+              <option value="5000-">€5,000+</option>
+            </select>
+          </div>
+          <div class="field" id="pfPortalWrap"><label class="field-lbl" for="pfPortal">Source</label>
+            <select id="pfPortal" class="field-ctl"><option value="">Any</option></select></div>
+        </div>
+
+        <div class="group-lbl" style="color:var(--ic-blue-dark)">Sales Filter</div>
+        <div class="field-grid" style="margin-bottom:16px">
+          <div class="field" id="pfSalesStatusWrap"><label class="field-lbl" for="pfSalesStatus">Sales Status</label>
+            <select id="pfSalesStatus" class="field-ctl">
+              <option value="">Any</option>
+              <option value="new">New</option>
+              <option value="in_progress">In Progress</option>
+              <option value="proposal_sent">Proposal Sent</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+            </select>
+          </div>
+          <div class="field"><label class="field-lbl" for="pfUser">User</label>
+            <select id="pfUser" class="field-ctl"><option value="">Any</option></select>
+          </div>
+        </div>
+
+        <button class="run-btn" data-action="apply-pipeline-filters" style="background:var(--ic-blue-dark);color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Apply filters</button>
+      </div>
+
       <div id="savedCollectionWrap" style="position:relative">
         <div class="sv-table-scroll">
           <table class="sv-table">
@@ -508,6 +761,7 @@
       <div class="co-modal-info">
         <div class="co-modal-name" id="candModalName">Candidate</div>
         <div class="co-modal-sub" id="candModalSub"></div>
+        <div class="cd-badge-row" id="candModalBadges"></div>
       </div>
       <button class="co-modal-save hidden" id="candSaveBtn" data-action="cand-edit-save">Save changes</button>
       <button class="co-modal-save" id="candEditBtn" data-action="cand-edit-toggle">✎ Edit</button>

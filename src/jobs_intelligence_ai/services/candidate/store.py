@@ -95,6 +95,17 @@ def _owner_id(conn, owner_id: int | None, company_id: int) -> int:
     return int(oid) if oid else 1
 
 
+def list_account_users(account_company_id: int | None = None) -> list[dict]:
+    """Colleagues in the caller's firm — for the Pipeline tab's User filter dropdown."""
+    with get_engine().connect() as conn:
+        co = _company_id(conn, account_company_id)
+        rows = conn.execute(text(
+            f"SELECT id, COALESCE(NULLIF(display_name, ''), username) AS name "
+            f"FROM {_DB}.app_user WHERE account_company_id = :co ORDER BY name"),
+            {"co": co}).mappings().all()
+    return [{"id": int(m["id"]), "name": m["name"]} for m in rows]
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  Candidates (identity + parsed profile)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -320,6 +331,8 @@ def _row_to_job(m) -> dict:
     job["pipeline_status"] = m["status"]
     job["notes"]           = m["notes"] or ""
     job["extras"]          = _load(m["extras"]) or {}
+    job["owner_id"]        = m["owner_id"]
+    job["owner_name"]      = m["owner_name"] or ""
     if m["score"] is not None:
         job["score"] = float(m["score"])
     if m["grade"]:
@@ -337,7 +350,9 @@ def _vis_clause(owner_id: int | None, visibility: str) -> tuple[str, dict]:
 
 def _select_saved(where: str = "", params: dict | None = None,
                   account_company_id: int | None = None,
-                  owner_id: int | None = None, visibility: str = "all") -> list[dict]:
+                  owner_id: int | None = None, visibility: str = "all",
+                  filter_user_id: int | None = None,
+                  sales_status: str | None = None) -> list[dict]:
     params = dict(params or {})
     with get_engine().connect() as conn:
         co = _company_id(conn, account_company_id)
@@ -346,20 +361,35 @@ def _select_saved(where: str = "", params: dict | None = None,
         cond = "c.account_company_id = :co AND c.country = :ct" + vclause
         if where:
             cond += f" AND ({where})"
+        if filter_user_id:
+            cond += " AND s.owner_id = :fuid"; params["fuid"] = int(filter_user_id)
+        if sales_status:
+            cond += " AND s.status = :sstatus"; params["sstatus"] = sales_status
         sql = (f"SELECT s.job_id, s.job_snapshot, s.score, s.grade, s.status, "
-               f"s.notes, s.extras, c.full_name "
+               f"s.notes, s.extras, s.owner_id, "
+               f"COALESCE(NULLIF(u.display_name, ''), u.username) AS owner_name, "
+               f"c.full_name "
                f"FROM {_T_SAVED} s "
                f"JOIN {_T_CANDIDATE} c ON c.id = s.saved_candidate_id "
+               f"LEFT JOIN {_DB}.app_user u ON u.id = s.owner_id "
                f"WHERE {cond} ORDER BY s.saved_at ASC")
         rows = conn.execute(text(sql), params).mappings().all()
     return [_row_to_job(m) for m in rows]
 
 
 def list_saved_jobs(account_company_id: int | None = None,
-                    owner_id: int | None = None, visibility: str = "all") -> list[dict]:
-    """All saved jobs visible to the caller (company-scoped; own/all)."""
+                    owner_id: int | None = None, visibility: str = "all",
+                    filter_user_id: int | None = None,
+                    sales_status: str | None = None) -> list[dict]:
+    """All saved jobs visible to the caller (company-scoped; own/all).
+
+    `filter_user_id` / `sales_status` narrow the Pipeline tab's Jobs sub-tab to one
+    colleague's deals and/or one sales stage — independent of the own/all privacy
+    scoping above (own/all decides what you're ALLOWED to see; these decide what you
+    WANT to see right now)."""
     return _select_saved(account_company_id=account_company_id,
-                         owner_id=owner_id, visibility=visibility)
+                         owner_id=owner_id, visibility=visibility,
+                         filter_user_id=filter_user_id, sales_status=sales_status)
 
 
 def candidates_index(account_company_id: int | None = None,
@@ -372,11 +402,24 @@ def candidates_index(account_company_id: int | None = None,
 
 
 def list_candidates_detailed(account_company_id: int | None = None,
-                             owner_id: int | None = None, visibility: str = "all") -> list[dict]:
-    """Per-candidate summary rows for the table view (company-scoped; own/all)."""
+                             owner_id: int | None = None, visibility: str = "all",
+                             filter_user_id: int | None = None,
+                             sales_status: str | None = None) -> list[dict]:
+    """Per-candidate summary rows for the table view (company-scoped; own/all).
+
+    `filter_user_id` narrows to one colleague's candidates (Pipeline tab's User
+    filter); `sales_status` narrows to candidates with at least one saved job
+    currently at that sales stage (candidates have no sales-status column of their
+    own — it's a rollup of their linked jobs)."""
     with get_engine().connect() as conn:
         co = _company_id(conn, account_company_id)
         vclause, vparams = _vis_clause(owner_id, visibility)
+        if filter_user_id:
+            vclause += " AND c.owner_id = :fuid"; vparams["fuid"] = int(filter_user_id)
+        if sales_status:
+            vclause += (f" AND EXISTS (SELECT 1 FROM {_T_SAVED} sj2 "
+                        f"WHERE sj2.saved_candidate_id = c.id AND sj2.status = :sstatus)")
+            vparams["sstatus"] = sales_status
         sql = f"""
             SELECT c.id, c.full_name, c.title, c.summary, c.status,
                    c.email, c.phone, c.linkedin, c.location, c.languages, c.skills,
@@ -659,20 +702,26 @@ def _add_saved_ref(table: str, id_col: str, ref_id, snapshot, notes: str,
 
 
 def _list_saved_refs(table: str, id_col: str, account_company_id: int | None,
-                     owner_id: int | None, visibility: str) -> list[dict]:
+                     owner_id: int | None, visibility: str,
+                     filter_user_id: int | None = None) -> list[dict]:
     with get_engine().connect() as conn:
         co = _company_id(conn, account_company_id)
-        where, params = "account_company_id = :co AND country = :ct", {"co": co, "ct": _COUNTRY}
+        where, params = "r.account_company_id = :co AND r.country = :ct", {"co": co, "ct": _COUNTRY}
         if (visibility or "all") == "own" and owner_id:
-            where += " AND owner_id = :viewer"; params["viewer"] = int(owner_id)
+            where += " AND r.owner_id = :viewer"; params["viewer"] = int(owner_id)
+        if filter_user_id:
+            where += " AND r.owner_id = :fuid"; params["fuid"] = int(filter_user_id)
         rows = conn.execute(text(
-            f"SELECT id, {id_col}, snapshot, notes, owner_id, saved_at "
-            f"FROM {_DB}.{table} WHERE {where} ORDER BY saved_at DESC"), params).mappings().all()
+            f"SELECT r.id, r.{id_col}, r.snapshot, r.notes, r.owner_id, r.saved_at, "
+            f"COALESCE(NULLIF(u.display_name, ''), u.username) AS owner_name "
+            f"FROM {_DB}.{table} r LEFT JOIN {_DB}.app_user u ON u.id = r.owner_id "
+            f"WHERE {where} ORDER BY r.saved_at DESC"), params).mappings().all()
     out = []
     for m in rows:
         snap = _load(m["snapshot"]) or {}
         out.append({"id": int(m["id"]), id_col: int(m[id_col]), "notes": m["notes"] or "",
-                    "ownerId": int(m["owner_id"]), "savedAt": str(m["saved_at"]), **snap})
+                    "ownerId": int(m["owner_id"]), "ownerName": m["owner_name"] or "",
+                    "savedAt": str(m["saved_at"]), **snap})
     return out
 
 
@@ -741,9 +790,10 @@ def add_saved_company(target_company_id, snapshot: dict | None = None, notes: st
 
 
 def list_saved_companies(account_company_id: int | None = None,
-                         owner_id: int | None = None, visibility: str = "all") -> list[dict]:
+                         owner_id: int | None = None, visibility: str = "all",
+                         filter_user_id: int | None = None) -> list[dict]:
     return _list_saved_refs("saved_companies", "target_company_id",
-                            account_company_id, owner_id, visibility)
+                            account_company_id, owner_id, visibility, filter_user_id)
 
 
 def delete_saved_company(saved_id, account_company_id: int | None = None,
@@ -760,9 +810,10 @@ def add_saved_contact(contact_id, snapshot: dict | None = None, notes: str = "",
 
 
 def list_saved_contacts(account_company_id: int | None = None,
-                        owner_id: int | None = None, visibility: str = "all") -> list[dict]:
+                        owner_id: int | None = None, visibility: str = "all",
+                        filter_user_id: int | None = None) -> list[dict]:
     return _list_saved_refs("saved_contacts", "contact_id",
-                            account_company_id, owner_id, visibility)
+                            account_company_id, owner_id, visibility, filter_user_id)
 
 
 def delete_saved_contact(saved_id, account_company_id: int | None = None,

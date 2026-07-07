@@ -5,6 +5,7 @@ utils.py — Pure helpers for the search module (no state, no OpenAI client).
   passes_filters : hard-filter a DB row against the request filters
   serialize_job  : turn a raw DB row into the flat job dict the API returns
 """
+import datetime as _dt
 import json
 import re
 
@@ -63,6 +64,57 @@ def _strip_citation_markers(text: str) -> str:
     return _PUA_CHARS.sub("", _CITATION_SPAN.sub("", text))
 
 
+def nace_levels(code: str | None) -> tuple[str | None, str | None, str | None]:
+    """Split a raw NACE/industry code into 3 cascading levels.
+
+    AT codes are dot-separated (e.g. "25.12.0" -> division "25", group "25.12",
+    class "25.12.0"). SK codes are plain digit strings (e.g. "62100" -> division
+    "62", group "621", class "62100"). Either way callers only see 3 levels."""
+    if not code:
+        return (None, None, None)
+    code = str(code).strip()
+    if "." in code:
+        parts = code.split(".")
+        lvl1 = parts[0] or None
+        lvl2 = ".".join(parts[:2]) if len(parts) >= 2 else None
+        lvl3 = code if len(parts) >= 3 else None
+        return (lvl1, lvl2, lvl3)
+    lvl1 = code[:2] or None
+    lvl2 = code[:3] if len(code) >= 3 else None
+    lvl3 = code if len(code) >= 5 else None
+    return (lvl1, lvl2, lvl3)
+
+
+def _parse_salary_num(raw) -> float | None:
+    """Best-effort extraction of a representative monthly number from a free-text
+    salary string (e.g. "€3,000 - €4,000/month" -> 3000.0). Used for range
+    filtering only — display formatting elsewhere is unaffected."""
+    if raw is None:
+        return None
+    m = re.search(r"[\d.,]+", str(raw).replace(" ", ""))
+    if not m:
+        return None
+    num = m.group().replace(".", "").replace(",", "") if "," in m.group() and "." in m.group() \
+        else m.group().replace(",", ".")
+    try:
+        return float(num)
+    except ValueError:
+        return None
+
+
+def _within_days(date_val, days: int) -> bool:
+    """True if date_val (date/datetime/str) is within the last `days` days."""
+    if not date_val:
+        return False
+    if isinstance(date_val, str):
+        try:
+            date_val = _dt.datetime.fromisoformat(date_val[:19])
+        except ValueError:
+            return False
+    d = date_val.date() if isinstance(date_val, _dt.datetime) else date_val
+    return (_dt.date.today() - d).days <= days
+
+
 def passes_filters(row: dict, filters: dict) -> bool:
     c = config.COL
     if filters.get("state") and row.get(c["state"]) != filters["state"]:
@@ -82,6 +134,64 @@ def passes_filters(row: dict, filters: dict) -> bool:
         city_val = str(row.get(c["city"], "") or "")
         if filters["city"].lower() not in city_val.lower():
             return False
+
+    # Job Status
+    if filters.get("status") and row.get(c["status"]) != filters["status"]:
+        return False
+    if filters.get("online_since") and not _within_days(row.get(c["date_posted"]), int(filters["online_since"])):
+        return False
+    if filters.get("scraping_date") and not _within_days(row.get("updated_at"), int(filters["scraping_date"])):
+        return False
+    if filters.get("available_from"):
+        start_val = str(row.get(c.get("start_timeline", "start_timeline"), "") or "")
+        if filters["available_from"].lower() not in start_val.lower():
+            return False
+
+    # Region
+    if filters.get("postcode") and config.PROFILE.col_present("zipcode"):
+        zip_val = str(row.get(c.get("zipcode", "zipcode"), "") or "")
+        if not zip_val.startswith(filters["postcode"]):
+            return False
+
+    # Job Criteria
+    if filters.get("job_description"):
+        desc_val = str(row.get("_scraped_description") or row.get(c["description"], "") or "")
+        if filters["job_description"].lower() not in desc_val.lower():
+            return False
+    if filters.get("skills"):
+        skills_val = " ".join([
+            str(row.get(c.get("skills", "skills"), "") or ""),
+            str(row.get(c.get("skills_en", "skills_english"), "") or ""),
+        ]).lower()
+        terms = [t.strip().lower() for t in filters["skills"].split(",") if t.strip()]
+        if terms and not any(t in skills_val for t in terms):
+            return False
+    if filters.get("salary_min") or filters.get("salary_max"):
+        num = _parse_salary_num(row.get(c["salary"]))
+        if num is None:
+            return False
+        if filters.get("salary_min") and num < float(filters["salary_min"]):
+            return False
+        if filters.get("salary_max") and num > float(filters["salary_max"]):
+            return False
+
+    # Company Criteria
+    if filters.get("company"):
+        company_val = str(row.get(c["company"], "") or "")
+        if filters["company"].lower() not in company_val.lower():
+            return False
+    if filters.get("nace1") or filters.get("nace2") or filters.get("nace3"):
+        lvl1, lvl2, lvl3 = nace_levels(row.get("_nace_code"))
+        if filters.get("nace1") and lvl1 != filters["nace1"]:
+            return False
+        if filters.get("nace2") and lvl2 != filters["nace2"]:
+            return False
+        if filters.get("nace3") and lvl3 != filters["nace3"]:
+            return False
+    if filters.get("exclude_staffing") and config.PROFILE.has_staffing_filter:
+        if row.get("personal_service_provider"):
+            return False
+
     return True
 
 
@@ -107,6 +217,11 @@ def serialize_job(job: dict) -> dict:
         "order_number":           _str(job.get(c.get("order_number", "order_number"))),
         "occ_group":              _str(job.get(c["occ_group"])),
         "posted":                 _str(job.get(c["date_posted"])),
+        # Raw column names (identical across country profiles, unlike most other
+        # fields) — fully populated on every row, unlike publication_date/"posted"
+        # above (~47% NULL on the SK market).
+        "created_at":             _str(job.get("created_at")),
+        "updated_at":             _str(job.get("updated_at")),
         "application_deadline":   _str(job.get(c.get("application_deadline", "application_deadline"))),
         "start_timeline":         _str(job.get(c.get("start_timeline", "start_timeline"))),
         # The scraped full text when the fetch attached one (SK — see

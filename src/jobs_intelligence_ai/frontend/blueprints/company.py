@@ -78,13 +78,30 @@ def api_company_id():
 @bp.route("/jobs/contacts", methods=["POST"])
 def api_jobs_contacts():
     """Body: { job_ids: [..] } → { ok, contacts: { <job_id>: [ {contact_id, name,
-    email, phone, linkedin} ] } }. The contacts linked to each job via
-    View_Jobs_Contacts; guarded so a market DB without that view returns {}."""
+    email, phone, linkedin} ] } }. Tries View_Jobs_Contacts first (Austria); falls
+    back to the base junction tables for markets without that view — Slovakia has
+    no View_Jobs_Contacts at all, so without this fallback every SK job silently
+    showed no contact even when contact_jobs_junction/contacts had one (same
+    split /api/contact/jobs already uses for the reverse jobs-for-a-contact
+    lookup, just missing here until now)."""
     body = request.get_json(silent=True) or {}
     ids  = [int(j) for j in (body.get("job_ids") or []) if str(j).isdigit()][:200]
     out: dict = {}
     if not ids:
         return jsonify({"ok": True, "contacts": out})
+
+    seen: set = set()
+
+    def _add(jid, cid, name, email, phone, linkedin):
+        key = (jid, cid)
+        if key in seen:
+            return
+        seen.add(key)
+        out.setdefault(jid, []).append({
+            "contact_id": int(cid), "name": name or "", "email": email or "",
+            "phone": phone or "", "linkedin": linkedin or "",
+        })
+
     try:
         with get_engine().connect() as conn:
             rows = conn.execute(text(
@@ -93,21 +110,24 @@ def api_jobs_contacts():
                 "FROM View_Jobs_Contacts "
                 "WHERE job_id IN :ids AND contact_id IS NOT NULL"
             ).bindparams(bindparam("ids", expanding=True)), {"ids": ids}).mappings().all()
-        seen = set()
         for r in rows:
-            jid, cid = str(r["job_id"]), r["contact_id"]
-            if (jid, cid) in seen:
-                continue
-            seen.add((jid, cid))
-            out.setdefault(jid, []).append({
-                "contact_id": int(cid),
-                "name":       r["contact_name"]     or "",
-                "email":      r["contact_email"]    or "",
-                "phone":      r["contact_phone"]    or "",
-                "linkedin":   r["contact_linkedin"] or "",
-            })
+            _add(str(r["job_id"]), r["contact_id"], r["contact_name"],
+                 r["contact_email"], r["contact_phone"], r["contact_linkedin"])
     except Exception:
-        pass  # market DB without View_Jobs_Contacts → no contacts
+        try:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(
+                    "SELECT cj.job_id AS job_id, c.id AS contact_id, c.name AS name, "
+                    "  c.email AS email, c.phone AS phone, c.linkedin AS linkedin "
+                    "FROM contact_jobs_junction cj "
+                    "JOIN contacts c ON c.id = cj.contact_id "
+                    "WHERE cj.job_id IN :ids"
+                ).bindparams(bindparam("ids", expanding=True)), {"ids": ids}).mappings().all()
+            for r in rows:
+                _add(str(r["job_id"]), r["contact_id"], r["name"],
+                     r["email"], r["phone"], r["linkedin"])
+        except Exception:
+            pass  # neither contacts path exists → no contacts
     return jsonify({"ok": True, "contacts": out})
 
 
@@ -171,6 +191,59 @@ def api_contact_jobs():
         except Exception:
             pass  # market DB without either contacts path → no jobs
     return jsonify({"ok": True, "jobs": jobs})
+
+
+def contact_job_counts(contact_ids: list) -> dict[int, int]:
+    """Active-job counts for a batch of market contacts → { contact_id: count }.
+
+    Same two-path guard as api_contact_jobs above: View_Jobs_Contacts first,
+    then the base junction table (Slovakia); a market DB with neither returns {}.
+    Used by the Saved tab to annotate saved contacts with a `job_count`."""
+    ids = [int(c) for c in contact_ids if str(c or "").isdigit()]
+    if not ids:
+        return {}
+    for sql in (
+        "SELECT contact_id, COUNT(DISTINCT job_id) AS n FROM View_Jobs_Contacts "
+        "WHERE contact_id IN :ids GROUP BY contact_id",
+        "SELECT contact_id, COUNT(DISTINCT job_id) AS n FROM contact_jobs_junction "
+        "WHERE contact_id IN :ids GROUP BY contact_id",
+    ):
+        try:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(sql).bindparams(
+                    bindparam("ids", expanding=True)), {"ids": ids}).all()
+            return {int(r[0]): int(r[1]) for r in rows}
+        except Exception:
+            continue  # this country's market DB lacks that table/view — try the next
+    return {}
+
+
+def company_job_counts(company_ids: list) -> dict[int, int]:
+    """Active-job counts for a batch of market companies → { company_id: count }.
+
+    Same two-path guard as api_market_companies above: Austria's companies+
+    jobs.company_id join first, then Slovakia's jobs.companies_finstat_id fallback
+    (no separate companies table there). Used by the Saved tab to annotate saved
+    companies with a `job_count` (mirrors contact_job_counts for saved contacts)."""
+    ids = [int(c) for c in company_ids if str(c or "").isdigit()]
+    if not ids:
+        return {}
+    for sql in (
+        "SELECT co.id AS company_id, COUNT(*) AS n FROM companies co "
+        "JOIN jobs j ON j.company_id = co.id AND j.status IN ('new','updated') "
+        "WHERE co.id IN :ids GROUP BY co.id",
+        "SELECT companies_finstat_id AS company_id, COUNT(*) AS n FROM jobs "
+        "WHERE status IN ('new','updated') AND companies_finstat_id IN :ids "
+        "GROUP BY companies_finstat_id",
+    ):
+        try:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(sql).bindparams(
+                    bindparam("ids", expanding=True)), {"ids": ids}).all()
+            return {int(r[0]): int(r[1]) for r in rows}
+        except Exception:
+            continue  # this country's market DB lacks that shape — try the next
+    return {}
 
 
 @bp.route("/company", methods=["GET"])

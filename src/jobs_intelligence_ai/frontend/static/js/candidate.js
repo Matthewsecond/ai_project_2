@@ -174,13 +174,13 @@ async function checkLinkedInDuplicate(){
 // Fetch + render a saved candidate's profile and saved jobs into the search tab.
 // Shared by the duplicate-warning "Load saved records" button and the saved-
 // candidate search box.
-async function _loadSavedCandidate(name){
+async function _loadSavedCandidate(name, opts){
   const data = await api.get('/api/saved/load?name=' + encodeURIComponent(name));
   if (data.profile){
     _renderCandidateProfile(data.profile);   // re-renders the banner too
     // Seed a matching text from the structured profile so Run matching and the
     // CV-dependent extras (strength, questions) work after a DB load.
-    _seedMatchTextFromProfile(data.profile);
+    _seedMatchTextFromProfile(data.profile, opts && opts.keepMode);
   } else {
     setCandidateName(name);
   }
@@ -216,67 +216,79 @@ async function loadCandidateFromDb(){
 // filters client-side per keystroke.
 let _dbCandResults = [];
 
-function _dbCandOpen()  { document.getElementById('dbCandDropdown')?.classList.add('open'); }
-function _dbCandClose() { document.getElementById('dbCandDropdown')?.classList.remove('open'); }
-
-async function dbCandSearchInput(el){
-  const q = el.value.trim().toLowerCase();
-  if (!q) { _dbCandClose(); _dbCandResults = []; return; }
+async function _ensureDbCandResults(){
   if (!_dbCandResults.length) {
     try {
       const data = await api.get('/api/saved/candidates');
       _dbCandResults = data.candidates || [];
     } catch(e) { _dbCandResults = []; }
   }
-  const matches = _dbCandResults.filter(c => (c.name || '').toLowerCase().includes(q)).slice(0, 8);
+  return _dbCandResults;
+}
+
+async function dbCandSearchInput(el){
+  const q = el.value.trim().toLowerCase();
+  if (!q) { _renderDbCandResults([], null); return; }
+  const all = await _ensureDbCandResults();
+  const matches = all.filter(c => (c.name || '').toLowerCase().includes(q)).slice(0, 8);
   _renderDbCandResults(matches, q);
-  _dbCandOpen();
+}
+
+async function dbCandShowAll(){
+  const all = await _ensureDbCandResults();
+  const status = document.getElementById('zoneSavedStatus');
+  if (status) { status.style.display = ''; status.textContent = `Showing all ${all.length} saved candidate${all.length !== 1 ? 's' : ''}`; }
+  _renderDbCandResults(all, null);
 }
 
 function _renderDbCandResults(matches, q){
-  const panel = document.getElementById('dbCandSearchPanel');
-  if (!panel) return;
+  const list = document.getElementById('zoneSavedList');
+  if (!list) return;
+  if (q !== null) {
+    const status = document.getElementById('zoneSavedStatus');
+    if (status) status.style.display = 'none';
+  }
   if (!matches.length){
-    panel.innerHTML = `<div class="ex-dropdown-header">No saved candidates match "${esc(q)}"</div>`;
+    list.innerHTML = `<div class="ex-dropdown-header">${q ? `No saved candidates match "${esc(q)}"` : 'Type a name, or click "Show all candidates".'}</div>`;
     return;
   }
-  panel.innerHTML = `<div class="ex-dropdown-header">Load a saved candidate</div>` +
-    matches.map(c => {
-      const desc = [c.title, c.location].filter(Boolean).join(' · ') +
-        (c.matches   ? ` · ${c.matches} match${c.matches !== 1 ? 'es' : ''}` : '') +
-        (c.createdBy ? ` · saved by ${c.createdBy}` : '');
-      return `<div class="ex-dropdown-item" data-action="db-cand-pick" data-name="${esc(c.name)}">
-        <div class="ex-item-body">
-          <div class="ex-item-name">${esc(c.name)}</div>
-          <div class="ex-item-desc">${esc(desc)}</div>
-        </div>
-      </div>`;
-    }).join('');
+  list.innerHTML = matches.map(c => {
+    const desc = [c.title, c.location].filter(Boolean).join(' · ') +
+      (c.matches   ? ` · ${c.matches} match${c.matches !== 1 ? 'es' : ''} on file` : ' · no matches yet') +
+      (c.createdBy ? ` · saved by ${c.createdBy}` : '');
+    return `<div class="ex-dropdown-item" data-action="db-cand-pick" data-name="${esc(c.name)}">
+      <div class="ex-item-body">
+        <div class="ex-item-name">${esc(c.name)}</div>
+        <div class="ex-item-desc">${esc(desc)}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function dbCandPick(name){
-  _dbCandClose();
-  const input = document.getElementById('dbCandSearchInput');
+  const input = document.getElementById('zoneSavedSearchInput');
   if (input) input.value = '';
-  _dbCandResults = [];
   setCandidateName(name);
   try {
-    await _loadSavedCandidate(name);
+    await _loadSavedCandidate(name, { keepMode: true });
+    // Loading from the Saved-candidates picker is a deliberate load, not an
+    // accidental collision — the "already in the database" banner (raised
+    // generically by _renderCandidateProfile, via a fire-and-forget duplicate
+    // lookup) is redundant here. Bump the sequence so that pending lookup's
+    // response is discarded when it lands, instead of re-showing the banner.
+    _dupCheckSeq++;
+    _showDupWarn(null);
   } catch(e){
     alert('Could not load candidate: ' + (e.message || e));
   }
 }
 
-document.addEventListener('click', e => {
-  if (!document.getElementById('dbCandDropdown')?.contains(e.target)) _dbCandClose();
-});
-
 // Put a profile-derived candidate text into the CV box (CV mode) so matching and
 // CV-gated extras work for a DB-loaded candidate that has no raw CV text.
-function _seedMatchTextFromProfile(profile){
+function _seedMatchTextFromProfile(profile, keepMode){
   const txt = _profileToText(profile);
   if (!txt) return;
-  _activateCVMode && _activateCVMode();
+  if (!keepMode) _activateCVMode && _activateCVMode();
   const ta = document.getElementById('cvPasteText');
   if (ta && !ta.value.trim()){ ta.value = txt; }
   state.lastParsedText = txt;
@@ -588,15 +600,39 @@ function _setCvLoaded(name) {
      </div>`;
 }
 
+// Collapsible stepper (Search tab's 3 numbered sections) — click a step's title
+// row to expand/collapse it. Purely presentational; doesn't touch matching state.
+function toggleStep(stepId) {
+  document.getElementById(stepId)?.classList.toggle('collapsed');
+}
+
+// Step 2 "AI Job Search with Text Input" — a free-text description of the job
+// you want (not a candidate/CV). Feeds the same matching pipeline as the CV
+// paste box: activates CV mode, copies the text in, and runs matching — so
+// there's one underlying text-to-jobs pipeline, just two ways to reach it.
+function runFromTextStep() {
+  const ta = document.getElementById('jobTextSearch');
+  const text = (ta.value || '').trim();
+  if (!text) { alert("Please describe the job you're looking for."); return; }
+  _activateCVMode();
+  const cvBox = document.getElementById('cvPasteText');
+  cvBox.value = text;
+  state.lastParsedText = text;
+  document.getElementById('btnRun').click();
+}
+
 // Action registry for the candidate input card — duplicate-warning load/refresh,
 // saved-candidate search box, save-companies, LinkedIn import "Saved → Local"
 // link, CV-loaded preview chip.
 Object.assign(_ACTIONS, {
   'load-candidate-from-db':    ()      => loadCandidateFromDb(),
   'refresh-candidate-from-db': ()      => refreshCandidateFromDb(),
-  'db-cand-search-input':      (el)    => dbCandSearchInput(el),
+  'zone-saved-search-input':   (el)    => dbCandSearchInput(el),
+  'zone-saved-show-all':       ()      => dbCandShowAll(),
   'db-cand-pick':              (el)    => dbCandPick(el.dataset.name),
-  'db-cand-search-keydown':    (el, e) => { if (e.key === 'Escape') { el.value = ''; el.blur(); _dbCandClose(); } },
+  'zone-saved-search-keydown': (el, e) => { if (e.key === 'Escape') { el.value = ''; el.blur(); dbCandSearchInput(el); } },
+  'toggle-step':               (el)    => toggleStep(el.dataset.step),
+  'run-from-text-step':        ()      => runFromTextStep(),
   'save-companies':            (el)    => saveCompanies(el),
   'goto-saved-local':          (el, e) => { e.preventDefault(); _gotoSavedLocal(); },
   'open-cv-preview':           ()      => openCvPreview(),
@@ -1006,14 +1042,16 @@ function _renderCandidateDetail() {
   document.getElementById('candModalSub').textContent =
     [m.title, m.seniority, m.location, m.experience].filter(Boolean).join(' · ');
 
+  document.getElementById('candModalBadges').innerHTML = `
+    <span class="cd-badge-header">${esc(m.status || 'New')}</span>
+    <span class="cd-badge-header">${_cand.jobs.length} match${_cand.jobs.length !== 1 ? 'es' : ''}</span>
+    ${m.owner ? `<span class="cd-owner-header">Saved by ${esc(m.owner)}</span>` : ''}
+  `;
+
   if (_cand.editing) { _candEditButtons(true); _renderCandidateEdit(m); return; }
   _candEditButtons(false);
 
-  let html = `<div class="cd-meta-row">
-    <span class="cd-badge">${esc(m.status || 'New')}</span>
-    ${m.owner ? `<span class="cd-owner">Saved by <b>${esc(m.owner)}</b></span>` : ''}
-    <span class="cd-owner">${_cand.jobs.length} match${_cand.jobs.length !== 1 ? 'es' : ''}</span>
-  </div>`;
+  let html = '';
 
   const contact = [];
   if (m.email)    contact.push(`<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>`);

@@ -16,7 +16,10 @@ from jobs_intelligence_ai import config
 
 # Search-owned retrieval setting (moved out of global config in rework 2.2b — it's
 # search-only). How many documents file_search retrieves from the vector store per query.
-MAX_NUM_RESULTS = 30
+# Doubled from 30 (capped at the vector_stores.search API's ceiling of 50) so that once
+# weak (C-grade) matches are excluded from the results table entirely (search.js
+# renderResults), there's still a full scope of A/B matches left to show.
+MAX_NUM_RESULTS = 60
 
 
 # Stage 1 — retrieval only. We just want the ids of relevant jobs; the grading
@@ -87,13 +90,35 @@ class ConvergenceConfig:
 
 
 @dataclass
+class DirectRetrievalConfig:
+    """Tunables for the direct-retrieval pass budget (Orchestrator, direct_retrieval=True).
+
+    A single vector_stores.search call has no model in the loop, so it's near-
+    deterministic — but not perfectly so (measured id-set Jaccard ~0.92 run to
+    run, `test_retrieval_set_is_stable`). A fixed small budget of passes run in
+    PARALLEL and unioned recovers the long-tail ids a single pass occasionally
+    misses: probed live (2026-07-06, SK store, 6 trials) — any one pass alone
+    found ~40-41 ids, but the union of 3 passes reliably found the full stable
+    ~44-id set every time. `quorum=1` keeps the full union deliberately — Stage 2
+    grading is the actual quality gate here, not a retrieval-side occurrence
+    filter (unlike the legacy ConvergenceConfig's quorum, which exists to drop a
+    noisy LLM-transcription pass's hallucinated singletons — direct retrieval's
+    extra ids are real ANN-search tail hits, not noise to filter out).
+    """
+    passes: int = 3    # run in parallel — retrieval-only calls are cheap/fast
+    quorum: int = 1     # 1 = full union; grading is what separates signal from noise
+
+
+@dataclass
 class SearchConfig:
     """Everything the Orchestrator needs. Pass a customized instance to override."""
-    embedding:   EmbeddingConfig   = field(default_factory=EmbeddingConfig)
-    grader:      GraderConfig      = field(default_factory=GraderConfig)
-    convergence: ConvergenceConfig = field(default_factory=ConvergenceConfig)
+    embedding:   EmbeddingConfig       = field(default_factory=EmbeddingConfig)
+    grader:      GraderConfig         = field(default_factory=GraderConfig)
+    convergence: ConvergenceConfig    = field(default_factory=ConvergenceConfig)
+    direct:      DirectRetrievalConfig = field(default_factory=DirectRetrievalConfig)
     api_key:     str = config.OPENAI_API_KEY
-    # Stage-1 strategy. True → one DETERMINISTIC vector_stores.search call (no model
-    # in the loop). False → the legacy stochastic file_search-tool wave loop, kept
-    # for A/B comparison. The convergence knobs apply only when this is False.
+    # Stage-1 strategy. True → a small unioned batch of DETERMINISTIC-ish
+    # vector_stores.search passes (no model in the loop — see DirectRetrievalConfig).
+    # False → the legacy stochastic file_search-tool wave loop, kept for A/B
+    # comparison. The convergence knobs apply only when this is False.
     direct_retrieval: bool = True

@@ -79,14 +79,22 @@ def get_filter_options(force: bool = False) -> dict:
         for key, sql in queries.items():
             try:
                 result = conn.execute(text(sql))
-                options[key] = [row[0] for row in result if row[0]]
+                if key == "nace":
+                    # Two columns (code, text) — kept as pairs so the frontend can
+                    # derive the 3 cascading NACE levels from the code itself.
+                    options[key] = [[row[0], row[1]] for row in result if row[0]]
+                else:
+                    options[key] = [row[0] for row in result if row[0]]
             except Exception as e:
                 options[key] = []
                 options[f"{key}_error"] = str(e)
 
     # Keep the dropdown contract stable even when a country lacks a facet.
-    for key in ("states", "occ_groups", "portals", "work_time", "employment_relationship", "education"):
+    for key in ("states", "occ_groups", "portals", "work_time", "employment_relationship",
+                "education", "nace"):
         options.setdefault(key, [])
+    options["has_staffing_filter"] = config.PROFILE.has_staffing_filter
+    options["has_postcode_filter"] = config.PROFILE.col_present("zipcode")
 
     # Pin the primary portal to the top of the list (Austria: "ams").
     pin = config.PROFILE.portal_pin
@@ -143,6 +151,7 @@ def fetch_jobs_by_ids(job_ids: list) -> list[dict]:
     # Try to add lat/lon if separate columns exist
     _add_geo(rows)
     _add_scraped_descriptions(rows)
+    _add_industry(rows)
     return rows
 
 
@@ -173,6 +182,42 @@ def _add_scraped_descriptions(rows: list[dict]) -> None:
         desc = found.get(r.get(id_col))
         if desc:
             r["_scraped_description"] = desc
+
+
+def _add_industry(rows: list[dict]) -> None:
+    """Attach NACE industry code/text to each row under `_nace_code`/`_nace_text`.
+
+    AT's read_view carries no industry data — looked up from companies_creditreform
+    by company_id (`industry_lookup_sql`, batched by id like _add_scraped_descriptions).
+    SK's read_view already carries company_sk_nace/company_sk_nace_text directly, so
+    those are just copied over — either way, downstream filtering (utils.passes_filters)
+    only ever looks at `_nace_code`/`_nace_text`, never the per-country source column."""
+    if not rows:
+        return
+    tmpl = config.PROFILE.industry_lookup_sql
+    if not tmpl:
+        # No lookup hook — the read_view already carries the columns directly (SK).
+        for r in rows:
+            if r.get("company_sk_nace") is not None:
+                r["_nace_code"] = r.get("company_sk_nace")
+                r["_nace_text"] = r.get("company_sk_nace_text")
+        return
+    ids = [r.get("company_id") for r in rows if r.get("company_id") is not None]
+    if not ids:
+        return
+    placeholders = ", ".join(f":c_{i}" for i in range(len(ids)))
+    params = {f"c_{i}": v for i, v in enumerate(ids)}
+    sql = tmpl.format(db=config.DB_SCHEMA, ids=placeholders)
+    try:
+        with get_engine().connect() as conn:
+            found = {m["company_id"]: (m["industry_code"], m["industry_text"])
+                     for m in conn.execute(text(sql), params).mappings()}
+    except Exception:
+        return   # NACE is an enhancement — rows are unaffected without it
+    for r in rows:
+        hit = found.get(r.get("company_id"))
+        if hit:
+            r["_nace_code"], r["_nace_text"] = hit
 
 
 # ─── Fetch for matching (hard filters applied) ────────────────────────────────
@@ -229,6 +274,7 @@ def fetch_jobs_for_matching(filters: dict, limit: int = 500) -> list[dict]:
 
     _add_geo(rows)
     _add_scraped_descriptions(rows)
+    _add_industry(rows)
     return rows
 
 

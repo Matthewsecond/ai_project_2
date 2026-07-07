@@ -57,6 +57,8 @@ def create_app() -> Flask:
             "country_label":   config.COUNTRY_LABEL,
             "country_demonym": config.COUNTRY_DEMONYM,
             "has_occ_filter":  config.HAS_OCC_FILTER,
+            "has_staffing_filter": config.HAS_STAFFING_FILTER,
+            "has_postcode_filter": config.HAS_POSTCODE_FILTER,
         }
 
     # ── Auth ──────────────────────────────────────────────────────────────────

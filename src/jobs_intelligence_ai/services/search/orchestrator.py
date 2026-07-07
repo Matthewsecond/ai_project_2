@@ -4,12 +4,17 @@ orchestrator.py — The search entry point the rest of the app uses.
 Orchestrator owns the one shared OpenAI client and the SearchConfig, and runs the
 search as two cleanly-separated stages:
 
-  STAGE 1 — Retrieve (recall). By default, ONE direct vector_stores.search call
-     (no model in the loop) → a deterministic ranked id set. The legacy path
-     (config.direct_retrieval=False) instead runs a fixed budget of stochastic
-     file_search passes in parallel waves, tallying id occurrences in a ResultPool
-     and keeping the ids that cleared a quorum. Either way: which jobs are relevant
-     (the id set). Retrieval scores are not used as grades.
+  STAGE 1 — Retrieve (recall). By default, a small budget of direct
+     vector_stores.search passes (no model in the loop) run in PARALLEL and their
+     ids are unioned via ResultPool (see DirectRetrievalConfig — a single pass is
+     near-deterministic but not perfectly so, and a few passes recover the long-
+     tail ids one pass alone occasionally misses). The legacy path
+     (config.direct_retrieval=False) instead runs a much larger fixed budget of
+     stochastic file_search passes in parallel waves, tallying id occurrences in a
+     ResultPool and keeping only the ids that cleared a quorum (that quorum drops
+     noise from LLM transcription — direct retrieval's ResultPool quorum is 1, a
+     plain union, since its extra ids are real tail hits, not noise). Either way:
+     which jobs are relevant (the id set). Retrieval scores are not used as grades.
   STAGE 2 — Grade (authoritative). JobSearch fetches the converged ids' rows from
      MySQL in one query; the Grader scores them all in one batched, rubric-anchored
      call. Output: reproducible scores/grades — no max-over-passes inflation.
@@ -83,21 +88,40 @@ class Orchestrator:
         yield {"event": "done", "jobs": jobs, "cycles": cycles, "total": len(ids)}
 
     def _retrieve(self, candidate_text: str, max_results: int | None = None):
-        """Stage 1 dispatcher — one deterministic direct search (default) or the
-        legacy stochastic convergence loop. Both yield cycle events and return
+        """Stage 1 dispatcher — the unioned direct-retrieval passes (default) or
+        the legacy stochastic convergence loop. Both yield cycle events and return
         (ids, passes)."""
         if self.config.direct_retrieval:
             return (yield from self._retrieve_direct(candidate_text, max_results))
         return (yield from self._converge(candidate_text))
 
     def _retrieve_direct(self, candidate_text: str, max_results: int | None = None):
-        """Stage 1 (direct) — one vector_stores.search call, no model in the loop.
-        Deterministic for a given query, so no waves or quorum are needed.
-        max_results widens the candidate set for "find more jobs"."""
-        scored = self._embedding.search_scored(candidate_text, max_results=max_results)
-        ids = [jid for jid, _ in scored]
-        yield {"event": "cycle", "cycle": 1, "added": len(ids), "total": len(ids)}
-        return ids, 1
+        """Stage 1 (direct) — config.direct.passes vector_stores.search calls run
+        in PARALLEL and unioned through a ResultPool (quorum=1). Any one pass is
+        near-deterministic but not perfectly so; unioning a few recovers the long-
+        tail ids a single pass occasionally misses (see DirectRetrievalConfig for
+        the measurement behind this). max_results widens EACH pass for "find more
+        jobs". A pass that errors is tolerated (logged, contributes nothing) as
+        long as at least one pass succeeds — if every pass fails, the last error
+        is raised rather than silently returning an empty result."""
+        dc = self.config.direct
+        pool = ResultPool()
+        last_error: EmbeddingSearchError | None = None
+        with ThreadPoolExecutor(max_workers=dc.passes) as ex:
+            futures = [ex.submit(self._embedding.search_scored, candidate_text, max_results)
+                       for _ in range(dc.passes)]
+            for cycle, fut in enumerate(as_completed(futures), 1):
+                try:
+                    ids = [jid for jid, _ in fut.result()]
+                except EmbeddingSearchError as e:
+                    logger.warning("Retrieval pass failed: %s", e)
+                    last_error = e
+                    ids = []
+                added = pool.add(ids)
+                yield {"event": "cycle", "cycle": cycle, "added": added, "total": len(pool)}
+        if last_error is not None and len(pool) == 0:
+            raise last_error
+        return pool.ids(dc.quorum), dc.passes
 
     def _converge(self, candidate_text: str):
         """Phase 1 — run a FIXED budget of EmbeddingSearch passes in parallel waves,

@@ -39,9 +39,11 @@ async function loadFilters() {
     const workTimes  = data.data.work_time             || [];
     const empRels    = data.data.employment_relationship || [];
     const educations = data.data.education             || [];
+    const nace       = data.data.nace                  || [];
 
     // Cache for AI filter assist
     state.filterOpts = {states, occ_groups: occGroups, portals};
+    _naceRows = nace;
 
     // Search filters
     populateSelect('filterState',    states,    'All states');
@@ -50,6 +52,7 @@ async function loadFilters() {
     populateSelect('filterWorkTime',               workTimes,  'Work time (any)');
     populateSelect('filterEmploymentRelationship', empRels,    'Employment type (any)');
     populateSelect('filterEducation',              educations, 'Education (any)');
+    _populateNace1();
 
     // Radar scope filters — separate block so errors above can't kill these
     populateSelect('rfSector',  occGroups, 'All sectors');
@@ -60,6 +63,77 @@ async function loadFilters() {
   } catch(e) {
     setDbStatus(false, e.message);
   }
+}
+
+// ════════════════════════════════════════════════════════════
+//  NACE cascading dropdowns (Company Criteria) — mirrors
+//  services.search.utils.nace_levels() so both sides agree on how a raw
+//  code splits into 3 levels (AT: dot-separated, SK: plain digit string).
+// ════════════════════════════════════════════════════════════
+let _naceRows = [];   // [[code, text], ...] from /api/filters
+
+function naceLevels(code) {
+  if (!code) return [null, null, null];
+  code = String(code).trim();
+  if (code.includes('.')) {
+    const parts = code.split('.');
+    return [parts[0] || null, parts.length >= 2 ? parts.slice(0, 2).join('.') : null,
+            parts.length >= 3 ? code : null];
+  }
+  return [code.slice(0, 2) || null, code.length >= 3 ? code.slice(0, 3) : null,
+          code.length >= 5 ? code : null];
+}
+
+function _populateNace1() {
+  const sel = document.getElementById('filterNace1');
+  if (!sel) return;
+  const seen = new Map();
+  _naceRows.forEach(([code, text]) => {
+    const [lvl1] = naceLevels(code);
+    if (lvl1 && !seen.has(lvl1)) seen.set(lvl1, text);
+  });
+  sel.innerHTML = '<option value="">Any</option>' +
+    [...seen.keys()].sort().map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+
+function _lockNaceField(wrapId, selId, placeholder) {
+  document.getElementById(wrapId)?.classList.add('locked');
+  const sel = document.getElementById(selId);
+  if (sel) { sel.disabled = true; sel.innerHTML = `<option value="">${placeholder}</option>`; }
+}
+
+function onNace1Change() {
+  const v = document.getElementById('filterNace1').value;
+  const wrap2 = document.getElementById('filterNace2Wrap');
+  const sel2  = document.getElementById('filterNace2');
+  _lockNaceField('filterNace3Wrap', 'filterNace3', 'Select NACE 2 first');
+  if (!v) { _lockNaceField('filterNace2Wrap', 'filterNace2', 'Select NACE 1 first'); return; }
+  const seen = new Map();
+  _naceRows.forEach(([code, text]) => {
+    const [lvl1, lvl2] = naceLevels(code);
+    if (lvl1 === v && lvl2 && !seen.has(lvl2)) seen.set(lvl2, text);
+  });
+  wrap2.classList.remove('locked');
+  sel2.disabled = false;
+  sel2.innerHTML = '<option value="">Any</option>' +
+    [...seen.keys()].sort().map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+}
+
+function onNace2Change() {
+  const v1 = document.getElementById('filterNace1').value;
+  const v2 = document.getElementById('filterNace2').value;
+  const wrap3 = document.getElementById('filterNace3Wrap');
+  const sel3  = document.getElementById('filterNace3');
+  if (!v2) { _lockNaceField('filterNace3Wrap', 'filterNace3', 'Select NACE 2 first'); return; }
+  const seen = new Map();
+  _naceRows.forEach(([code, text]) => {
+    const [lvl1, lvl2, lvl3] = naceLevels(code);
+    if (lvl1 === v1 && lvl2 === v2 && lvl3 && !seen.has(lvl3)) seen.set(lvl3, text);
+  });
+  wrap3.classList.remove('locked');
+  sel3.disabled = false;
+  sel3.innerHTML = '<option value="">Any</option>' +
+    [...seen.keys()].sort().map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
 }
 
 function populateSelect(id, vals, placeholder, pinnedFirst) {
@@ -100,6 +174,45 @@ function _readFilterInputs() {
   if (workTime)  filters.work_time                = workTime;
   if (empRel)    filters.employment_relationship  = empRel;
   if (education) filters.education                = education;
+
+  // Job Status
+  const onlineSince   = document.getElementById('filterOnlineSince').value;
+  const status        = document.getElementById('filterStatus').value;
+  const availableFrom = document.getElementById('filterAvailableFrom').value.trim();
+  const scrapingDate  = document.getElementById('filterScrapingDate').value;
+  if (onlineSince)   filters.online_since   = onlineSince;
+  if (status)        filters.status         = status;
+  if (availableFrom) filters.available_from = availableFrom;
+  if (scrapingDate)  filters.scraping_date  = scrapingDate;
+
+  // Region
+  const postcode = document.getElementById('filterPostcode').value.trim();
+  if (postcode) filters.postcode = postcode;
+
+  // Job Criteria
+  const jobDescription = document.getElementById('filterJobDescription').value.trim();
+  const skills          = document.getElementById('filterSkills').value.trim();
+  const salaryRange     = document.getElementById('filterSalary').value;
+  if (jobDescription) filters.job_description = jobDescription;
+  if (skills)          filters.skills          = skills;
+  if (salaryRange) {
+    const [lo, hi] = salaryRange.split('-');
+    if (lo) filters.salary_min = lo;
+    if (hi) filters.salary_max = hi;
+  }
+
+  // Company Criteria
+  const company = document.getElementById('filterCompany').value.trim();
+  const nace1 = document.getElementById('filterNace1').value;
+  const nace2 = document.getElementById('filterNace2').value;
+  const nace3 = document.getElementById('filterNace3').value;
+  const excludeStaffing = document.getElementById('filterExcludeStaffing').checked;
+  if (company)         filters.company          = company;
+  if (nace1)           filters.nace1            = nace1;
+  if (nace2)           filters.nace2            = nace2;
+  if (nace3)           filters.nace3            = nace3;
+  if (excludeStaffing) filters.exclude_staffing = true;
+
   return filters;
 }
 
@@ -115,12 +228,15 @@ Object.assign(_ACTIONS, {
   'export-results':          ()      => exportResults(state.lastResults),
   'export-results-xlsx':     ()      => exportResultsXlsx(state.lastResults),
   'save-all':                ()      => saveAll(),
+  // Company Criteria — cascading NACE dropdowns
+  'nace1-change':            ()      => onNace1Change(),
+  'nace2-change':            ()      => onNace2Change(),
   'clear-results':           ()      => clearResults(),
   'save-candidate':          ()      => saveCandidate(document.getElementById('btnSaveCandidate')),
   // results filter + sortable headers
   'rescore-frozen-results':  ()      => rescoreFrozenResults(),
   'toggle-freeze':           ()      => toggleFreeze(),
-  'toggle-show-weak':        ()      => toggleShowWeak(),
+  'toggle-top20':            ()      => toggleTop20(),
   'sort-by':                 (el)    => sortBy(el.dataset.sort),
 });
 
@@ -151,15 +267,6 @@ function dismissJob(jobId) {
     state.lastResults = state.lastResults.filter(j => String(j.job_id) !== id);
     renderResults(state.lastResults);
   }, 200);
-}
-
-// Weak (C-grade) matches are hidden by default — they match too weakly to be
-// useful. This toggle reveals them. Frozen C rows always stay visible.
-let _showWeakC = false;
-function toggleShowWeak() {
-  _showWeakC = document.getElementById('showCChk').checked;
-  document.getElementById('showCToggle').classList.toggle('on', _showWeakC);
-  if (state.lastResults.length) renderResults(state.lastResults);
 }
 
 // Freeze / unfreeze a single result. Frozen rows are pinned to the top and are
@@ -193,6 +300,12 @@ function toggleFreeze() {
     st.textContent = `❄ Frozen — ${state.lastResults.length} jobs locked. Re-score them against a changed candidate, or find more jobs to add.`;
   }
   _updateStaleNotice();
+}
+
+function toggleTop20() {
+  state.top20Only = document.getElementById('top20Chk').checked;
+  document.getElementById('top20Chk').closest('label').classList.toggle('on', state.top20Only);
+  if (state.lastResults.length) renderResults(state.lastResults);
 }
 
 // Show a warning when a FROZEN result set no longer matches the current candidate
@@ -353,13 +466,13 @@ async function runMatching() {
     renderResults(pinnedNow);
     const loader = document.createElement('tr');
     loader.id = 'matchingLoaderRow';
-    loader.innerHTML = `<td colspan="8" class="no-results">
+    loader.innerHTML = `<td colspan="9" class="no-results">
       <div class="spinner" style="margin:0 auto 10px"></div>
       Finding more matches… (frozen results kept above)
     </td>`;
     tbody.appendChild(loader);
   } else {
-    tbody.innerHTML = `<tr><td colspan="8" class="no-results">
+    tbody.innerHTML = `<tr><td colspan="9" class="no-results">
       <div class="spinner" style="margin:0 auto 10px"></div>
       Running AI matching against live database…
     </td></tr>`;
@@ -397,7 +510,7 @@ async function runMatching() {
     // Auto-save the candidate to the database (unless the user turned it off).
     if (document.getElementById('autosaveCandidate')?.checked) saveCandidate();
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="8" style="padding:20px">
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:20px">
       <div class="error-box">Error: ${esc(e.message)}</div>
     </td></tr>`;
     document.getElementById('resultsStatus').innerHTML = '<span>Error — check Flask console.</span>';
@@ -569,10 +682,10 @@ async function streamMatching(text, filters, topN, maxResults) {
 
 function renderResults(jobs) {
   const notDismissed = jobs.filter(j => !state.dismissedJobIds.has(String(j.job_id)));
-  // Weak (C) matches are hidden unless the toggle is on — but a frozen C row stays.
+  // Weak (C) matches are excluded entirely — not just hidden behind a toggle.
+  // A frozen (pinned) row stays visible regardless, since freezing it was deliberate.
   const visible = notDismissed.filter(j =>
-    _showWeakC || (j.grade || 'C') !== 'C' || state.pinnedJobIds.has(String(j.job_id)));
-  const hiddenC = notDismissed.length - visible.length;
+    (j.grade || 'C') !== 'C' || state.pinnedJobIds.has(String(j.job_id)));
   const sorted = [...visible].sort((a, b) => {
     // Pinned ("frozen") results always rank first, so they stick when re-running.
     const ap = state.pinnedJobIds.has(String(a.job_id)) ? 1 : 0;
@@ -591,13 +704,17 @@ function renderResults(jobs) {
     return state.sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
   });
 
+  // "Top 20 matches only" caps what's rendered, not the underlying set — the
+  // status line below still reports the full match/grade counts.
+  const displayed = state.top20Only ? sorted.slice(0, 20) : sorted;
+
   const savedIds = new Set(state.savedJobs.map(j => j.job_id));
   const tbody    = document.getElementById('resultsTbody');
   // Whole-set freeze: tint every row blue so it's clear the entire set is locked.
   tbody.classList.toggle('all-frozen', state.resultsFrozen);
 
-  if (!sorted.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="no-results">
+  if (!displayed.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="no-results">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
       No jobs found — try broadening filters.
     </td></tr>`;
@@ -606,7 +723,7 @@ function renderResults(jobs) {
   }
 
   tbody.innerHTML = '';
-  sorted.forEach((job, i) => {
+  displayed.forEach((job, i) => {
     const g      = job.grade || 'C';
     const loc    = [job.city, job.state].filter(Boolean).join(', ') || '—';
     const isSaved = savedIds.has(job.job_id);
@@ -620,26 +737,32 @@ function renderResults(jobs) {
         <span class="grade ${gradeClass(g)}">${g}</span><span class="pct">${job.score_pct || ''}</span>
       </td>
       <td style="cursor:pointer" data-action="open-job-modal" data-sid="${sid}" title="Click to see details">
-        <div class="job-title-main" style="color:#1a56c4">${esc(job.title)}</div>
+        <div class="job-title-main"><span class="job-detail-plus" title="More details">+</span>${esc(job.title)}</div>
         ${job.match_reason ? `<div class="match-reason">${esc(job.match_reason)}</div>` : ''}
       </td>
-      <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}<span class="job-contacts" id="jc-${job.job_id}"></span></td>
+      <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}</td>
       <td>${esc(loc)}</td>
       <td>${esc(job.salary || '—')}</td>
-      <td>${job.portal ? `<span class="tag tag-portal">${esc(job.portal)}</span>` : '—'}</td>
-      <td>${job.posted ? `<span class="tag tag-posted">${esc(String(job.posted).substring(0,10))}</span>` : '—'}</td>
-      <td style="display:flex;gap:5px;align-items:center">
-        <button class="save-btn${isSaved ? ' saved' : ''}" id="save-${job.job_id}"
-          data-action="toggle-save" data-job-id="${job.job_id}">${isSaved ? '✓ Saved' : '+ Save'}</button>
+      <td>${esc(job.portal || '—')}</td>
+      <td class="job-dates" title="${job.created_at ? 'First seen ' + esc(String(job.created_at).substring(0,10)) : ''}${job.created_at && job.updated_at ? ' · ' : ''}${job.updated_at ? 'Last updated ' + esc(String(job.updated_at).substring(0,10)) : ''}">
+        <div class="jd-created">${job.created_at ? esc(String(job.created_at).substring(0,10)) : '—'}</div>
+        <div class="jd-updated">${job.updated_at ? esc(String(job.updated_at).substring(0,10)) : '—'}</div>
+      </td>
+      <td><span id="jc-${job.job_id}"></span></td>
+      <td style="display:flex;gap:4px;align-items:center;padding-left:6px;padding-right:6px">
+        ${job.url ? `<a href="${esc(job.url)}" target="_blank" class="icon-btn" title="Open job link">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+        </a>` : ''}
+        <button class="icon-btn${isSaved ? ' on' : ''}" id="save-${job.job_id}"
+          data-action="toggle-save" data-job-id="${job.job_id}" title="${isSaved ? 'Saved' : 'Save job'}">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </button>
         <button class="row-pin${isPinned ? ' on' : ''}" id="pin-${job.job_id}"
           data-action="toggle-pin-job" data-job-id="${job.job_id}"
           title="${isPinned ? 'Frozen — kept when you re-run for more results' : 'Freeze this result — keep it when you re-run for more'}">❄</button>
         <button class="extras-picker-btn visible" id="extras-pick-${job.job_id}"
           data-action="open-extras-picker" data-job-id="${job.job_id}" data-sid="${sid}"
-          title="Save with extras">+ extras</button>
-        ${job.url ? `<a href="${esc(job.url)}" target="_blank" class="link-btn" title="Open posting">
-          <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-        </a>` : ''}
+          title="Save with extras">+</button>
         <button class="row-x" data-action="dismiss-job" data-job-id="${job.job_id}"
           title="Remove from view">×</button>
       </td>`;
@@ -652,14 +775,13 @@ function renderResults(jobs) {
 
   const nA = visible.filter(j => j.grade === 'A').length;
   const nB = visible.filter(j => j.grade === 'B').length;
-  const nC = visible.filter(j => j.grade === 'C').length;
   const nPin = visible.filter(j => state.pinnedJobIds.has(String(j.job_id))).length;
   document.getElementById('resultsStatus').innerHTML =
     `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; ${visible.length} matches found — ${nA} strong (A) · ${nB} good (B)` +
-    (_showWeakC ? ` · ${nC} weak (C)` : (hiddenC ? ` · <span style="color:#9aa3b2">${hiddenC} weak (C) hidden</span>` : '')) +
-    (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '');
+    (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '') +
+    (state.top20Only && sorted.length > displayed.length ? ` · showing top ${displayed.length}` : '');
 
-  _loadJobContacts(sorted);
+  _loadJobContacts(displayed);
 }
 
 // Action registry for the dynamically-built results rows — clickable title
@@ -671,6 +793,8 @@ Object.assign(_ACTIONS, {
   'toggle-pin-job':    (el, e) => { e.stopPropagation(); togglePinJob(el.dataset.jobId); },
   'open-extras-picker':(el, e) => { e.stopPropagation(); openExtrasPicker(el.dataset.jobId, el.dataset.sid, el); },
   'dismiss-job':       (el, e) => { e.stopPropagation(); dismissJob(el.dataset.jobId); },
+  'inline-save-notes-input':   (el) => _inlineSaveNotesInput(el),
+  'inline-save-status-change': (el) => _inlineSaveStatusChange(el),
 });
 
 // ════════════════════════════════════════════════════════════
@@ -687,11 +811,24 @@ async function _loadJobContacts(jobs) {
     const data = await api.post('/api/jobs/contacts', { job_ids: ids });
     _jobContacts = (data && data.contacts) || {};
   } catch(e) { return; }
-  Object.entries(_jobContacts).forEach(([jid, cts]) => {
+  // Iterate every job shown, not just the ones present in the response — the
+  // backend only returns entries for jobs that actually have a linked contact,
+  // so a job with none would otherwise never get a button at all (previous bug:
+  // its cell just stayed empty forever instead of showing a "no contact" state).
+  ids.forEach(jid => {
     const el = document.getElementById('jc-' + jid);
-    if (!el || !cts.length) return;
-    const label = cts.length === 1 ? `👤 ${esc(cts[0].name || 'Contact')}` : `👤 ${cts.length} contacts`;
-    el.innerHTML = `<span class="job-contact-chip" data-action="open-job-contacts" data-job-id="${esc(jid)}" title="View & save contact${cts.length !== 1 ? 's' : ''}">${label}</span>`;
+    if (!el) return;
+    const cts = _jobContacts[String(jid)] || [];
+    // Compact icon-button instead of an inline name/email/phone card — keeps the
+    // Contact column narrow so the row-action buttons don't need a horizontal
+    // scroll to reach. Full details (or "No contacts for this job") are one
+    // click away in the contacts modal either way.
+    const label = cts.length === 1 ? (cts[0].name || 'Contact')
+      : cts.length > 1 ? `${cts.length} contacts` : 'No contact on file';
+    el.innerHTML = `<button class="icon-btn job-contact-btn${cts.length ? '' : ' empty'}" data-action="open-job-contacts"
+      data-job-id="${esc(String(jid))}" title="${esc(label)}">
+      👤${cts.length > 1 ? `<span class="jcb-count">${cts.length}</span>` : ''}
+    </button>`;
   });
 }
 
@@ -738,25 +875,69 @@ function sortBy(col) {
 //  Save / unsave
 // ════════════════════════════════════════════════════════════
 async function toggleSave(btn, jobId) {
-  if (btn.classList.contains('saved')) return;
+  if (btn.classList.contains('on')) return;
   const job = state.lastResults.find(j => j.job_id == jobId);
   if (!job) return;
   const jobWithCandidate = { ...job, candidate_name: app.getCandidateName() };
   try {
     const data = await api.post('/api/saved', { job: jobWithCandidate, candidate_profile: state.currentCandidateProfile || null });
     if (data.ok) {
-      btn.textContent = '✓ Saved';
-      btn.classList.add('saved');
+      btn.classList.add('on');
+      btn.title = 'Saved';
       state.savedJobs = data.jobs;
       updateSavedBadge();
+      _revealInlineSaveRow(jobId);
     }
   } catch(e) { alert('Save failed: ' + e.message); }
+}
+
+// Clicking Save reveals an inline notes + status row right under that result,
+// so a note/pipeline-stage can be added without leaving the Search tab.
+const _JOB_STATUS_OPTS = [
+  ['new', 'New'], ['in_progress', 'In Progress'], ['proposal_sent', 'Proposal Sent'],
+  ['won', 'Won'], ['lost', 'Lost'],
+];
+
+function _revealInlineSaveRow(jobId) {
+  if (document.getElementById(`inline-save-${jobId}`)) return;   // already shown
+  const jobRow = document.getElementById(`row-${jobId}`);
+  if (!jobRow) return;
+  const tr = document.createElement('tr');
+  tr.className = 'inline-save-row';
+  tr.id = `inline-save-${jobId}`;
+  tr.innerHTML = `<td colspan="9"><div class="inline-save-row-inner">
+    <div class="inline-save-notes">
+      <div class="field-lbl">Notes</div>
+      <input type="text" placeholder="Add a note about this job…" data-job-id="${jobId}" data-input-action="inline-save-notes-input">
+    </div>
+    <div class="inline-save-status">
+      <div class="field-lbl">Status</div>
+      <select data-job-id="${jobId}" data-change-action="inline-save-status-change">
+        ${_JOB_STATUS_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+      </select>
+    </div>
+  </div></td>`;
+  jobRow.after(tr);
+}
+
+let _inlineNotesDebounce = {};
+function _inlineSaveNotesInput(el) {
+  const jobId = el.dataset.jobId;
+  clearTimeout(_inlineNotesDebounce[jobId]);
+  _inlineNotesDebounce[jobId] = setTimeout(() => {
+    api.patch(`/api/saved/${encodeURIComponent(jobId)}`, { notes: el.value }).catch(() => {});
+  }, 500);
+}
+
+function _inlineSaveStatusChange(el) {
+  const jobId = el.dataset.jobId;
+  api.patch(`/api/saved/${encodeURIComponent(jobId)}`, { pipeline_status: el.value }).catch(() => {});
 }
 
 async function saveAll() {
   for (const job of state.lastResults.filter(j => j.grade !== 'C')) {
     const btn = document.getElementById(`save-${job.job_id}`);
-    if (btn && !btn.classList.contains('saved')) await toggleSave(btn, job.job_id);
+    if (btn && !btn.classList.contains('on')) await toggleSave(btn, job.job_id);
   }
 }
 
@@ -897,7 +1078,7 @@ async function doSaveWithExtras() {
       const sb = document.getElementById(`save-${_epJobId}`);
       if (sb) { sb.textContent = '✓ Saved'; sb.classList.add('saved'); }
       const eb = document.getElementById(`extras-pick-${_epJobId}`);
-      if (eb) { eb.textContent = '✓ + extras'; eb.classList.add('saved'); }
+      if (eb) { eb.textContent = '✓'; eb.classList.add('saved'); }
       closeExtrasPicker();
     }
   } catch(e) {
@@ -910,7 +1091,7 @@ function clearResults() {
   state.lastResults = [];
   state.dismissedJobIds = new Set();
   state.pinnedJobIds    = new Set();
-  document.getElementById('resultsTbody').innerHTML = `<tr><td colspan="8" class="no-results">
+  document.getElementById('resultsTbody').innerHTML = `<tr><td colspan="9" class="no-results">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
     No results yet — run matching to find jobs
   </td></tr>`;
@@ -937,4 +1118,7 @@ async function loadTestData() {
 Object.assign(app, {
   renderResults, runMatching, saveAll, toggleFreeze, updateSavedBadge,
   doSaveWithExtras, loadFilters,
+  // Shared with the Pipeline tab's Jobs sub-tab (saved.js) — same batch-fetch +
+  // "#jc-<job_id>" span population used for the Search tab's Contact column.
+  loadJobContacts: _loadJobContacts,
 });

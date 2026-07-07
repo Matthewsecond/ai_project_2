@@ -139,7 +139,7 @@ Everything here is scoped to the caller's `account_company` with `own`/`all` vis
 | `/api/saved/companies` | POST | `{ target_company_id, snapshot?, notes? }` → `{ ok, added, companies }` (`added:false` = already saved) |
 | `/api/saved/companies/<id>` | PATCH | Edit a saved company's fields (name, industry, location, notes) |
 | `/api/saved/companies/<id>` | DELETE | Remove a saved company |
-| `/api/saved/contacts` | GET | List bookmarked contacts |
+| `/api/saved/contacts` | GET | List bookmarked contacts; each row is annotated with `job_count` (active market jobs the contact is linked to). Deal-Filter query params incl. `min_jobs` (keep contacts with `job_count >= min_jobs`) |
 | `/api/saved/contacts` | POST | `{ contact_id, snapshot?, notes? }` → `{ ok, added, contacts }` |
 | `/api/saved/contacts/<id>` | PATCH | Edit a saved contact's fields (name, title, company, email, notes) |
 | `/api/saved/contacts/<id>` | DELETE | Remove a saved contact |

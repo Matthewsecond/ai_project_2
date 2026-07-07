@@ -15,6 +15,124 @@ let _collSort = { key: null, dir: 1 };
 let _editKey  = null;                   // row currently in inline-edit mode (its delId), or null
 let _browseTimer = null;
 
+// ── Pipeline tab: Deal-Filter / Sales Filter — each of the 4 sub-tabs remembers
+// its own filter values independently (switching sub-tabs restores them, it
+// doesn't reset them). Sales Status only applies server-side to jobs/candidates
+// (companies/contacts have no sales-status concept of their own) — see saved.py.
+const _PIPELINE_ENTITY_LABEL = { jobs: 'Jobs', contacts: 'Contacts', companies: 'Companies', candidates: 'Candidates' };
+let _pipelineFilters = { jobs: {}, contacts: {}, companies: {}, candidates: {} };
+let _pipelineUsers = [];
+
+// Job Status / Job Criteria fields all read job_snapshot keys (occ_group, salary,
+// skills, portal, posted, start_timeline) that only exist on saved JOB rows —
+// Contacts/Companies/Candidates snapshots have no such concept, so these are
+// locked there, same reasoning as pfMinJobs (Contacts-only) below.
+const _JOBS_ONLY_FIELD_IDS = ['pfOnlineSince', 'pfAvailableFrom', 'pfOccGroup',
+  'pfJobDescription', 'pfSkills', 'pfSalary', 'pfPortal', 'pfPostcode'];
+
+// pfKeyword searches title/name/company on whatever's present on the row (see
+// saved.py _passes_deal_filters) — one shared field across all 4 sub-tabs, just
+// relabeled per tab so it reads right ("Job title" only makes sense for Jobs).
+const _PIPELINE_KEYWORD_LABEL = { jobs: 'Job title', contacts: 'Contact name',
+  companies: 'Company name', candidates: 'Candidate name' };
+
+function _pipelineFilterFields(){
+  return { state: 'pfState', postcode: 'pfPostcode', keyword: 'pfKeyword', company: 'pfCompany',
+           min_jobs: 'pfMinJobs',
+           online_since: 'pfOnlineSince', available_from: 'pfAvailableFrom',
+           occ_group: 'pfOccGroup', job_description: 'pfJobDescription', skills: 'pfSkills',
+           salary: 'pfSalary', portal: 'pfPortal',
+           sales_status: 'pfSalesStatus', user_id: 'pfUser' };
+}
+
+function _syncPipelineFilterUI(kind){
+  const label = document.getElementById('dealFilterEntity');
+  if (label) label.textContent = _PIPELINE_ENTITY_LABEL[kind] || kind;
+  const kwLabel = document.getElementById('pfKeywordLbl');
+  if (kwLabel) kwLabel.textContent = _PIPELINE_KEYWORD_LABEL[kind] || 'Title / name';
+  const stored = _pipelineFilters[kind] || {};
+  const fields = _pipelineFilterFields();
+  Object.entries(fields).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = stored[key] || '';
+  });
+  const salesWrap = document.getElementById('pfSalesStatusWrap');
+  if (salesWrap) salesWrap.classList.toggle('locked', kind === 'companies' || kind === 'contacts');
+  const salesSel = document.getElementById('pfSalesStatus');
+  if (salesSel) salesSel.disabled = (kind === 'companies' || kind === 'contacts');
+  // Min-open-jobs only applies to Contacts (their rows carry a market job_count
+  // annotation — see saved.py api_list_saved_contacts); locked elsewhere.
+  const jobsWrap = document.getElementById('pfMinJobsWrap');
+  if (jobsWrap) jobsWrap.classList.toggle('locked', kind !== 'contacts');
+  const jobsInput = document.getElementById('pfMinJobs');
+  if (jobsInput) jobsInput.disabled = (kind !== 'contacts');
+  // Job Status / Job Criteria fields — Jobs-only (see _JOBS_ONLY_FIELD_IDS above).
+  _JOBS_ONLY_FIELD_IDS.forEach(id => {
+    const wrap = document.getElementById(id + 'Wrap');
+    if (wrap) wrap.classList.toggle('locked', kind !== 'jobs');
+    const el = document.getElementById(id);
+    if (el) el.disabled = (kind !== 'jobs');
+  });
+}
+
+// Occupational-group / Source dropdowns reuse the exact same options the Search
+// tab's filter bar already loaded (search.js loadFilters -> state.filterOpts) —
+// no separate API call. Populated once; state.filterOpts doesn't change after
+// its initial load, and a no-op retry is harmless if it isn't ready yet.
+let _pipelineFilterOptsReady = false;
+function _ensurePipelineFilterOptions(){
+  if (_pipelineFilterOptsReady) return;
+  const opts = state.filterOpts || {};
+  if (!opts.occ_groups?.length && !opts.portals?.length) return;   // not loaded yet — retry next tab switch
+  const occSel = document.getElementById('pfOccGroup');
+  if (occSel && opts.occ_groups?.length)
+    occSel.innerHTML = '<option value="">Any</option>' +
+      opts.occ_groups.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const portalSel = document.getElementById('pfPortal');
+  if (portalSel && opts.portals?.length)
+    portalSel.innerHTML = '<option value="">Any</option>' +
+      opts.portals.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  _pipelineFilterOptsReady = true;
+}
+
+function applyPipelineFilters(){
+  const fields = _pipelineFilterFields();
+  const values = {};
+  Object.entries(fields).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el && el.value) values[key] = el.value;
+  });
+  _pipelineFilters[_savedCollection] = values;
+  loadCollection();
+}
+
+// The raw UI-facing filter values (as restored into the form) vs. the actual
+// query params sent to the backend differ only for salary — a single "lo-hi"
+// range select (matches the Search tab's filterSalary), split into
+// salary_min/salary_max the same way search.js's _readFilterInputs does.
+function _dealFilterQueryParams(kind){
+  const params = { ...(_pipelineFilters[kind] || {}) };
+  if (params.salary) {
+    const [lo, hi] = params.salary.split('-');
+    delete params.salary;
+    if (lo) params.salary_min = lo;
+    if (hi) params.salary_max = hi;
+  }
+  return params;
+}
+
+async function _ensurePipelineUsers(){
+  if (_pipelineUsers.length) return;
+  try {
+    const res = await fetch('/api/saved/users');
+    const data = await res.json();
+    _pipelineUsers = (data.ok && data.users) || [];
+  } catch(e) { return; }
+  const sel = document.getElementById('pfUser');
+  if (sel) sel.innerHTML = '<option value="">Any</option>' +
+    _pipelineUsers.map(u => `<option value="${esc(String(u.id))}">${esc(u.name)}</option>`).join('');
+}
+
 // The key into SAVED_COLLECTIONS for whatever's on screen right now — the four saved
 // collections, or a company/contact's sibling "_browse" spec that searches the market
 // catalogue instead of the app's saved_* tables.
@@ -99,9 +217,15 @@ const SAVED_COLLECTIONS = {
       { key:'title',           label:'Title',     get:r => r.title,           edit:true, detail:true },
       { key:'company',         label:'Company',   get:r => r.company,         edit:true },
       { key:'location',        label:'Location',  get:r => r.location,        edit:true },
+      { key:'salary',          label:'Salary',    get:r => r.salary,          edit:true },
+      { key:'posted',          label:'Online Since', get:r => r.posted ? String(r.posted).substring(0,10) : '' },
+      // Filled in async after render, same mechanism as the Search tab's Contact
+      // column (see _loadJobContacts below) — reuses the /api/jobs/contacts fix.
+      { key:'contact',         label:'Contact',   get:r => '', render:r => `<span id="jc-${esc(String(r.job_id))}"></span>` },
       { key:'candidate_name',  label:'Candidate', get:r => r.candidate_name },
+      { key:'owner_name',      label:'User',      get:r => r.owner_name },
       // Always a live dropdown (see _statusSelect) — no Edit mode needed to change it.
-      { key:'pipeline_status', label:'Status',
+      { key:'pipeline_status', label:'Sales Status',
         get:r => _JOB_PIPELINE_LABEL[r.pipeline_status] || r.pipeline_status,
         render:r => _statusSelect(r) },
       { key:'notes',           label:'Notes',     get:r => r.notes,           edit:true },
@@ -117,6 +241,10 @@ const SAVED_COLLECTIONS = {
       { key:'name',     label:'Company',  get:r => r.name || ('#' + r.target_company_id), edit:true, detail:true },
       { key:'industry', label:'Industry', get:r => r.industry, edit:true },
       { key:'location', label:'Location', get:r => r.location || r.city, edit:true },
+      // Active jobs in the market catalogue right now — annotated server-side
+      // (saved.py api_list_saved_companies), mirrors Contacts' "Open jobs" column.
+      { key:'job_count', label:'Open jobs', get:r => r.job_count },
+      { key:'ownerName',label:'User',     get:r => r.ownerName },
       { key:'notes',    label:'Notes',    get:r => r.notes, edit:true },
       { key:'savedAt',  label:'Saved',    get:r => r.savedAt },
     ],
@@ -131,7 +259,11 @@ const SAVED_COLLECTIONS = {
       { key:'name',    label:'Name',    get:r => r.name || ('#' + r.contact_id), edit:true, detail:true },
       { key:'title',   label:'Title',   get:r => r.title || r.position, edit:true },
       { key:'company', label:'Company', get:r => r.company, edit:true },
+      // Active jobs the contact is linked to in the market catalogue — annotated
+      // server-side (saved.py), and what the Deal-Filter's min_jobs matches on.
+      { key:'job_count', label:'Open jobs', get:r => r.job_count },
       { key:'email',   label:'Email',   get:r => r.email, edit:true },
+      { key:'ownerName', label:'User',  get:r => r.ownerName },
       { key:'notes',   label:'Notes',   get:r => r.notes, edit:true },
       { key:'savedAt', label:'Saved',   get:r => r.savedAt },
     ],
@@ -187,6 +319,9 @@ function setSavedCollection(kind){
   if (search) { search.style.display = 'none'; search.value = ''; }
   _collSort = { key: null, dir: 1 };
   _editKey  = null;
+  _syncPipelineFilterUI(kind);
+  _ensurePipelineUsers();
+  _ensurePipelineFilterOptions();
   loadCollection();
 }
 
@@ -224,7 +359,8 @@ async function loadCollection(){
   }
   if (status) status.textContent = 'Loading…';
   try {
-    const res  = await fetch(spec.url);
+    const q = new URLSearchParams(_dealFilterQueryParams(_savedCollection)).toString();
+    const res  = await fetch(spec.url + (q ? '?' + q : ''));
     const data = await res.json();
     _collRows  = (data.ok && data[spec.listKey]) ? data[spec.listKey] : [];
     if (status) status.textContent = `${_collRows.length} saved ${_savedCollection}`;
@@ -281,8 +417,11 @@ function renderCollection(){
   if (_collSort.key){
     const col = spec.cols.find(c => c.key === _collSort.key);
     rows.sort((a, b) => {
-      const av = (col.get(a) ?? '').toString().toLowerCase();
-      const bv = (col.get(b) ?? '').toString().toLowerCase();
+      const ar = col.get(a), br = col.get(b);
+      // Numeric columns (e.g. a contact's open-job count) sort by value, not "10" < "2".
+      if (typeof ar === 'number' && typeof br === 'number') return (ar - br) * _collSort.dir;
+      const av = (ar ?? '').toString().toLowerCase();
+      const bv = (br ?? '').toString().toLowerCase();
       return av < bv ? -_collSort.dir : av > bv ? _collSort.dir : 0;
     });
   }
@@ -296,6 +435,10 @@ function renderCollection(){
   body.innerHTML = rows.map(r => _renderRow(spec, r)).join('');
   // Focus the first editable input when a row enters edit mode.
   if (_editKey !== null) body.querySelector('.sv-cell-input')?.focus();
+  // Jobs sub-tab's Contact column — same async batch-fetch the Search tab uses
+  // (app.loadJobContacts, exported from search.js), filling in the "#jc-<job_id>"
+  // spans the 'contact' column's render() already put in the DOM above.
+  if (_savedCollection === 'jobs') app.loadJobContacts?.(rows);
 }
 
 // One <tr> — cells become inputs when this row is the one being edited; the actions
@@ -509,6 +652,7 @@ async function marketSaveContact(el){
 Object.assign(_ACTIONS, {
   'set-saved-collection': (el) => setSavedCollection(el.dataset.collection),
   'set-saved-mode':       (el) => setSavedMode(el.dataset.mode),
+  'apply-pipeline-filters': () => applyPipelineFilters(),
   'sv-browse-search-input': (el) => onBrowseSearchInput(el),
   'market-save-company':  (el) => marketSaveCompany(el),
   'market-save-contact':  (el) => marketSaveContact(el),

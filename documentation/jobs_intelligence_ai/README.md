@@ -9,6 +9,7 @@ docs live at the top level.
 
 | Doc | Contents |
 |---|---|
+| [walkthrough/WALKTHROUGH.md](walkthrough/WALKTHROUGH.md) | **Start here if you're new** — project tour, one request traced end to end, API cheat sheet |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System overview, stack, data flow, key design decisions |
 | [TESTING.md](TESTING.md) | Test layout, tiers, how to run, current inventory |
 | [planning/](planning/) | **All plans live here** — see [planning/README.md](planning/README.md) for what's active vs deferred vs archived |

@@ -71,6 +71,19 @@ class Profile:
                                       # job_id + description columns). Set when the read_view
                                       # has no description column but the base tables carry
                                       # one (SK) — see infra.database._add_scraped_descriptions.
+    industry_lookup_sql: str | None = None
+                                      # Optional per-company NACE/industry lookup ({db} =
+                                      # schema, {ids} = company_id IN-list placeholders; must
+                                      # return company_id/industry_code/industry_text). Set
+                                      # when the read_view carries no industry data of its own
+                                      # (AT — industry lives in companies_creditreform, joined
+                                      # by company_id). SK's read_view already carries
+                                      # company_sk_nace/company_sk_nace_text directly, so it
+                                      # leaves this unset — see infra.database._add_industry.
+    has_staffing_filter: bool = False
+                                      # Show "Exclude Personnel Service Providers"? Only SK's
+                                      # companies_finstat carries personal_service_provider —
+                                      # AT has no equivalent flag.
 
     def col_present(self, key: str) -> bool:
         """True if COL[key] is a real column in this profile's View_Jobs_Full.
@@ -184,7 +197,23 @@ _AT_FILTER_QUERIES = {
         HAVING COUNT(*) >= 20
         ORDER BY COUNT(*) DESC
     """,
+    # NACE/industry — Austria's read_view has no industry column, so the dropdown
+    # (like the row-level lookup) reads companies_creditreform directly.
+    "nace": """
+        SELECT DISTINCT industry_code, industry_text
+        FROM {db}.companies_creditreform
+        WHERE industry_code IS NOT NULL AND industry_code != ''
+        ORDER BY industry_code
+    """,
 }
+
+# Per-company NACE/industry lookup, joined in by company_id after the main fetch
+# (see infra.database._add_industry) — the read_view itself carries no industry data.
+_AT_INDUSTRY_LOOKUP_SQL = """
+    SELECT id AS company_id, industry_code, industry_text
+    FROM {db}.companies_creditreform
+    WHERE id IN ({ids})
+"""
 
 AUSTRIA = Profile(
     key              = "at",
@@ -205,6 +234,8 @@ AUSTRIA = Profile(
     col              = _AT_COL,
     filter_queries   = _AT_FILTER_QUERIES,
     match_text_cols  = ("title", "occ_group", "description", "esco_skills"),
+    industry_lookup_sql = _AT_INDUSTRY_LOOKUP_SQL,
+    has_staffing_filter = False,   # no personal_service_provider equivalent for AT
 )
 
 
@@ -311,6 +342,14 @@ _SK_FILTER_QUERIES = {
         HAVING COUNT(*) >= 20
         ORDER BY COUNT(*) DESC
     """,
+    # NACE/industry — SK's read_view already carries company_sk_nace/_text directly
+    # (no per-row lookup needed, unlike AT), so the dropdown reads it from companies_finstat.
+    "nace": """
+        SELECT DISTINCT sk_nace AS industry_code, sk_nace_text AS industry_text
+        FROM {db}.companies_finstat
+        WHERE sk_nace IS NOT NULL AND sk_nace != ''
+        ORDER BY sk_nace
+    """,
 }
 
 SLOVAKIA = Profile(
@@ -355,6 +394,7 @@ SLOVAKIA = Profile(
         WHERE djj.job_id IN ({ids})
         GROUP BY djj.job_id
     """,
+    has_staffing_filter = True,   # companies_finstat.personal_service_provider
 )
 
 

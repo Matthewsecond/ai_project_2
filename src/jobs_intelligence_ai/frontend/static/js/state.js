@@ -31,6 +31,7 @@ export const state = {
   resultsFrozen: false,           // whole set frozen — re-score in place, don't re-search
   sortCol: 'score',
   sortAsc: false,
+  top20Only: false,               // cap the results table to the top 20 by score
   // Text the current results were matched/scored against — search + per-job fit chat.
   lastMatchText: '',
   scoredAgainstText: '',
