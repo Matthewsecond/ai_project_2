@@ -36,7 +36,7 @@
   /* Candidates table view */
   #savedTableWrap{margin-top:2px}
   #savedDash .sv-table{width:100%;border-collapse:collapse;font-size:13px}
-  #savedDash .sv-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;font-weight:700;padding:8px 12px;border-bottom:1px solid var(--ic-border)}
+  #savedDash .sv-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ic-blue-dark);font-weight:700;padding:8px 12px;border-bottom:1px solid var(--ic-border)}
   #savedDash .sv-table td{padding:11px 12px;border-bottom:1px solid var(--ic-bg);vertical-align:middle}
   #savedDash .sv-table tr:hover td{background:#f8faff}
   #savedDash .sv-table .sv-c-center{text-align:center}
