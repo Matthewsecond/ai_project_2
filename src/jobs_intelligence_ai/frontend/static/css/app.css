@@ -20,8 +20,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--ic-bg);min-h
 /* TOP BAR */
 .topbar{background:#fff;border-bottom:1px solid var(--ic-border);padding:12px 24px;display:flex;align-items:center;gap:20px}
 .logo{font-size:15px;font-weight:600;color:var(--ic-text);display:flex;align-items:center;gap:10px}
-.logo-mark{width:28px;height:28px;background:var(--ic-blue-dark);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.logo-mark svg{width:16px;height:16px;fill:#fff}
+.ic-brand-tag{font-size:12px;font-weight:600;color:var(--ic-grey);letter-spacing:.01em;white-space:nowrap}
 .nav-area{display:flex;align-items:center;gap:0;margin-left:16px}
 .mode-toggle{display:flex;background:var(--ic-bg);border-radius:8px;padding:3px;gap:2px;margin-right:12px;flex-shrink:0}
 .mode-toggle-btn{padding:5px 16px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;color:#888;background:transparent;font-family:inherit;transition:all .15s;white-space:nowrap;letter-spacing:.01em}
@@ -45,8 +44,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--ic-bg);min-h
 .filter-bar{background:var(--ic-bg);border-bottom:1px solid var(--ic-border);padding:10px 24px}
 .filter-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:center}
 .filter-row > select,.filter-row > input{min-width:0;width:100%}
-.filter-row-2{display:flex;gap:8px;align-items:center;margin-top:8px}
-.filter-row-2 .freeze-toggle{justify-content:center}
 .freeze-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;user-select:none;white-space:nowrap;padding:5px 9px;border:1px solid #d8dde6;border-radius:7px;background:#fff;transition:all .15s}
 .freeze-toggle:hover{border-color:#b9c4d4}
 .freeze-toggle input{margin:0;cursor:pointer}
@@ -74,31 +71,10 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--ic-bg);min-h
 .inline-save-row .field-lbl{margin-bottom:5px}
 .inline-save-row input[type=text],.inline-save-row select{width:100%;border:1px solid var(--ic-border);border-radius:7px;padding:8px 10px;font-size:12px;font-family:inherit;color:var(--ic-text);background:#fff;outline:none}
 
-/* Per-row freeze (❄) + dismiss (×) buttons */
-.row-pin{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid #d8dde6;border-radius:6px;background:#fff;color:#8aa0bd;font-size:12px;line-height:1;padding:0;cursor:pointer;transition:all .12s}
-.row-pin:hover{border-color:#9ec0f5;color:#1648a8}
-.row-pin.on{background:#eaf2ff;border-color:#7fb0f0;color:#1648a8}
+/* Per-row dismiss (×) button */
 .row-x{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid #f0d2d2;border-radius:6px;background:#fff;color:#d9534f;font-size:16px;line-height:1;padding:0 0 2px;cursor:pointer;transition:all .12s}
 .row-x:hover{background:#d9534f;color:#fff;border-color:#d9534f}
-#resultsTbody tr.row-pinned{background:#f5f9ff}
-#resultsTbody tr.row-pinned td:first-child{box-shadow:inset 3px 0 0 var(--ic-blue)}
-/* Whole-set freeze ("Freeze all results") — tint EVERY row blue with the frozen
-   left-bar, so it's obvious the entire set is locked. */
-#resultsTbody.all-frozen tr{background:#eef4ff}
-#resultsTbody.all-frozen tr td:first-child{box-shadow:inset 3px 0 0 var(--ic-blue)}
-/* "Find more jobs" — secondary action shown next to Re-score when results are frozen. */
-#btnFindMore{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1648a8;background:#eef4ff;border:1px solid #9ec0f5;border-radius:8px;padding:9px 13px;cursor:pointer;transition:all .15s}
-#btnFindMore:hover{background:#e0ecff;border-color:#7fb0f0}
-#btnFindMore:disabled{opacity:.55;cursor:default}
-#btnFindMore svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4}
-/* Re-score animations (freeze workflow) */
 #resultsTbody tr[id^="row-"]{will-change:transform}
-@keyframes scorePulse{0%{background:#fff6d8}60%{background:#fffbe9}100%{background:transparent}}
-#resultsTbody tr.row-rescored{animation:scorePulse 1.6s ease-out}
-.score-delta{display:inline-block;font-size:10px;font-weight:700;margin-left:5px;padding:1px 5px;border-radius:6px;vertical-align:middle;animation:deltaFade 2.6s ease-out forwards}
-.score-delta.up{color:#15803d;background:#dcfce7}
-.score-delta.down{color:#b91c1c;background:#fee2e2}
-@keyframes deltaFade{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:none}78%{opacity:1}100%{opacity:0}}
 .filter-bar select,.filter-bar input[type=text]{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;color:var(--ic-text);height:32px;font-family:inherit;outline:none;width:100%}
 .filter-bar select:focus,.filter-bar input:focus{border-color:#99b8f0}
 .filter-sep{display:none}
@@ -639,11 +615,7 @@ tbody tr:hover{background:var(--ic-bg)}
    column) need every pixel back to avoid a horizontal scroll on narrower screens. */
 tbody td{padding:10px 8px;color:var(--ic-text);vertical-align:middle}
 
-/* Dates column — created + updated stacked in one compact cell instead of two
-   separate columns, so the row-action buttons need less horizontal scrolling. */
-.job-dates{font-size:11px;line-height:1.6;white-space:nowrap}
-.job-dates .jd-created::before{content:"new ";color:#999;font-weight:600}
-.job-dates .jd-updated::before{content:"upd ";color:#999;font-weight:600}
+.job-dates{font-size:11px;white-space:nowrap}
 
 /* Score / grade */
 .grade{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:13px;font-size:12.5px;font-weight:800;color:#fff}
@@ -651,6 +623,7 @@ tbody td{padding:10px 8px;color:var(--ic-text);vertical-align:middle}
 .grade-b{background:#c67c14}
 .grade-c{background:#9ca3af}
 .pct{color:#aaa;font-size:11px;margin-left:5px}
+.no-score{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;color:#bbb;font-size:14px}
 .job-title-main{font-weight:500}
 .match-reason{font-size:11px;color:#bbb;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
 

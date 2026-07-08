@@ -26,9 +26,10 @@ export const state = {
   modalJob: null,
 
   // ── Search result-set bookkeeping (search; read by candidate) ──
-  pinnedJobIds: new Set(),        // jobs frozen individually (kept across re-runs)
   dismissedJobIds: new Set(),     // jobs removed from view (won't resurface on re-run)
-  resultsFrozen: false,           // whole set frozen — re-score in place, don't re-search
+  // 'ai' (candidate-matched, has score/grade) vs 'filters' (plain browse, no
+  // candidate involved — see runFiltersOnlyStep in search.js).
+  resultsMode: 'ai',
   sortCol: 'score',
   sortAsc: false,
   top20Only: false,               // cap the results table to the top 20 by score

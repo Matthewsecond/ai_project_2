@@ -138,7 +138,11 @@ def passes_filters(row: dict, filters: dict) -> bool:
     # Job Status
     if filters.get("status") and row.get(c["status"]) != filters["status"]:
         return False
-    if filters.get("online_since") and not _within_days(row.get(c["date_posted"]), int(filters["online_since"])):
+    # created_at, not date_posted/publication_date — the latter is ~half NULL on
+    # the SK market (see serialize_job), same reason the "Online since" results
+    # column shows created_at. Keeping the filter and the column it's named after
+    # in agreement.
+    if filters.get("online_since") and not _within_days(row.get("created_at"), int(filters["online_since"])):
         return False
     if filters.get("scraping_date") and not _within_days(row.get("updated_at"), int(filters["scraping_date"])):
         return False

@@ -311,11 +311,6 @@ async function refreshCandidateFromDb(){
     } else {
       setCandidateName(name);
     }
-    // A refresh is a fresh search — never re-score a frozen set.
-    if (state.resultsFrozen){
-      const chk = document.getElementById('freezeChk');
-      if (chk){ chk.checked = false; app.toggleFreeze(); }
-    }
     if (btn) btn.innerHTML = orig;
     await app.runMatching();                 // fresh vector search against the live DB
     if (state.lastResults.length) await app.saveAll();   // upsert profile + save new A/B jobs
@@ -904,8 +899,7 @@ function clearCandidateProfile() {
   state.currentCandidateProfile = null;
   _linkedinText       = '';
   _linkedinScrapedKey = '';
-  state.dismissedJobIds    = new Set();   // reset per-row dismiss/freeze for the new candidate
-  state.pinnedJobIds       = new Set();
+  state.dismissedJobIds    = new Set();   // reset per-row dismiss for the new candidate
   ['cvPasteText', 'liUrls'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('dropText').innerHTML =
     'Drop a PDF CV here, or <a href="#" data-action="browse-cv">browse to upload</a> — or paste CV text directly below';

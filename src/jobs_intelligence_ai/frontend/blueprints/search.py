@@ -2,14 +2,16 @@
 tabs/search.py — Search tab (CV matching).
 
 Routes:
-  GET  /api/filters       → filter dropdown options
-  POST /api/match         → run AI/vector matching against a candidate profile
-  POST /api/quality       → score a batch of jobs for quality
+  GET  /api/filters        → filter dropdown options
+  POST /api/match          → run AI/vector matching against a candidate profile
+  POST /api/search-filters → plain filter-based browse, no candidate/AI matching
+  POST /api/quality        → score a batch of jobs for quality
 """
 import json
 from flask import Blueprint, request, jsonify, Response, stream_with_context
 from jobs_intelligence_ai.infra.database import get_filter_options
 from jobs_intelligence_ai.services.search.orchestrator import Orchestrator
+from jobs_intelligence_ai.services.search.job_search import JobSearch
 from jobs_intelligence_ai.services.enrichment import Rescorer
 
 bp = Blueprint("search", __name__, url_prefix="/api")
@@ -18,6 +20,7 @@ bp = Blueprint("search", __name__, url_prefix="/api")
 # OpenAI client across requests.
 _orchestrator = Orchestrator()
 _rescorer     = Rescorer()
+_job_search   = JobSearch()
 
 
 @bp.route("/filters")
@@ -107,6 +110,25 @@ def api_match_stream():
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache",
                              "X-Accel-Buffering": "no"})
+
+
+@bp.route("/search-filters", methods=["POST"])
+def api_search_filters():
+    """
+    Body: { filters?, top_n? }
+    Plain filter-based browse — no candidate profile, no vector/AI matching.
+    Returns ungraded jobs (no score/grade field), newest first.
+    """
+    body    = request.get_json(silent=True) or {}
+    filters = dict(body.get("filters") or {})
+    top_n   = int(body.get("top_n") or 20)
+
+    try:
+        jobs = _job_search.fetch_by_filters(filters, top_n)
+        return jsonify({"ok": True, "count": len(jobs), "jobs": jobs})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @bp.route("/match/rescore", methods=["POST"])

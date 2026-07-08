@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════
-//  Search — filters, run matching, SSE progress, render/sort/save/freeze,
+//  Search — filters, run matching, SSE progress, render/sort/save,
 //  per-row actions, extras picker
 // ════════════════════════════════════════════════════════════
 // The search tab's core: loads filter dropdowns, runs candidate-vs-job matching
-// (streamed via SSE with a one-shot fallback), renders/sorts/freezes the result
-// table, and the per-row save/pin/dismiss/extras-picker actions.
+// (streamed via SSE with a one-shot fallback), renders/sorts the result table,
+// and the per-row save/dismiss/extras-picker actions.
 import { state, _ACTIONS, app } from "./state.js";
 import { esc, gradeClass, storeJob, getStoredJob } from "./util.js";
 import api from "./api.js";
@@ -155,7 +155,7 @@ function populateSelect(id, vals, placeholder, pinnedFirst) {
 }
 
 // Read the filter-bar controls into a { key: value } object (only non-empty ones),
-// shared by runMatching() and findMoreJobs() so a new filter is one place to add.
+// shared by runMatching() and runFiltersOnlyStep() so a new filter is one place to add.
 function _readFilterInputs() {
   const filters = {};
   const state_    = document.getElementById('filterState').value;
@@ -232,10 +232,9 @@ Object.assign(_ACTIONS, {
   'nace1-change':            ()      => onNace1Change(),
   'nace2-change':            ()      => onNace2Change(),
   'clear-results':           ()      => clearResults(),
+  'run-filters-only-step':   ()      => runFiltersOnlyStep(),
   'save-candidate':          ()      => saveCandidate(document.getElementById('btnSaveCandidate')),
   // results filter + sortable headers
-  'rescore-frozen-results':  ()      => rescoreFrozenResults(),
-  'toggle-freeze':           ()      => toggleFreeze(),
   'toggle-top20':            ()      => toggleTop20(),
   'sort-by':                 (el)    => sortBy(el.dataset.sort),
 });
@@ -245,10 +244,9 @@ Object.assign(_ACTIONS, {
 //  Run matching
 // ════════════════════════════════════════════════════════════
 document.getElementById('btnRun').addEventListener('click', runMatching);
-document.getElementById('btnFindMore').addEventListener('click', findMoreJobs);
 
 // ════════════════════════════════════════════════════════════
-//  Per-row actions — dismiss (×) and freeze/pin (❄) a single result
+//  Per-row actions — dismiss (×) a single result
 // ════════════════════════════════════════════════════════════
 
 // Remove a single job from the results view so the list stays clean. Dismissed
@@ -256,7 +254,6 @@ document.getElementById('btnFindMore').addEventListener('click', findMoreJobs);
 function dismissJob(jobId) {
   const id = String(jobId);
   state.dismissedJobIds.add(id);
-  state.pinnedJobIds.delete(id);   // a dismissed job can't also be frozen
   const tr = document.getElementById('row-' + jobId);
   if (tr) {
     tr.style.transition = 'opacity .2s, transform .2s';
@@ -269,170 +266,20 @@ function dismissJob(jobId) {
   }, 200);
 }
 
-// Freeze / unfreeze a single result. Frozen rows are pinned to the top and are
-// kept (with their current score) when you re-run matching to pull in more jobs.
-function togglePinJob(jobId) {
-  const id = String(jobId);
-  if (state.pinnedJobIds.has(id)) state.pinnedJobIds.delete(id);
-  else state.pinnedJobIds.add(id);
-  renderResults(state.lastResults);
-}
-
-// ════════════════════════════════════════════════════════════
-//  Freeze results — keep the job set fixed and only re-score it
-// ════════════════════════════════════════════════════════════
-
-function _runLabelFor() {
-  if (state.resultsFrozen && state.lastResults.length) return 'Re-score results';
-  return 'Run matching';
-}
-
-function toggleFreeze() {
-  state.resultsFrozen = document.getElementById('freezeChk').checked;
-  document.getElementById('freezeToggle').classList.toggle('on', state.resultsFrozen);
-  document.getElementById('resultsTbody')?.classList.toggle('all-frozen', state.resultsFrozen);
-  document.getElementById('runLabel').textContent = _runLabelFor();
-  // When frozen, offer a second action: search for more jobs to add to the locked set.
-  const moreBtn = document.getElementById('btnFindMore');
-  if (moreBtn) moreBtn.style.display = (state.resultsFrozen && state.lastResults.length) ? '' : 'none';
-  const st = document.getElementById('statusText');
-  if (st && state.resultsFrozen && state.lastResults.length) {
-    st.textContent = `❄ Frozen — ${state.lastResults.length} jobs locked. Re-score them against a changed candidate, or find more jobs to add.`;
-  }
-  _updateStaleNotice();
-}
-
 function toggleTop20() {
   state.top20Only = document.getElementById('top20Chk').checked;
   document.getElementById('top20Chk').closest('label').classList.toggle('on', state.top20Only);
   if (state.lastResults.length) renderResults(state.lastResults);
 }
 
-// Show a warning when a FROZEN result set no longer matches the current candidate
-// (e.g. you froze, then edited the CV). The data to detect this already exists:
-// `state.scoredAgainstText` is what the scores correspond to. Cheap, prevents acting on
-// stale scores. Hidden whenever not frozen, no results, or the text still matches.
-function _updateStaleNotice() {
-  const el = document.getElementById('staleScoreNotice');
-  if (!el) return;
-  let cur = '';
-  try { cur = (app.buildCandidateText() || '').trim(); } catch (_) {}
-  const stale = state.resultsFrozen && state.lastResults.length && cur &&
-                cur !== (state.scoredAgainstText || '').trim();
-  el.style.display = stale ? 'flex' : 'none';
-}
-
-// Re-evaluate staleness whenever the candidate input changes (any field in the input area).
-document.addEventListener('input', e => {
-  if (e.target.closest && e.target.closest('.input-area')) _updateStaleNotice();
-});
-
-function _captureRowRects() {
-  const m = {};
-  document.querySelectorAll('#resultsTbody tr[id^="row-"]').forEach(tr => {
-    m[tr.id] = tr.getBoundingClientRect().top;
-  });
-  return m;
-}
-
-// FLIP slide + score-delta badge after a re-score, so the reshuffle is visible.
-function _animateRescore(prevRects, prevScore) {
-  document.querySelectorAll('#resultsTbody tr[id^="row-"]').forEach(tr => {
-    const oldTop = prevRects[tr.id];
-    if (oldTop != null) {
-      const dy = oldTop - tr.getBoundingClientRect().top;
-      if (Math.abs(dy) > 1) {
-        tr.style.transition = 'none';
-        tr.style.transform  = `translateY(${dy}px)`;
-        requestAnimationFrame(() => {
-          tr.style.transition = 'transform .6s cubic-bezier(.22,.61,.36,1)';
-          tr.style.transform  = '';
-        });
-      }
-    }
-    const jid = tr.id.replace('row-', '');
-    const job = state.lastResults.find(j => String(j.job_id) === jid);
-    if (!job) return;
-    const before = prevScore[job.job_id];
-    if (before == null) return;
-    const diff = Math.round((job.score - before) * 100);
-    if (diff !== 0) {
-      tr.classList.add('row-rescored');
-      setTimeout(() => tr.classList.remove('row-rescored'), 1700);
-      const pct = tr.querySelector('.pct');
-      if (pct) {
-        const b = document.createElement('span');
-        b.className   = 'score-delta ' + (diff > 0 ? 'up' : 'down');
-        b.textContent = (diff > 0 ? '▲+' : '▼') + Math.abs(diff);
-        pct.insertAdjacentElement('afterend', b);
-      }
-    }
-  });
-}
-
-async function rescoreFrozenResults() {
-  const btn = document.getElementById('btnRun');
-  const text = app.buildCandidateText();
-  if (!text) { alert('Please enter a candidate profile.'); return; }
-  if (!state.lastResults.length) return;
-  // Nothing changed since the current scores — re-scoring identical input just churns
-  // (the grader jitters a little each call). Skip it and tell the user.
-  if (text.trim() === (state.scoredAgainstText || '').trim()) {
-    document.getElementById('resultsStatus').innerHTML =
-      '<span style="color:#b45309;font-weight:600">Candidate unchanged — nothing to re-score. Edit the profile, then re-score.</span>';
-    return;
-  }
-
-  btn.disabled = true;
-  document.getElementById('runLabel').textContent = 'Re-scoring…';
-  document.getElementById('resultsStatus').innerHTML =
-    '<div class="spinner"></div><span>Re-scoring the frozen results against the updated candidate…</span>';
-
-  const prevScore = {};
-  state.lastResults.forEach(j => { prevScore[j.job_id] = j.score; });
-  const prevRects = _captureRowRects();
-
-  const jobs = state.lastResults.map(j => ({
-    job_id: j.job_id, title: j.title, company: j.company, city: j.city, state: j.state,
-    skills: j.skills, skills_en: j.skills_en, summary: j.summary,
-    description: (j.description || '').slice(0, 400), occ_group: j.occ_group,
-  }));
-
-  try {
-    const data = await api.post('/api/match/rescore', { candidate_text: text, jobs });
-    const map = {};
-    (data.jobs || []).forEach(u => { map[u.job_id] = u; });
-    state.lastResults.forEach(j => {
-      if (state.pinnedJobIds.has(String(j.job_id))) return;   // frozen row keeps its score
-      const u = map[j.job_id];
-      if (u) {
-        j.score = u.score; j.score_pct = u.score_pct; j.grade = u.grade;
-        if (u.match_reason) j.match_reason = u.match_reason;
-      }
-    });
-    state.scoredAgainstText = text;           // scores now correspond to this candidate text
-    renderResults(state.lastResults);          // re-sorts into the new order
-    _animateRescore(prevRects, prevScore);
-    _updateStaleNotice();                // scores fresh again — hide the warning
-  } catch(e) {
-    document.getElementById('resultsStatus').innerHTML =
-      `<span>Error re-scoring: ${esc(e.message)}</span>`;
-  } finally {
-    btn.disabled = false;
-    document.getElementById('runLabel').textContent = _runLabelFor();
-  }
-}
-
 async function runMatching() {
   const btn = document.getElementById('btnRun');
+  state.resultsMode = 'ai';
   // Fresh run → reset the manual "Save candidate" button + status indicator.
   const scBtn = document.getElementById('btnSaveCandidate');
   if (scBtn) { scBtn.textContent = '＋ Save candidate'; scBtn.classList.remove('saved', 'dup'); scBtn.disabled = false; }
   const scStatus = document.getElementById('candSaveStatus');
   if (scStatus) scStatus.style.display = 'none';
-
-  // Frozen: don't run a fresh search — re-score the locked job set in place.
-  if (state.resultsFrozen && state.lastResults.length) return rescoreFrozenResults();
 
   // LinkedIn mode: scrape the profile(s) first, then match on the scraped text.
   if (state.activeMode === 'linkedin') {
@@ -459,39 +306,20 @@ async function runMatching() {
   const topN = parseInt(document.getElementById('topNSelect').value);
 
   const tbody = document.getElementById('resultsTbody');
-  // Keep any frozen (pinned) rows visible while the new search runs; show the
-  // loading spinner beneath them instead of blanking the whole table.
-  const pinnedNow = state.lastResults.filter(j => state.pinnedJobIds.has(String(j.job_id)));
-  if (pinnedNow.length) {
-    renderResults(pinnedNow);
-    const loader = document.createElement('tr');
-    loader.id = 'matchingLoaderRow';
-    loader.innerHTML = `<td colspan="9" class="no-results">
-      <div class="spinner" style="margin:0 auto 10px"></div>
-      Finding more matches… (frozen results kept above)
-    </td>`;
-    tbody.appendChild(loader);
-  } else {
-    tbody.innerHTML = `<tr><td colspan="9" class="no-results">
-      <div class="spinner" style="margin:0 auto 10px"></div>
-      Running AI matching against live database…
-    </td></tr>`;
-  }
+  tbody.innerHTML = `<tr><td colspan="8" class="no-results">
+    <div class="spinner" style="margin:0 auto 10px"></div>
+    Running AI matching against live database…
+  </td></tr>`;
   document.getElementById('resultsStatus').innerHTML =
     '<div class="spinner"></div><span>Running AI matching — embedding candidate profile and searching vector store…</span>';
 
   btn.disabled = true;
   document.getElementById('runLabel').textContent = 'Matching…';
 
-  // Apply the final job set: keep individually-frozen (pinned) jobs across the
-  // re-run, fresh results fill the rest, drop dismissed, de-dupe against pinned.
-  // Shared by the streaming path and the /api/match fallback.
+  // Apply the final job set: drop dismissed jobs. Shared by the streaming path
+  // and the /api/match fallback.
   const applyFinalJobs = (jobs) => {
-    const pinned    = state.lastResults.filter(j => state.pinnedJobIds.has(String(j.job_id)));
-    const pinnedIds = new Set(pinned.map(j => String(j.job_id)));
-    const fresh     = (jobs || []).filter(j =>
-      !state.dismissedJobIds.has(String(j.job_id)) && !pinnedIds.has(String(j.job_id)));
-    state.lastResults = [...pinned, ...fresh];
+    state.lastResults = (jobs || []).filter(j => !state.dismissedJobIds.has(String(j.job_id)));
     state.scoredAgainstText = text;   // these scores correspond to this candidate text
     renderResults(state.lastResults);
   };
@@ -510,13 +338,45 @@ async function runMatching() {
     // Auto-save the candidate to the database (unless the user turned it off).
     if (document.getElementById('autosaveCandidate')?.checked) saveCandidate();
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="9" style="padding:20px">
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:20px">
       <div class="error-box">Error: ${esc(e.message)}</div>
     </td></tr>`;
     document.getElementById('resultsStatus').innerHTML = '<span>Error — check Flask console.</span>';
   } finally {
     btn.disabled = false;
     document.getElementById('runLabel').textContent = 'Run matching';
+  }
+}
+
+// Step 3 "Job Search with Filters" — a standalone browse by filter criteria only,
+// no candidate profile required. Separate pipeline from runMatching(): no vector
+// embedding, no grading, so results carry no score/grade (renderResults() and the
+// status line both branch on state.resultsMode to render that correctly).
+async function runFiltersOnlyStep() {
+  state.resultsMode = 'filters';
+  state.sortCol = 'created_at';
+  state.sortAsc = false;
+
+  const filters = _readFilterInputs();
+  const topN    = parseInt(document.getElementById('topNSelect').value);
+
+  const tbody = document.getElementById('resultsTbody');
+  tbody.innerHTML = `<tr><td colspan="8" class="no-results">
+    <div class="spinner" style="margin:0 auto 10px"></div>
+    Searching jobs by filters…
+  </td></tr>`;
+  document.getElementById('resultsStatus').innerHTML =
+    '<div class="spinner"></div><span>Searching the database…</span>';
+
+  try {
+    const data = await api.post('/api/search-filters', { filters, top_n: topN });
+    state.lastResults = data.jobs || [];
+    renderResults(state.lastResults);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:20px">
+      <div class="error-box">Error: ${esc(e.message)}</div>
+    </td></tr>`;
+    document.getElementById('resultsStatus').innerHTML = '<span>Error — check Flask console.</span>';
   }
 }
 
@@ -557,55 +417,6 @@ function _setCandSaveStatus(msg, kind) {
   el.textContent = msg;
   el.className   = 'cand-save-status ' + kind;   // kind: 'ok' | 'dup'
   el.style.display = '';
-}
-
-// Frozen-set action: search again with WIDER retrieval and append any jobs not
-// already shown, keeping the frozen rows. Warns when nothing new turns up.
-async function findMoreJobs() {
-  const text = state.lastMatchText || app.buildCandidateText();
-  if (!text) { alert('Please enter a candidate profile.'); return; }
-
-  const moreBtn = document.getElementById('btnFindMore');
-  const runBtn  = document.getElementById('btnRun');
-  const prevIds = new Set(state.lastResults.map(j => String(j.job_id)));
-
-  const filters = _readFilterInputs();
-
-  if (moreBtn) moreBtn.disabled = true;
-  if (runBtn)  runBtn.disabled  = true;
-  document.getElementById('resultsStatus').innerHTML =
-    '<div class="spinner"></div><span>Looking for more matching jobs…</span>';
-
-  try {
-    let fresh = null;
-    try {
-      // top_n 0 = no display cap; max_results 50 = widen Stage-1 retrieval to the cap.
-      fresh = await streamMatching(text, filters, 0, 50);
-    } catch (streamErr) {
-      const data = await api.post('/api/match', { candidate_text: text, filters, max_results: 50 });
-      fresh = data.jobs || [];
-    }
-    // We only care about strong matches: add new A/B jobs, ignore C. The warning
-    // fires when the wider search surfaced no new A or B job beyond the current set.
-    const newAB = (fresh || []).filter(j =>
-      (j.grade === 'A' || j.grade === 'B') &&
-      !prevIds.has(String(j.job_id)) && !state.dismissedJobIds.has(String(j.job_id)));
-    if (newAB.length) {
-      state.lastResults = [...state.lastResults, ...newAB];   // frozen rows stay; new ones sort in by score
-      renderResults(state.lastResults);
-      document.getElementById('resultsStatus').innerHTML =
-        `<span style="color:#1648a8;font-weight:600">➕ Added ${newAB.length} new A/B job${newAB.length !== 1 ? 's' : ''} to the frozen set.</span>`;
-    } else {
-      document.getElementById('resultsStatus').innerHTML =
-        '<span style="color:#b45309;font-weight:600">⚠ No new A and B jobs were added — the search found nothing stronger beyond the current set.</span>';
-    }
-  } catch(e) {
-    document.getElementById('resultsStatus').innerHTML =
-      `<span>Error finding more: ${esc(e.message)}</span>`;
-  } finally {
-    if (moreBtn) moreBtn.disabled = false;
-    if (runBtn)  runBtn.disabled  = false;
-  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -683,14 +494,10 @@ async function streamMatching(text, filters, topN, maxResults) {
 function renderResults(jobs) {
   const notDismissed = jobs.filter(j => !state.dismissedJobIds.has(String(j.job_id)));
   // Weak (C) matches are excluded entirely — not just hidden behind a toggle.
-  // A frozen (pinned) row stays visible regardless, since freezing it was deliberate.
-  const visible = notDismissed.filter(j =>
-    (j.grade || 'C') !== 'C' || state.pinnedJobIds.has(String(j.job_id)));
+  // Jobs with no grade at all (filter-only browse — see runFiltersOnlyStep) were
+  // never graded, so they're never "weak" and always pass this filter.
+  const visible = notDismissed.filter(j => j.grade !== 'C');
   const sorted = [...visible].sort((a, b) => {
-    // Pinned ("frozen") results always rank first, so they stick when re-running.
-    const ap = state.pinnedJobIds.has(String(a.job_id)) ? 1 : 0;
-    const bp = state.pinnedJobIds.has(String(b.job_id)) ? 1 : 0;
-    if (ap !== bp) return bp - ap;
     let av, bv;
     if (state.sortCol === 'score') {
       av = a.score; bv = b.score;
@@ -710,11 +517,9 @@ function renderResults(jobs) {
 
   const savedIds = new Set(state.savedJobs.map(j => j.job_id));
   const tbody    = document.getElementById('resultsTbody');
-  // Whole-set freeze: tint every row blue so it's clear the entire set is locked.
-  tbody.classList.toggle('all-frozen', state.resultsFrozen);
 
   if (!displayed.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="no-results">
+    tbody.innerHTML = `<tr><td colspan="8" class="no-results">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
       No jobs found — try broadening filters.
     </td></tr>`;
@@ -724,17 +529,18 @@ function renderResults(jobs) {
 
   tbody.innerHTML = '';
   displayed.forEach((job, i) => {
+    const hasGrade = job.grade != null;
     const g      = job.grade || 'C';
     const loc    = [job.city, job.state].filter(Boolean).join(', ') || '—';
     const isSaved = savedIds.has(job.job_id);
-    const isPinned = state.pinnedJobIds.has(String(job.job_id));
     const sid    = storeJob({ ...job, _batch: 'search' });
     const tr     = document.createElement('tr');
     tr.id = `row-${job.job_id}`;
-    if (isPinned) tr.classList.add('row-pinned');
     tr.innerHTML = `
       <td>
-        <span class="grade ${gradeClass(g)}">${g}</span><span class="pct">${job.score_pct || ''}</span>
+        ${hasGrade
+          ? `<span class="grade ${gradeClass(g)}">${g}</span><span class="pct">${job.score_pct || ''}</span>`
+          : '<span class="no-score" title="Filter search — not AI-scored">—</span>'}
       </td>
       <td style="cursor:pointer" data-action="open-job-modal" data-sid="${sid}" title="Click to see details">
         <div class="job-title-main"><span class="job-detail-plus" title="More details">+</span>${esc(job.title)}</div>
@@ -743,11 +549,7 @@ function renderResults(jobs) {
       <td>${job.company ? `<span class="company-link" data-company="${esc(job.company)}">${esc(job.company)}</span>` : '—'}</td>
       <td>${esc(loc)}</td>
       <td>${esc(job.salary || '—')}</td>
-      <td>${esc(job.portal || '—')}</td>
-      <td class="job-dates" title="${job.created_at ? 'First seen ' + esc(String(job.created_at).substring(0,10)) : ''}${job.created_at && job.updated_at ? ' · ' : ''}${job.updated_at ? 'Last updated ' + esc(String(job.updated_at).substring(0,10)) : ''}">
-        <div class="jd-created">${job.created_at ? esc(String(job.created_at).substring(0,10)) : '—'}</div>
-        <div class="jd-updated">${job.updated_at ? esc(String(job.updated_at).substring(0,10)) : '—'}</div>
-      </td>
+      <td class="job-dates">${job.created_at ? esc(String(job.created_at).substring(0,10)) : '—'}</td>
       <td><span id="jc-${job.job_id}"></span></td>
       <td style="display:flex;gap:4px;align-items:center;padding-left:6px;padding-right:6px">
         ${job.url ? `<a href="${esc(job.url)}" target="_blank" class="icon-btn" title="Open job link">
@@ -757,9 +559,6 @@ function renderResults(jobs) {
           data-action="toggle-save" data-job-id="${job.job_id}" title="${isSaved ? 'Saved' : 'Save job'}">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
         </button>
-        <button class="row-pin${isPinned ? ' on' : ''}" id="pin-${job.job_id}"
-          data-action="toggle-pin-job" data-job-id="${job.job_id}"
-          title="${isPinned ? 'Frozen — kept when you re-run for more results' : 'Freeze this result — keep it when you re-run for more'}">❄</button>
         <button class="extras-picker-btn visible" id="extras-pick-${job.job_id}"
           data-action="open-extras-picker" data-job-id="${job.job_id}" data-sid="${sid}"
           title="Save with extras">+</button>
@@ -773,24 +572,26 @@ function renderResults(jobs) {
     setTimeout(() => { tr.style.opacity = '1'; tr.style.transform = 'none'; }, 30 + i * 25);
   });
 
-  const nA = visible.filter(j => j.grade === 'A').length;
-  const nB = visible.filter(j => j.grade === 'B').length;
-  const nPin = visible.filter(j => state.pinnedJobIds.has(String(j.job_id))).length;
+  const gradeSummary = state.resultsMode === 'filters'
+    ? `${visible.length} jobs found`
+    : (() => {
+        const nA = visible.filter(j => j.grade === 'A').length;
+        const nB = visible.filter(j => j.grade === 'B').length;
+        return `${visible.length} matches found — ${nA} strong (A) · ${nB} good (B)`;
+      })();
   document.getElementById('resultsStatus').innerHTML =
-    `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; ${visible.length} matches found — ${nA} strong (A) · ${nB} good (B)` +
-    (nPin ? ` · <span style="color:#1648a8;font-weight:600">❄ ${nPin} frozen</span>` : '') +
+    `<span style="color:#1a7a2e;font-weight:500">✓</span>&nbsp; ${gradeSummary}` +
     (state.top20Only && sorted.length > displayed.length ? ` · showing top ${displayed.length}` : '');
 
   _loadJobContacts(displayed);
 }
 
 // Action registry for the dynamically-built results rows — clickable title
-// (open modal), save / pin / extras-picker / dismiss buttons. The button
-// handlers keep the original stopPropagation so a row-level click can't fire.
+// (open modal), save / extras-picker / dismiss buttons. The button handlers
+// keep the original stopPropagation so a row-level click can't fire.
 Object.assign(_ACTIONS, {
   'open-job-modal':    (el)    => app.openJobModal(el.dataset.sid),
   'toggle-save':       (el)    => toggleSave(el, el.dataset.jobId),
-  'toggle-pin-job':    (el, e) => { e.stopPropagation(); togglePinJob(el.dataset.jobId); },
   'open-extras-picker':(el, e) => { e.stopPropagation(); openExtrasPicker(el.dataset.jobId, el.dataset.sid, el); },
   'dismiss-job':       (el, e) => { e.stopPropagation(); dismissJob(el.dataset.jobId); },
   'inline-save-notes-input':   (el) => _inlineSaveNotesInput(el),
@@ -905,7 +706,7 @@ function _revealInlineSaveRow(jobId) {
   const tr = document.createElement('tr');
   tr.className = 'inline-save-row';
   tr.id = `inline-save-${jobId}`;
-  tr.innerHTML = `<td colspan="9"><div class="inline-save-row-inner">
+  tr.innerHTML = `<td colspan="8"><div class="inline-save-row-inner">
     <div class="inline-save-notes">
       <div class="field-lbl">Notes</div>
       <input type="text" placeholder="Add a note about this job…" data-job-id="${jobId}" data-input-action="inline-save-notes-input">
@@ -1090,8 +891,7 @@ async function doSaveWithExtras() {
 function clearResults() {
   state.lastResults = [];
   state.dismissedJobIds = new Set();
-  state.pinnedJobIds    = new Set();
-  document.getElementById('resultsTbody').innerHTML = `<tr><td colspan="9" class="no-results">
+  document.getElementById('resultsTbody').innerHTML = `<tr><td colspan="8" class="no-results">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
     No results yet — run matching to find jobs
   </td></tr>`;
@@ -1116,7 +916,7 @@ async function loadTestData() {
 // Cross-module exports — registered on app so candidate/saved/modal/
 // assistant/interview can call into this module without a direct import.
 Object.assign(app, {
-  renderResults, runMatching, saveAll, toggleFreeze, updateSavedBadge,
+  renderResults, runMatching, saveAll, updateSavedBadge,
   doSaveWithExtras, loadFilters,
   // Shared with the Pipeline tab's Jobs sub-tab (saved.js) — same batch-fetch +
   // "#jc-<job_id>" span population used for the Search tab's Contact column.

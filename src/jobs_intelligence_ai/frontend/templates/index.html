@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1200">
-<title>Jobs Intelligence {{ country_label }}</title>
+<title>Jobs Sales AI</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
@@ -23,10 +23,7 @@
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="logo">
-      <div class="logo-mark">
-        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-      </div>
-      Jobs Intelligence {{ country_label }}
+      Jobs Sales AI
     </div>
     <div class="nav-area">
       <div class="tabs">
@@ -35,10 +32,7 @@
       </div>
     </div>
     <div class="topbar-right">
-      <span class="jc-lang-label" style="color:#bbb;font-size:10px;text-transform:uppercase;letter-spacing:.06em">AI lang:</span>
-      <button class="jc-lang-btn active" data-lang="en" data-action="job-chat-lang">EN</button>
-      <button class="jc-lang-btn" data-lang="de" data-action="job-chat-lang">DE</button>
-      <button class="jc-lang-btn" data-lang="auto" data-action="job-chat-lang">Auto</button>
+      <span class="ic-brand-tag">Acme Recruitment</span>
       <div style="width:1px;height:14px;background:#e0dfd8;margin:0 4px"></div>
       <div class="db-dot" id="dbDot"></div>
       <span id="dbStatus">Connecting…</span>
@@ -337,13 +331,10 @@
             </div>
           </div>
 
-          <div class="filter-row-2">
-            <label class="freeze-toggle" id="freezeToggle" title="Keep this exact set of jobs and only re-score them when you change the candidate">
-              <input type="checkbox" id="freezeChk" data-change-action="toggle-freeze">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-              <span>Freeze all results</span>
-            </label>
-          </div>
+          <button class="run-btn" data-action="run-filters-only-step" style="margin-top:10px" title="Browse jobs matching these filters directly — no candidate profile needed">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span>Search jobs</span>
+          </button>
         </div>
             </div>
           </div>
@@ -364,11 +355,6 @@
           </label>
           <button class="export-btn" id="btnSaveCandidate" data-action="save-candidate">＋ Save candidate</button>
           <span id="candSaveStatus" class="cand-save-status" style="display:none"></span>
-          <button id="btnFindMore" style="display:none"
-            title="Search for additional jobs and add any not already in the frozen set">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Find more jobs</span>
-          </button>
           <div class="run-bar-right">
             <button class="export-btn" data-action="export-results">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -395,11 +381,6 @@
             <span>Top 20 matches only</span>
           </label>
         </div>
-        <!-- Stale-score warning: frozen results no longer match the current candidate. -->
-        <div id="staleScoreNotice" style="display:none;margin:0 0 10px;padding:8px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;color:#9a3412;font-size:13px;align-items:center;gap:10px">
-          <span>⚠ Candidate changed — these frozen scores are stale.</span>
-          <button type="button" data-action="rescore-frozen-results" style="margin-left:auto;background:#9a3412;color:#fff;border:none;border-radius:6px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer">Re-score</button>
-        </div>
         <div class="results-table-wrap">
           <table id="resultsTable">
             <thead>
@@ -409,14 +390,13 @@
                 <th data-action="sort-by" data-sort="company">Company ↕</th>
                 <th data-action="sort-by" data-sort="location">Location ↕</th>
                 <th data-action="sort-by" data-sort="salary">Salary ↕</th>
-                <th data-action="sort-by" data-sort="portal">Portal ↕</th>
-                <th data-action="sort-by" data-sort="updated_at">Dates ↕</th>
+                <th data-action="sort-by" data-sort="created_at">Online since ↕</th>
                 <th>Contact</th>
                 <th style="width:150px"></th>
               </tr>
             </thead>
             <tbody id="resultsTbody">
-              <tr><td colspan="9" class="no-results">
+              <tr><td colspan="8" class="no-results">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
                 No results yet — run matching to find jobs
               </td></tr>

@@ -224,13 +224,24 @@ def _add_industry(rows: list[dict]) -> None:
 
 def fetch_jobs_for_matching(filters: dict, limit: int = 500) -> list[dict]:
     """
-    Fetch jobs from the active read view applying hard filters.
+    Fetch jobs matching the given filters, newest first, fully enriched.
 
-    Special filter key `_positions` (used when the vector store returned job titles
-    but no usable ids) is resolved on the base `jobs_table` — a fast indexed scan —
-    and enriched by id, instead of a leading-wildcard LIKE against the heavy view
-    (correlated subqueries + window fn → 30s read-timeout). The base table shares
-    the read view's id-space, so the ids feed straight into fetch_jobs_by_ids().
+    Queries the lightweight base `jobs_table` — not the read view — for ids,
+    applying only the filters that map to columns present there on BOTH country
+    profiles (status, portal, work_time, employment_relationship, education, plus
+    occ_group where present). The view embeds correlated subqueries that make a
+    broad WHERE+ORDER BY+LIMIT scan prohibitively slow (get_filter_options() hits
+    the same wall — see its docstring; a live test of the old view-scanning
+    version of this function timed out past the 30s read_timeout). A targeted id
+    lookup via fetch_jobs_by_ids stays fast, same as the AI-matching path.
+
+    Everything else (state/city/zipcode/company/salary/skills/…) isn't on the
+    base table at all — the caller re-applies the full filter set via
+    utils.passes_filters on these enriched rows to catch those.
+
+    Special filter key `_positions` (used when the vector store returned job
+    titles but no usable ids) is resolved the same way, via title LIKE on the
+    base table.
     """
     c = config.COL
 
@@ -241,41 +252,46 @@ def fetch_jobs_for_matching(filters: dict, limit: int = 500) -> list[dict]:
     where_clauses = []
     params = {}
 
-    if filters.get("state"):
-        where_clauses.append(f"`{c['state']}` = :state")
-        params["state"] = filters["state"]
-
-    if filters.get("occ_group") and config.PROFILE.col_present("occ_group"):
-        where_clauses.append(f"`{c['occ_group']}` = :occ_group")
-        params["occ_group"] = filters["occ_group"]
+    if filters.get("status"):
+        where_clauses.append(f"`{c['status']}` = :status")
+        params["status"] = filters["status"]
 
     if filters.get("portal"):
         where_clauses.append(f"`{c['portal']}` = :portal")
         params["portal"] = filters["portal"]
 
-    if filters.get("city"):
-        where_clauses.append(f"`{c['city']}` LIKE :city")
-        params["city"] = f"%{filters['city']}%"
+    if filters.get("work_time"):
+        where_clauses.append(f"`{c['work_time']}` = :work_time")
+        params["work_time"] = filters["work_time"]
+
+    if filters.get("employment_relationship"):
+        where_clauses.append(f"`{c['employment_relationship']}` = :employment_relationship")
+        params["employment_relationship"] = filters["employment_relationship"]
+
+    if filters.get("education"):
+        where_clauses.append(f"`{c['education']}` = :education")
+        params["education"] = filters["education"]
+
+    if filters.get("occ_group") and config.PROFILE.col_present("occ_group"):
+        where_clauses.append(f"`{c['occ_group']}` = :occ_group")
+        params["occ_group"] = filters["occ_group"]
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
     params["limit"] = limit
 
     sql = f"""
-        SELECT *
-        FROM {config.PROFILE.read_view}
+        SELECT `{c['job_id']}` AS id
+        FROM {config.PROFILE.jobs_table}
         {where_sql}
+        ORDER BY created_at DESC
         LIMIT :limit
     """
 
     with get_engine().connect() as conn:
         result = conn.execute(text(sql), params)
-        keys = list(result.keys())
-        rows = [dict(zip(keys, row)) for row in result]
+        ids = [row[0] for row in result]
 
-    _add_geo(rows)
-    _add_scraped_descriptions(rows)
-    _add_industry(rows)
-    return rows
+    return fetch_jobs_by_ids(ids) if ids else []
 
 
 def _resolve_ids_by_position(positions: list, limit: int) -> list:
