@@ -4,8 +4,12 @@ accounts.py — MySQL-backed authentication for Jobs Intelligence AI.
 Users live in the Jobs_Intelligence_AI.app_user table (config.APP_SCHEMA) and each
 belongs to an account_company (the tenant firm). Login is shared across both markets —
 the same recruiters use the Austrian and Slovak apps — so users are NOT split by country
-(unlike the saved_* pipeline tables, which carry a `country` column). Passwords are hashed
-with werkzeug's pbkdf2.
+(unlike the saved_* pipeline tables, which carry a `country` column).
+
+That same app_user table is also shared with the JobsAI_BE backend (both point at the
+same Jobs_Intelligence_AI schema), so passwords are hashed with the identical scheme it
+uses — PBKDF2-HMAC-SHA256, 600k iterations, `salt_hex$hash_hex` — instead of werkzeug's
+own hash format. Whichever app creates a user, the other must be able to verify it.
 
 Public API (unchanged names):
     init_db()                       — ensure tables exist + seed default company/accounts
@@ -13,15 +17,34 @@ Public API (unchanged names):
     list_users()                    — list[dict] (no hashes)
     create_user(username, pw, ...)  — add a user (admin UI / scripts)
 """
+import hashlib
+import hmac
 import logging
+import secrets
 
 from sqlalchemy import text
-from werkzeug.security import generate_password_hash, check_password_hash
 
 from jobs_intelligence_ai.infra.database import get_engine
 from .config import APP_SCHEMA as _DB, SEED_USERS as _SEED_USERS, DEFAULT_COMPANY as _DEFAULT_COMPANY
 
 logger = logging.getLogger(__name__)
+
+# Must stay identical to JobsAI_BE's src/services/auth (AuthenticateUser/CreateUser).
+_PBKDF2_ITERATIONS = 600_000
+_HASH_NAME = "sha256"
+
+
+def _hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    derived = hashlib.pbkdf2_hmac(_HASH_NAME, password.encode(), salt, _PBKDF2_ITERATIONS)
+    return f"{salt.hex()}${derived.hex()}"
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    salt_hex, hash_hex = password_hash.split("$", 1)
+    salt = bytes.fromhex(salt_hex)
+    derived = hashlib.pbkdf2_hmac(_HASH_NAME, password.encode(), salt, _PBKDF2_ITERATIONS)
+    return hmac.compare_digest(derived.hex(), hash_hex)
 
 
 def init_db() -> None:
@@ -61,7 +84,7 @@ def init_db() -> None:
                     f"INSERT INTO {_DB}.app_user "
                     f"(account_company_id, username, password_hash, display_name, role) "
                     f"VALUES (:c, :u, :p, :d, :r)"),
-                    {"c": company_id, "u": username, "p": generate_password_hash(password),
+                    {"c": company_id, "u": username, "p": _hash_password(password),
                      "d": display_name, "r": role})
             logger.info("Seeded %d default users into %s.app_user", len(_SEED_USERS), _DB)
 
@@ -86,7 +109,7 @@ def verify_login(username: str, password: str) -> dict | None:
             f"SELECT id, account_company_id, username, password_hash, display_name, "
             f"role, visibility FROM {_DB}.app_user WHERE username = :u LIMIT 1"),
             {"u": username}).mappings().first()
-    if row and check_password_hash(row["password_hash"], password):
+    if row and _verify_password(password, row["password_hash"]):
         return {"id": int(row["id"]),
                 "account_company_id": int(row["account_company_id"]),
                 "username": row["username"],
@@ -131,6 +154,6 @@ def create_user(username: str, password: str, display_name: str = "",
             f"(account_company_id, username, password_hash, display_name, role, visibility) "
             f"VALUES (:c, :u, :p, :d, :r, :v)"),
             {"c": int(account_company_id), "u": username,
-             "p": generate_password_hash(password),
+             "p": _hash_password(password),
              "d": display_name or username, "r": role, "v": visibility})
         return int(res.lastrowid)

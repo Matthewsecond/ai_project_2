@@ -6,8 +6,6 @@ DB via a tiny inline fake engine (mimicking `get_engine().connect()` → `.execu
 .first()`). A correct password returns the user dict (no hash); a wrong password or unknown
 user returns None. The rest (init_db/create_user/list_users) is covered by boot + the login flow.
 """
-from werkzeug.security import generate_password_hash
-
 import jobs_intelligence_ai.services.auth.accounts as acc
 
 
@@ -36,7 +34,7 @@ def _patch(monkeypatch, row):
 
 def _row(password):
     return {"id": 1, "account_company_id": 1, "username": "admin",
-            "password_hash": generate_password_hash(password),
+            "password_hash": acc._hash_password(password),
             "display_name": "Administrator", "role": "admin", "visibility": "all"}
 
 
