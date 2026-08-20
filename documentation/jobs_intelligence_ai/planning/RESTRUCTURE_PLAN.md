@@ -28,7 +28,7 @@ stable**; most current features are experimental and not demo-ready. Two needs:
 2. **Real modules** — `src/` is currently organized *horizontally by layer*
    (`services/` is a flat dump of 16 files, with stray `chat.py` / `taxonomy.py`
    at the top). We want proper self-contained modules, mirroring the convention
-   in `C:\Users\roman\PycharmProjects\Work\src\pipelines` (each sub-domain is a
+   in a separate `src/pipelines` project (each sub-domain is a
    package with `__init__` / `__main__` / `config` / `orchestrator` + helpers,
    plus a shared/ foundation).
 

@@ -21,9 +21,9 @@ CLASSIFIER_MODEL = config.CLASSIFIER_MODEL
 # DB so each demo run starts clean — see store.reset_demo_candidates(), called from
 # frontend/app.py::create_app(). Keep in sync with the JS example list.
 DEMO_CANDIDATE_NAMES = {
-    "at": ["Roman Labuš", "Max Weber", "Julia Reiter", "Sophie Wagner", "Nina Fuchs",
+    "at": ["Lukas Berger", "Max Weber", "Julia Reiter", "Sophie Wagner", "Nina Fuchs",
            "Felix Kraus", "Stefan Hofer", "Thomas Gruber", "Anna Bauer"],
-    "sk": ["Roman Labuš", "Marek Novák", "Lucia Horváthová", "Tomáš Kováč",
+    "sk": ["Tomáš Král", "Marek Novák", "Lucia Horváthová", "Tomáš Kováč",
            "Zuzana Krajčíová", "Martin Šimko", "Peter Varga", "Eva Tóthová", "Jana Kováčová"],
 }
 

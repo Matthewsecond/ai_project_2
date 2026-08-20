@@ -216,7 +216,7 @@ Companies; saved-job-count on Companies and Contacts). Contacts' job-online-coun
 as the "Open jobs" column + Deal-Filter min-jobs field (2026-07-06).
 
 **Note on the mockup's saved-items table screenshots:** the sample rows under all four
-sub-tabs are the same leftover data ("Roman Labuš / Python Developer…") from a real
+sub-tabs are the same leftover data ("Lukas Berger / Python Developer…") from a real
 screenshot of the current app, pasted under the new column headers — the row values don't
 actually line up with his proposed columns. Treat only the **column headers** as intent,
 not the sample row content.

@@ -262,32 +262,32 @@ const _EXAMPLE_PROFILE_8 = {
   summary: 'Certified PMP & Scrum Master with 8 years delivering IT projects up to €3.2M; SAP S/4HANA experience and strong agile + stakeholder management track record.',
 };
 
-// ── Example Candidate 9: Roman Labuš (Python / data, text) ───
+// ── Example Candidate 9: Lukas Berger (Python / data, text) ───
 const _EXAMPLE_CANDIDATE_9 = {
-  name: 'Roman Labuš',
-  text: `Python Developer with ~4 years of experience in web scraping, ETL pipelines and LLM-based data enrichment, based in Bratislava.
+  name: 'Lukas Berger',
+  text: `Python Developer with ~4 years of experience in web scraping, ETL pipelines and LLM-based data enrichment, based in Vienna.
 
-Currently Programmer at Acme Recruitment, Bratislava (Aug 2022–present): built and maintained web-scraping solutions for internal competitive-intelligence products (real-estate market, lead research, jobs intelligence). Built automated scrapers in Python with Playwright and Selenium that collect high-value market data, directly generating €100k+ in yearly revenue. Developed ETL pipelines with Apache Airflow and Pandas to load large datasets into SQL databases, integrated Apify to replace manual data collection, and contributed to LLM-based data-enrichment workflows in close collaboration with analysts. Built internal IT tools, project-tracking dashboards and reporting that gave management real-time visibility. Research Intern – Discussion Toxicity Prediction at KInIT (Aug 2023–Jun 2024): trained multilingual models classifying toxic social-media content and built visualizations for end users. Earlier: Copywriter at WebSupport s.r.o. (2016–2022) and Vice President for PR at NGO BEST Bratislava (2021–2022).
+Currently Data Engineer at DataStream GmbH Vienna (2022–present): built and maintained web-scraping solutions for internal market-intelligence products (real-estate market, lead research). Built automated scrapers in Python with Playwright and Selenium that collect high-value market data, developed ETL pipelines with Apache Airflow and Pandas to load large datasets into SQL databases, integrated third-party data APIs to replace manual collection, and contributed to LLM-based data-enrichment workflows in close collaboration with analysts. Built internal tooling, project-tracking dashboards and reporting that gave management real-time visibility. Previously Junior Data Engineer at MarketSense GmbH (2020–2022): maintained Python ingestion jobs, SQL reporting and automated dashboards.
 
-Education: Slovak University of Technology, FIIT Bratislava – Information & Communication Technologies (2022–2024); University of Logistics (VŠLG) Bratislava – Informatics in Logistics (2025–present).
-Key skills: Python, web scraping (Playwright, Selenium, Apify), ETL, Apache Airflow, Pandas, MySQL/SQL, LLM data enrichment, dashboards, Java (basic).
-Languages: Slovak (native), English C1, German B2.
-Driving licence: B. Interests: philosophy & business discussion clubs, improv theatre, writing a sci-fi novel ("Mission 77").`,
+Education: TU Wien – Software & Information Engineering (2016–2020).
+Key skills: Python, web scraping (Playwright, Selenium), ETL, Apache Airflow, Pandas, MySQL/SQL, LLM data enrichment, dashboards, Java (basic).
+Languages: German (native), English C1.
+Driving licence: B. Interests: hiking, chess, amateur astronomy.`,
 };
 const _EXAMPLE_PROFILE_9 = {
-  name: 'Roman Labuš',
+  name: 'Lukas Berger',
   title: 'Python Developer (Web Scraping & Data)',
   experience_years: '4 years',
-  skills: ['Python','Web Scraping','Playwright','Selenium','Apify','ETL','Apache Airflow','Pandas','MySQL','LLM Data Enrichment','Dashboards','Java (basic)'],
-  location: 'Bratislava',
-  languages: 'Slovak (native), English C1, German B2',
-  education: 'ICT — FIIT STU Bratislava',
-  summary: 'Python developer with ~4 years building production web-scraping and ETL pipelines (Playwright, Selenium, Apify, Airflow) plus LLM-based data enrichment; scrapers generated €100k+ in annual revenue.',
+  skills: ['Python','Web Scraping','Playwright','Selenium','ETL','Apache Airflow','Pandas','MySQL','LLM Data Enrichment','Dashboards','Java (basic)'],
+  location: 'Vienna',
+  languages: 'German (native), English C1',
+  education: 'Software & Information Engineering — TU Wien',
+  summary: 'Python developer with ~4 years building production web-scraping and ETL pipelines (Playwright, Selenium, Airflow) plus LLM-based data enrichment.',
 };
 
 // ── Unified example catalogue (Austria) ──────────────────────
 const _EXAMPLES_AT = [
-  { area:'IT',        areaClass:'it',       name:'Roman Labuš',   desc:'Python · Web Scraping · Airflow · Apify · ETL · LLM', load: ()=>_loadExDirect(9) },
+  { area:'IT',        areaClass:'it',       name:'Lukas Berger',  desc:'Python · Web Scraping · Airflow · ETL · SQL · LLM', load: ()=>_loadExDirect(9) },
   { area:'IT',        areaClass:'it',       name:'Max Weber',     desc:'Python · FastAPI · React · PostgreSQL · Docker',    badge:'PDF',  load: ()=>loadExamplePdf() },
   { area:'IT',        areaClass:'it',       name:'Julia Reiter',  desc:'IT Project Mgmt · Scrum · PMP · JIRA · SAP S/4HANA', load: ()=>_loadExDirect(8) },
   { area:'Data',      areaClass:'data',     name:'Sophie Wagner', desc:'Python · Spark · Airflow · Azure · Power BI · dbt', load: ()=>_loadExDirect(4) },
@@ -303,21 +303,21 @@ const _EXAMPLES_AT = [
 // optional PDF endpoint. Bratislava/Košice/Žilina, Slovak languages, Slovak
 // market salaries — the SK counterpart to the Austrian set above.
 const _SK_EXAMPLES_DATA = [
-  { area:'IT', areaClass:'it', name:'Roman Labuš',
-    desc:'Python · Web Scraping · Airflow · Apify · ETL · LLM',
-    cand:{ name:'Roman Labuš', text:`Python Developer with ~4 years of experience in web scraping, ETL pipelines and LLM-based data enrichment, based in Bratislava.
+  { area:'IT', areaClass:'it', name:'Tomáš Král',
+    desc:'Python · Web Scraping · Airflow · ETL · SQL · LLM',
+    cand:{ name:'Tomáš Král', text:`Python Developer with ~4 years of experience in web scraping, ETL pipelines and LLM-based data enrichment, based in Bratislava.
 
-Currently Programmer at Acme Recruitment, Bratislava (Aug 2022–present): built and maintained web-scraping solutions for internal competitive-intelligence products (real-estate market, lead research, jobs intelligence). Built automated scrapers in Python with Playwright and Selenium that collect high-value market data, directly generating €100k+ in yearly revenue. Developed ETL pipelines with Apache Airflow and Pandas to load large datasets into SQL databases, integrated Apify to replace manual data collection, and contributed to LLM-based data-enrichment workflows in close collaboration with analysts. Built internal IT tools, project-tracking dashboards and reporting that gave management real-time visibility. Research Intern – Discussion Toxicity Prediction at KInIT (Aug 2023–Jun 2024): trained multilingual models classifying toxic social-media content and built visualizations for end users. Earlier: Copywriter at WebSupport s.r.o. (2016–2022) and Vice President for PR at NGO BEST Bratislava (2021–2022).
+Currently Data Engineer at DataStream s.r.o. Bratislava (2022–present): built and maintained web-scraping solutions for internal market-intelligence products (real-estate market, lead research). Built automated scrapers in Python with Playwright and Selenium, developed ETL pipelines with Apache Airflow and Pandas to load large datasets into SQL databases, and contributed to LLM-based data-enrichment workflows in close collaboration with analysts. Built internal tooling, project-tracking dashboards and reporting. Previously Junior Data Engineer at MarketSense s.r.o. (2020–2022): maintained Python ingestion jobs and SQL reporting.
 
-Education: Slovak University of Technology, FIIT Bratislava – Information & Communication Technologies (2022–2024); University of Logistics (VŠLG) Bratislava – Informatics in Logistics (2025–present).
-Key skills: Python, web scraping (Playwright, Selenium, Apify), ETL, Apache Airflow, Pandas, MySQL/SQL, LLM data enrichment, dashboards, Java (basic).
+Education: FIIT STU Bratislava – Information & Communication Technologies (2016–2020).
+Key skills: Python, web scraping (Playwright, Selenium), ETL, Apache Airflow, Pandas, MySQL/SQL, LLM data enrichment, dashboards, Java (basic).
 Languages: Slovak (native), English C1, German B2.
-Driving licence: B. Interests: philosophy & business discussion clubs, improv theatre, writing a sci-fi novel ("Mission 77").` },
-    prof:{ name:'Roman Labuš', title:'Python Developer (Web Scraping & Data)', experience_years:'4 years',
-      skills:['Python','Web Scraping','Playwright','Selenium','Apify','ETL','Apache Airflow','Pandas','MySQL','LLM Data Enrichment','Dashboards','Java (basic)'],
+Driving licence: B. Interests: hiking, chess, amateur astronomy.` },
+    prof:{ name:'Tomáš Král', title:'Python Developer (Web Scraping & Data)', experience_years:'4 years',
+      skills:['Python','Web Scraping','Playwright','Selenium','ETL','Apache Airflow','Pandas','MySQL','LLM Data Enrichment','Dashboards','Java (basic)'],
       location:'Bratislava', languages:'Slovak (native), English C1, German B2',
       education:'ICT — FIIT STU Bratislava',
-      summary:'Python developer with ~4 years building production web-scraping and ETL pipelines (Playwright, Selenium, Apify, Airflow) plus LLM-based data enrichment; scrapers generated €100k+ in annual revenue.' } },
+      summary:'Python developer with ~4 years building production web-scraping and ETL pipelines (Playwright, Selenium, Airflow) plus LLM-based data enrichment.' } },
 
   { area:'IT', areaClass:'it', name:'Marek Novák', badge:'PDF',
     pdf:'/api/candidate/example-pdf-sk', pdfFile:'Marek_Novak_CV.pdf',
@@ -499,7 +499,7 @@ function _loadExDirect(n) {
     6: [_EXAMPLE_CANDIDATE_6, _EXAMPLE_PROFILE_6, 'Felix Kraus (example)'],
     7: [_EXAMPLE_CANDIDATE_7, _EXAMPLE_PROFILE_7, 'Stefan Hofer (example)'],
     8: [_EXAMPLE_CANDIDATE_8, _EXAMPLE_PROFILE_8, 'Julia Reiter (example)'],
-    9: [_EXAMPLE_CANDIDATE_9, _EXAMPLE_PROFILE_9, 'Roman Labuš (example)'],
+    9: [_EXAMPLE_CANDIDATE_9, _EXAMPLE_PROFILE_9, 'Lukas Berger (example)'],
   };
   const [cand, prof, label] = map[n];
   app._activateCVMode();

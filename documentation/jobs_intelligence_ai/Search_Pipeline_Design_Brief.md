@@ -154,5 +154,5 @@ Use realistic-looking rows rather than lorem ipsum:
   Oberösterreich — €55,356 — online 2026-06-13 — grade B 72%, rationale "Good fit: ETL,
   SQL databases and data processing alignment."
 - **Contact card:** Maria Mayer · mayer@inter.com · 0901/123123.
-- **Candidate/User rows:** use a placeholder staff name + role (e.g. "Roman Labuš —
+- **Candidate/User rows:** use a placeholder staff name + role (e.g. "Lukas Berger —
   Administrator") for the `User`/assigned-salesperson column.

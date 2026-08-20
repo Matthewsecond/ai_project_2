@@ -4,6 +4,13 @@ Flask web app for AI-powered job matching over an **OpenAI vector store + MySQL*
 Austrian and Slovak job markets. Search and matching run multiple parallel vector-retrieval
 cycles and resolve results against the live database.
 
+> **Note — portfolio / code-reading only.** This repo is published to show the architecture and
+> code. It is **not runnable standalone**: it depends on private infrastructure (an OpenAI vector
+> store and a MySQL/RDS database that are not included), so `pip install -e .` will install the
+> package but the app cannot serve real data without that backend. Read the code and the
+> [architecture docs](documentation/jobs_intelligence_ai/ARCHITECTURE.md) rather than expecting to
+> boot it locally.
+
 ## Prerequisites
 
 - Python 3.11+

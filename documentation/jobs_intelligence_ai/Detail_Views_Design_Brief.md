@@ -128,7 +128,7 @@ sub-tab.
   Innere Stadt, Kärnten — €56,000/mo — AMS portal — grade A 90% — description placeholder:
   "Design and maintain ETL pipelines, own our Python-based data infrastructure..." —
   match rationale: "Strong match: Python, ETL, SQL, automation and LLM/AI skills."
-- **Candidate:** "Roman Labuš" — Python Developer (Web Scraping & Data) — Bratislava —
+- **Candidate:** "Lukas Berger" — Python Developer (Web Scraping & Data) — Bratislava —
   status New — 3 matched jobs — skills: Python, Selenium, SQL, ETL, Docker.
 - **Company:** "Anexia Cloud Solutions GmbH" — Klagenfurt, Kärnten — 4 active jobs — avg
   salary €54,500 — top roles: Data Engineer, DevOps Engineer — contact: Maria Mayer.
