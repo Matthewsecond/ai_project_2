@@ -1,8 +1,8 @@
-# Jobs Intelligence AI
+# AI Job Matcher
 
-Flask web app for AI-powered job matching over an **OpenAI vector store + MySQL**, for the
-Austrian and Slovak job markets. Search and matching run multiple parallel vector-retrieval
-cycles and resolve results against the live database.
+Flask web app for AI-powered job matching over an **OpenAI vector store + MySQL**, for
+European job markets. Search and matching run multiple parallel vector-retrieval cycles
+and resolve results against the live database.
 
 > **Note — portfolio / code-reading only.** This repo is published to show the architecture and
 > code. It is **not runnable standalone**: it depends on private infrastructure (an OpenAI vector
