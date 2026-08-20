@@ -11,6 +11,23 @@ cycles and resolve results against the live database.
 > [architecture docs](documentation/jobs_intelligence_ai/ARCHITECTURE.md) rather than expecting to
 > boot it locally.
 
+## Screenshots
+
+_Running app (Slovakia profile). Real candidate/contact names and internal CRM status
+values are masked; everything else is genuine output. More in [`screenshots/`](screenshots/)._
+
+**Search — AI match results** (jobs scored 0–100 with an A/B grade, saved into a pipeline)
+
+![AI match results](screenshots/search-ai-match.png)
+
+**Pipeline — saved jobs** (editable per-row sales status, filters, CSV/Excel export)
+
+![Pipeline jobs](screenshots/pipeline-jobs.png)
+
+**Pipeline — saved companies**
+
+![Pipeline companies](screenshots/pipeline-companies.png)
+
 ## Prerequisites
 
 - Python 3.11+
